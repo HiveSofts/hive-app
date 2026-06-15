@@ -1,0 +1,30 @@
+[package]
+name = "hive-app"
+version = "0.1.0"
+description = "Hive - Cross-platform local development environment"
+authors = ["Arshia Mohammadi <itarrshia@gmail.com>"]
+edition = "2021"
+license = "MIT"
+repository = "https://github.com/LaraPire/hive-app"
+
+[lib]
+name = "hive_app_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
+tauri-plugin-opener = "2"
+tauri-plugin-dialog = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+chrono = "0.4"
+reqwest = { version = "0.13.4", features = ["stream", "json"] }
+flate2 = "1.1.9"
+tar = "0.4.46"
+zip = "8.6.0"
+futures-util = "0.3.32"
+liblzma = "0.4.6"
+zstd = "0.13.3"

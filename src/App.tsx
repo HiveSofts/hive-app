@@ -1,0 +1,40 @@
+import { useEffect, useState } from "react";
+
+import { invoke } from "@tauri-apps/api/core";
+import { RouterProvider } from "react-router-dom";
+
+import { OnboardingWizard } from "./pages/onboarding/OnboardingWizard";
+import { router } from "./routes";
+
+function App() {
+    const [showOnboarding, setShowOnboarding] = useState<boolean | null>(null);
+
+    useEffect(() => {
+        checkOnboardingStatus();
+    }, []);
+
+    const checkOnboardingStatus = async () => {
+        try {
+            const config = await invoke<any>("get_user_config");
+            if (config && config.onboardingCompleted) {
+                setShowOnboarding(false);
+            } else {
+                setShowOnboarding(true);
+            }
+        } catch {
+            setShowOnboarding(true);
+        }
+    };
+
+    if (showOnboarding === null) {
+        return (
+            <div className="flex min-h-screen items-center justify-center bg-zinc-950">
+                <img src="/hive.png" alt="Hive" className="w-16 h-16 animate-pulse" />
+            </div>
+        );
+    }
+
+    return showOnboarding ? <OnboardingWizard /> : <RouterProvider router={router} />;
+}
+
+export default App;

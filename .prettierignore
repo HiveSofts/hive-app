@@ -1,0 +1,11 @@
+node_modules/
+dist/
+build/
+src-tauri/target/
+.vite/
+*.log
+coverage/
+.idea/
+.vscode/
+*.min.js
+*.min.css
