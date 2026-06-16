@@ -20,13 +20,13 @@ hive status               # Show current runtime status
 
 ## Commands
 
-| Command | Description |
-|---------|-------------|
-| `install <type> <version>` | Install PHP or Node.js runtime |
-| `list <type>` | List installed versions |
-| `use <type> <version>` | Switch default version |
-| `uninstall <type> <version>` | Remove runtime |
-| `status` | Show current status |
+| Command                      | Description                    |
+| ---------------------------- | ------------------------------ |
+| `install <type> <version>`   | Install PHP or Node.js runtime |
+| `list <type>`                | List installed versions        |
+| `use <type> <version>`       | Switch default version         |
+| `uninstall <type> <version>` | Remove runtime                 |
+| `status`                     | Show current status            |
 
 ## Examples
 

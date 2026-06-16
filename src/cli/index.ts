@@ -4,10 +4,7 @@ import { Command } from "commander";
 
 const program = new Command();
 
-program
-    .name("hive")
-    .description("🐝 Hive CLI - Development Manager")
-    .version("1.0.0");
+program.name("hive").description("🐝 Hive CLI - Development Manager").version("1.0.0");
 
 if (process.argv.length === 2) {
     program.outputHelp();

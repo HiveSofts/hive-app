@@ -4,7 +4,7 @@ import { Step2Paths } from "@/pages/onboarding/components/Step2Paths";
 import { Step3UserInfo } from "@/pages/onboarding/components/Step3UserInfo";
 import { Step4GitHub } from "@/pages/onboarding/components/Step4GitHub";
 import { Step5Theme } from "@/pages/onboarding/components/Step5Theme";
-import {Step6Runtime} from "@/pages/onboarding/components/Step6runtime.tsx";
+import { Step6Runtime } from "@/pages/onboarding/components/Step6runtime.tsx";
 
 export function OnboardingWizard() {
     const { step, nextStep, generateUserCode, config } = useOnboarding();
