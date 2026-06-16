@@ -25,3 +25,4 @@ build
 NOTE.md
 tmp
 tmp.sh
+bun.lock
