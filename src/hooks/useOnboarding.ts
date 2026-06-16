@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
+
 import { invoke } from "@tauri-apps/api/core";
-import { UserConfig, DEFAULT_USER_CONFIG } from "@/types/onboarding.type";
+
+import { DEFAULT_USER_CONFIG, UserConfig } from "@/types/onboarding.type";
 
 export function useOnboarding() {
     const [config, setConfig] = useState<UserConfig>(DEFAULT_USER_CONFIG);
