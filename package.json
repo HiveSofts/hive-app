@@ -12,6 +12,19 @@
         "format-check": "prettier --check .",
         "cli": "bunx tsx src/cli/index.ts"
     },
+    "lint-staged": {
+        "*.{js,jsx,ts,tsx,json,css,scss,md}": [
+            "prettier --write",
+            "git add"
+        ],
+        "src/**/*.{js,jsx,ts,tsx}": [
+            "bunx tsc --noEmit"
+        ],
+        "src-tauri/**/*.rs": [
+            "cargo fmt -- --check",
+            "cargo clippy -- -D warnings"
+        ]
+    },
     "dependencies": {
         "@fontsource-variable/inter": "^5.2.8",
         "@react-icons/all-files": "^4.1.0",
@@ -51,6 +64,8 @@
         "@types/react": "^19.1.8",
         "@types/react-dom": "^19.1.6",
         "@vitejs/plugin-react": "^4.6.0",
+        "husky": "^9.1.7",
+        "lint-staged": "^17.0.7",
         "prettier": "^3.8.4",
         "typescript": "~5.8.3",
         "vite": "^7.0.4"
