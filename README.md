@@ -85,12 +85,6 @@ This project is part of [LaraPire](https://github.com/LaraPire/) — crafting mo
 
 ---
 
-## 📄 License
-
-MIT — Open source for everyone.
-
----
-
 ## 🤝 Contributing
 
 Issues and pull requests welcome.  
