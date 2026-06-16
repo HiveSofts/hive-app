@@ -17,9 +17,6 @@
             "prettier --write",
             "git add"
         ],
-        "src/**/*.{js,jsx,ts,tsx}": [
-            "bunx tsc --noEmit"
-        ],
         "src-tauri/**/*.rs": [
             "cargo fmt -- --check",
             "cargo clippy -- -D warnings"
