@@ -28,3 +28,6 @@ zip = "8.6.0"
 futures-util = "0.3.32"
 liblzma = "0.4.6"
 zstd = "0.13.3"
+
+[target."cfg(not(any(target_os = \"android\", target_os = \"ios\")))".dependencies]
+tauri-plugin-cli = "2"
