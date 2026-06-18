@@ -50,7 +50,7 @@ export interface UserConfig {
     // System
     userCode: string;
     githubStarred: boolean;
-    onboardingCompleted: boolean;
+    onboarding_complete: boolean;
 
     // Runtime (PHP & Node.js)
     phpVersion?: string;
@@ -111,7 +111,7 @@ export const DEFAULT_USER_CONFIG: UserConfig = {
     // System
     userCode: "",
     githubStarred: false,
-    onboardingCompleted: false,
+    onboarding_complete: false,
 
     // Runtime (PHP & Node.js)
     phpVersion: undefined,
