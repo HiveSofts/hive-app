@@ -1,8 +1,6 @@
 import { useEffect, useState } from "react";
-
 import { invoke } from "@tauri-apps/api/core";
 import { RouterProvider } from "react-router-dom";
-
 import { OnboardingWizard } from "./pages/onboarding/OnboardingWizard";
 import { router } from "./routes";
 
@@ -15,12 +13,8 @@ function App() {
 
     const checkOnboardingStatus = async () => {
         try {
-            const config = await invoke<any>("get_user_config");
-            if (config && config.onboardingCompleted) {
-                setShowOnboarding(false);
-            } else {
-                setShowOnboarding(true);
-            }
+            const status = await invoke<boolean>("get_onboarding_status");
+            setShowOnboarding(!status);
         } catch {
             setShowOnboarding(true);
         }

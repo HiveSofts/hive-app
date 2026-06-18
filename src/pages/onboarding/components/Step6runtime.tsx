@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 
 import { invoke } from "@tauri-apps/api/core";
+import { homeDir } from "@tauri-apps/api/path";
 import {
     AlertTriangle,
     ArrowRight,
@@ -65,6 +66,7 @@ interface InstallJob {
     error?: string;
     url: string;
     destPath: string;
+    archiveType: string;
 }
 
 interface Props {
@@ -86,8 +88,17 @@ function formatBytes(bytes: number) {
     return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
 }
 
+let cachedHomeDir: string | null = null;
+
+async function expandHomePath(path: string): Promise<string> {
+    if (!cachedHomeDir) {
+        cachedHomeDir = await homeDir();
+    }
+    return path.replace(/^~/, cachedHomeDir);
+}
+
 function hiveInstallPath(type: "php" | "node", version: string): string {
-    return `${type === "php" ? "~/.hive/runtimes/php" : "~/.hive/runtimes/node"}/${version}`;
+    return `~/.hive/runtimes/${type}/${version}`;
 }
 
 function getPhpDownloadUrl(entry: PhpVersionEntry, os: OS): string | null {
@@ -105,10 +116,10 @@ function getNodeDownloadUrl(entry: NodeVersionEntry, os: OS, arch: Arch): string
 
 async function detectPhp(): Promise<RuntimeInfo> {
     try {
-        const result = await invoke<{ version: string; path: string; isHive: boolean }>(
+        const result = await invoke<{ version: string; path: string; is_hive: boolean }>(
             "detect_php"
         );
-        return { found: true, version: result.version, path: result.path, isHive: result.isHive };
+        return { found: true, version: result.version, path: result.path, isHive: result.is_hive };
     } catch {
         return { found: false };
     }
@@ -116,10 +127,10 @@ async function detectPhp(): Promise<RuntimeInfo> {
 
 async function detectNode(): Promise<RuntimeInfo> {
     try {
-        const result = await invoke<{ version: string; path: string; isHive: boolean }>(
+        const result = await invoke<{ version: string; path: string; is_hive: boolean }>(
             "detect_node"
         );
-        return { found: true, version: result.version, path: result.path, isHive: result.isHive };
+        return { found: true, version: result.version, path: result.path, isHive: result.is_hive };
     } catch {
         return { found: false };
     }
@@ -134,15 +145,28 @@ async function getInstalledHiveRuntimes(type: "php" | "node"): Promise<string[]>
 }
 
 async function downloadAndExtract(
+    runtime: string,
+    version: string,
     url: string,
-    destPath: string,
-    onProgress: (progress: number) => void
+    archiveType: string
 ): Promise<void> {
-    await invoke("download_and_extract", {
-        url,
-        destPath,
-        onProgress: (progress: number) => onProgress(progress),
+    await invoke("install_runtime", {
+        runtime,
+        version,
+        downloadUrl: url,
+        archiveType,
     });
+}
+
+async function checkAndInstallDependencies(): Promise<
+    {
+        step: string;
+        message: string;
+        progress: number | null;
+        success: boolean;
+    }[]
+> {
+    return await invoke("check_and_install_dependencies");
 }
 
 function RuntimeCard({
@@ -420,50 +444,151 @@ function InstallProgress({ jobs }: { jobs: InstallJob[] }) {
                 </span>
             </div>
             <div className="p-4 space-y-3 font-mono text-xs">
-                {jobs.map((job, i) => (
-                    <div key={i} className="space-y-1.5">
-                        <div className="flex items-center gap-2">
-                            <span className="text-zinc-500">❯</span>
-                            <span className="text-zinc-200">
-                                hive install {job.type} {job.version}
-                            </span>
-                            <span className={cn("ml-auto", statusColor[job.status])}>
-                                {statusLabel[job.status]}
-                            </span>
-                        </div>
-                        <div className="text-zinc-500 pl-4 text-[10px]">→ {job.url}</div>
-                        <div className="text-zinc-500 pl-4">→ {job.destPath}</div>
-                        {(job.status === "downloading" || job.status === "extracting") && (
-                            <>
-                                <div className="h-1.5 bg-zinc-800 rounded-full overflow-hidden">
-                                    <div
-                                        className={cn(
-                                            "h-full rounded-full transition-all duration-300",
-                                            job.status === "downloading"
-                                                ? "bg-amber-500"
-                                                : "bg-blue-500"
-                                        )}
-                                        style={{ width: `${job.progress}%` }}
-                                    />
-                                </div>
-                                <div className="text-zinc-600 pl-4 text-[10px]">
-                                    {job.progress}%
-                                </div>
-                            </>
-                        )}
-                        {job.status === "done" && (
-                            <div className="text-emerald-400 pl-4">
-                                ✔ Installed at {job.destPath}
+                {jobs.map((job, i) => {
+                    const safeProgress = Number.isFinite(job.progress) ? job.progress : 0;
+                    return (
+                        <div key={i} className="space-y-1.5">
+                            <div className="flex items-center gap-2">
+                                <span className="text-zinc-500">❯</span>
+                                <span className="text-zinc-200">
+                                    hive install {job.type} {job.version}
+                                </span>
+                                <span className={cn("ml-auto", statusColor[job.status])}>
+                                    {statusLabel[job.status]}
+                                </span>
                             </div>
-                        )}
-                        {job.status === "error" && (
-                            <div className="text-red-400 pl-4">✖ {job.error}</div>
-                        )}
-                    </div>
-                ))}
+                            <div className="text-zinc-500 pl-4 text-[10px]">→ {job.url}</div>
+                            <div className="text-zinc-500 pl-4">→ {job.destPath}</div>
+                            {(job.status === "downloading" || job.status === "extracting") && (
+                                <>
+                                    <div className="h-2 bg-zinc-800 rounded-full overflow-hidden">
+                                        <div
+                                            className={cn(
+                                                "h-full rounded-full transition-all duration-300",
+                                                job.status === "downloading"
+                                                    ? "bg-amber-500"
+                                                    : "bg-blue-500"
+                                            )}
+                                            style={{ width: `${Math.min(safeProgress, 100)}%` }}
+                                        />
+                                    </div>
+                                    <div className="flex justify-between text-zinc-600 text-[10px]">
+                                        <span>
+                                            {job.status === "downloading"
+                                                ? "Downloading"
+                                                : "Extracting"}
+                                        </span>
+                                        <span>
+                                            {safeProgress > 0
+                                                ? `${Math.round(safeProgress)}%`
+                                                : "..."}
+                                        </span>
+                                    </div>
+                                </>
+                            )}
+                            {job.status === "done" && (
+                                <div className="text-emerald-400 pl-4">
+                                    ✔ Installed at {job.destPath}
+                                </div>
+                            )}
+                            {job.status === "error" && (
+                                <div className="text-red-400 pl-4">✖ {job.error}</div>
+                            )}
+                        </div>
+                    );
+                })}
             </div>
         </div>
     );
+}
+
+function DependencyInstaller({ onComplete }: { onComplete: () => void }) {
+    const [statuses, setStatuses] = useState<
+        {
+            step: string;
+            message: string;
+            progress: number | null;
+            success: boolean;
+        }[]
+    >([]);
+    const [isInstalling, setIsInstalling] = useState(false);
+    const [done, setDone] = useState(false);
+
+    useEffect(() => {
+        const install = async () => {
+            setIsInstalling(true);
+            try {
+                const result = await checkAndInstallDependencies();
+                setStatuses(result);
+                const allSuccess = result.every((r) => r.success);
+                if (allSuccess) {
+                    setDone(true);
+                    setTimeout(() => {
+                        onComplete();
+                    }, 1000);
+                } else {
+                    setDone(true);
+                    setTimeout(() => {
+                        onComplete();
+                    }, 2000);
+                }
+            } catch (error) {
+                console.error("Dependency installation failed:", error);
+                setDone(true);
+                setTimeout(() => {
+                    onComplete();
+                }, 2000);
+            }
+            setIsInstalling(false);
+        };
+        install();
+    }, []);
+
+    if (isInstalling || statuses.length > 0) {
+        return (
+            <div className="rounded-xl border bg-zinc-950 overflow-hidden">
+                <div className="flex items-center gap-1.5 px-4 py-2 border-b border-zinc-800 bg-zinc-900/80">
+                    <span className="w-2.5 h-2.5 rounded-full bg-red-500/80" />
+                    <span className="w-2.5 h-2.5 rounded-full bg-yellow-500/80" />
+                    <span className="w-2.5 h-2.5 rounded-full bg-emerald-500/80" />
+                    <span className="ml-2 text-[11px] text-zinc-500 font-mono">
+                        hive — dependency installer
+                    </span>
+                </div>
+                <div className="p-4 space-y-2 font-mono text-xs">
+                    {statuses.map((status, i) => (
+                        <div key={i} className="flex items-center gap-2">
+                            {status.success ? (
+                                <CheckCircle2 className="w-3 h-3 text-emerald-400" />
+                            ) : (
+                                <XCircle className="w-3 h-3 text-red-400" />
+                            )}
+                            <span className={status.success ? "text-zinc-300" : "text-red-300"}>
+                                {status.message}
+                            </span>
+                            {status.progress !== null && (
+                                <span className="text-zinc-500 ml-auto">{status.progress}%</span>
+                            )}
+                        </div>
+                    ))}
+                    {isInstalling && (
+                        <div className="flex items-center gap-2 text-zinc-400">
+                            <Loader2 className="w-3 h-3 animate-spin" />
+                            Installing dependencies...
+                        </div>
+                    )}
+                    {done && (
+                        <div className="flex items-center gap-2 text-emerald-400 pt-2 border-t border-zinc-800">
+                            <CheckCircle2 className="w-3 h-3" />
+                            Dependencies ready
+                        </div>
+                    )}
+                </div>
+            </div>
+        );
+    }
+
+    return null;
 }
 
 export function Step6Runtime({ onNext }: Props) {
@@ -484,6 +609,7 @@ export function Step6Runtime({ onNext }: Props) {
     const [allDone, setAllDone] = useState(false);
     const [showPhpPicker, setShowPhpPicker] = useState(false);
     const [showNodePicker, setShowNodePicker] = useState(false);
+    const [dependenciesReady, setDependenciesReady] = useState(false);
 
     useEffect(() => {
         const init = async () => {
@@ -549,29 +675,35 @@ export function Step6Runtime({ onNext }: Props) {
             version: string;
             url: string;
             destPath: string;
+            archiveType: string;
         }[] = [];
 
         if (selectedPhp && !installedPhp.includes(selectedPhp) && phpManifest) {
             const entry = phpManifest.php[selectedPhp];
             const url = getPhpDownloadUrl(entry, os);
+            const archiveType =
+                os === "windows" ? entry.windows?.type || "zip" : entry.linux?.type || "tar.zst";
             if (url)
                 toInstall.push({
                     type: "php",
                     version: selectedPhp,
                     url,
                     destPath: hiveInstallPath("php", selectedPhp),
+                    archiveType,
                 });
         }
 
         if (selectedNode && !installedNode.includes(selectedNode) && nodeManifest) {
             const entry = nodeManifest.node[selectedNode];
             const url = getNodeDownloadUrl(entry, os, arch);
+            const archiveType = os === "windows" ? "zip" : os === "macos" ? "tar.gz" : "tar.gz";
             if (url)
                 toInstall.push({
                     type: "node",
                     version: selectedNode,
                     url,
                     destPath: hiveInstallPath("node", selectedNode),
+                    archiveType,
                 });
         }
 
@@ -580,7 +712,11 @@ export function Step6Runtime({ onNext }: Props) {
             return;
         }
 
-        const initial: InstallJob[] = toInstall.map((j) => ({ ...j, status: "idle", progress: 0 }));
+        const initial: InstallJob[] = toInstall.map((j) => ({
+            ...j,
+            status: "idle",
+            progress: 0,
+        }));
         setJobs(initial);
 
         for (let i = 0; i < initial.length; i++) {
@@ -592,9 +728,7 @@ export function Step6Runtime({ onNext }: Props) {
             updateJob((j) => ({ ...j, status: "downloading", progress: 0 }));
 
             try {
-                await downloadAndExtract(job.url, job.destPath, (progress: number) => {
-                    updateJob((j) => ({ ...j, progress }));
-                });
+await downloadAndExtract(job.type, job.version, job.url, job.archiveType);
                 updateJob((j) => ({ ...j, status: "done", progress: 100 }));
                 if (job.type === "php") setInstalledPhp((prev) => [...prev, job.version]);
                 else setInstalledNode((prev) => [...prev, job.version]);
@@ -612,20 +746,28 @@ export function Step6Runtime({ onNext }: Props) {
         (selectedPhp && !installedPhp.includes(selectedPhp)) ||
         (selectedNode && !installedNode.includes(selectedNode));
 
-    const getResultData = () => ({
-        phpVersion: phpInfo?.found ? phpInfo.version : (selectedPhp ?? undefined),
-        nodeVersion: nodeInfo?.found ? nodeInfo.version : (selectedNode ?? undefined),
-        phpPath: phpInfo?.found
+    const getResultData = async () => {
+        const phpPath = phpInfo?.found
             ? phpInfo.path
             : selectedPhp
-              ? hiveInstallPath("php", selectedPhp)
-              : undefined,
-        nodePath: nodeInfo?.found
+              ? await expandHomePath(hiveInstallPath("php", selectedPhp))
+              : undefined;
+
+        const nodePath = nodeInfo?.found
             ? nodeInfo.path
             : selectedNode
-              ? hiveInstallPath("node", selectedNode)
-              : undefined,
-    });
+              ? await expandHomePath(hiveInstallPath("node", selectedNode))
+              : undefined;
+
+        return {
+            phpVersion: phpInfo?.found ? phpInfo.version : (selectedPhp ?? undefined),
+            nodeVersion: nodeInfo?.found ? nodeInfo.version : (selectedNode ?? undefined),
+            phpPath,
+            nodePath,
+        };
+    };
+
+    const isLinux = os === "linux";
 
     return (
         <div className="flex min-h-screen items-center justify-center bg-linear-to-br from-amber-50 to-white dark:from-zinc-950 dark:to-zinc-900 p-4">
@@ -644,195 +786,223 @@ export function Step6Runtime({ onNext }: Props) {
                     </div>
                 </CardHeader>
                 <CardContent className="space-y-5 pt-2">
-                    <div className="space-y-2">
-                        <RuntimeCard
-                            label="PHP"
-                            emoji="🐘"
-                            info={phpInfo}
-                            loading={detecting}
-                            installedVersions={installedPhp}
-                            type="php"
-                        />
-                        <RuntimeCard
-                            label="Node.js"
-                            emoji="🟩"
-                            info={nodeInfo}
-                            loading={detecting}
-                            installedVersions={installedNode}
-                            type="node"
-                        />
-                    </div>
-
-                    {!detecting && bothPresent && !allDone && jobs.length === 0 && (
-                        <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/5 p-4 flex items-center gap-3">
-                            <CheckCircle2 className="w-5 h-5 text-emerald-500 shrink-0" />
-                            <div className="flex-1 text-sm">
-                                Runtimes are available. You can install additional versions below.
-                            </div>
-                            <Button
-                                onClick={() => onNext(getResultData())}
-                                className="bg-emerald-600 hover:bg-emerald-700 text-white gap-2 shrink-0"
-                            >
-                                Continue <ArrowRight className="w-4 h-4" />
-                            </Button>
-                        </div>
-                    )}
-
-                    {!detecting && jobs.length === 0 && (
+                    {!dependenciesReady ? (
+                        <DependencyInstaller onComplete={() => setDependenciesReady(true)} />
+                    ) : (
                         <>
-                            {manifestLoading && (
-                                <div className="flex items-center gap-3 text-sm text-muted-foreground">
-                                    <Loader2 className="w-4 h-4 animate-spin" />
-                                    Fetching available versions...
+                            {isLinux && (
+                                <div className="rounded-xl border border-amber-500/30 bg-amber-500/5 p-4">
+                                    <div className="flex items-center gap-2 text-amber-600 dark:text-amber-400 text-sm">
+                                        <AlertTriangle className="w-4 h-4 shrink-0" />
+                                        <span>
+                                            On Linux, only the system-installed version of PHP and
+                                            Node.js is supported. Multiple versions are not
+                                            available.
+                                        </span>
+                                    </div>
                                 </div>
                             )}
-                            {manifestError && (
-                                <div className="rounded-xl border border-red-500/30 bg-red-500/5 p-3 flex items-center gap-2 text-sm text-red-500">
-                                    <AlertTriangle className="w-4 h-4 shrink-0" />
-                                    {manifestError}
+
+                            <div className="space-y-2">
+                                <RuntimeCard
+                                    label="PHP"
+                                    emoji="🐘"
+                                    info={phpInfo}
+                                    loading={detecting}
+                                    installedVersions={installedPhp}
+                                    type="php"
+                                />
+                                <RuntimeCard
+                                    label="Node.js"
+                                    emoji="🟩"
+                                    info={nodeInfo}
+                                    loading={detecting}
+                                    installedVersions={installedNode}
+                                    type="node"
+                                />
+                            </div>
+
+                            {!detecting && bothPresent && !allDone && jobs.length === 0 && (
+                                <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/5 p-4 flex items-center gap-3">
+                                    <CheckCircle2 className="w-5 h-5 text-emerald-500 shrink-0" />
+                                    <div className="flex-1 text-sm">
+                                        Runtimes are available. You can install additional versions
+                                        below.
+                                    </div>
                                     <Button
-                                        size="sm"
-                                        variant="ghost"
-                                        className="ml-auto gap-1"
-                                        onClick={() => window.location.reload()}
+                                        onClick={async () => onNext(await getResultData())}
+                                        className="bg-emerald-600 hover:bg-emerald-700 text-white gap-2 shrink-0"
                                     >
-                                        <RefreshCw className="w-3 h-3" />
-                                        Retry
+                                        Continue <ArrowRight className="w-4 h-4" />
                                     </Button>
                                 </div>
                             )}
 
-                            {phpManifest && (
-                                <div className="space-y-2">
-                                    <button
-                                        onClick={() => setShowPhpPicker((v) => !v)}
-                                        className="w-full flex items-center gap-2.5 px-4 py-3 rounded-xl border bg-muted/30 hover:bg-muted/50 transition-colors text-left"
-                                    >
-                                        <span className="text-xl">🐘</span>
-                                        <div className="flex-1">
-                                            <div className="text-sm font-semibold">Install PHP</div>
-                                            <div className="text-[11px] text-muted-foreground">
-                                                {selectedPhp
-                                                    ? `PHP ${selectedPhp} → ${hiveInstallPath("php", selectedPhp)}`
-                                                    : "Select version to install"}
-                                            </div>
+                            {!detecting && jobs.length === 0 && !isLinux && (
+                                <>
+                                    {manifestLoading && (
+                                        <div className="flex items-center gap-3 text-sm text-muted-foreground">
+                                            <Loader2 className="w-4 h-4 animate-spin" />
+                                            Fetching available versions...
                                         </div>
-                                        <Badge className="bg-amber-500/10 text-amber-500 border-amber-500/20 text-[10px]">
-                                            {selectedPhp ? `PHP ${selectedPhp}` : "Choose"}
-                                        </Badge>
-                                        {showPhpPicker ? (
-                                            <ChevronUp className="w-4 h-4" />
-                                        ) : (
-                                            <ChevronDown className="w-4 h-4" />
-                                        )}
-                                    </button>
-                                    {showPhpPicker && (
-                                        <PhpVersionPicker
-                                            manifest={phpManifest}
-                                            selected={selectedPhp}
-                                            onSelect={setSelectedPhp}
-                                            os={os}
-                                            installed={installedPhp}
-                                        />
                                     )}
-                                </div>
-                            )}
-
-                            {nodeManifest && (
-                                <div className="space-y-2">
-                                    <button
-                                        onClick={() => setShowNodePicker((v) => !v)}
-                                        className="w-full flex items-center gap-2.5 px-4 py-3 rounded-xl border bg-muted/30 hover:bg-muted/50 transition-colors text-left"
-                                    >
-                                        <span className="text-xl">🟩</span>
-                                        <div className="flex-1">
-                                            <div className="text-sm font-semibold">
-                                                Install Node.js
-                                            </div>
-                                            <div className="text-[11px] text-muted-foreground">
-                                                {selectedNode
-                                                    ? `Node ${selectedNode} → ${hiveInstallPath("node", selectedNode)}`
-                                                    : "Select version to install"}
-                                            </div>
+                                    {manifestError && (
+                                        <div className="rounded-xl border border-red-500/30 bg-red-500/5 p-3 flex items-center gap-2 text-sm text-red-500">
+                                            <AlertTriangle className="w-4 h-4 shrink-0" />
+                                            {manifestError}
+                                            <Button
+                                                size="sm"
+                                                variant="ghost"
+                                                className="ml-auto gap-1"
+                                                onClick={() => window.location.reload()}
+                                            >
+                                                <RefreshCw className="w-3 h-3" />
+                                                Retry
+                                            </Button>
                                         </div>
-                                        <div className="flex items-center gap-1.5">
-                                            {selectedNode &&
-                                                nodeManifest.node[selectedNode]?.lts && (
-                                                    <Badge className="bg-blue-500/10 text-blue-500 border-blue-500/20 text-[10px]">
-                                                        LTS
-                                                    </Badge>
+                                    )}
+
+                                    {phpManifest && (
+                                        <div className="space-y-2">
+                                            <button
+                                                onClick={() => setShowPhpPicker((v) => !v)}
+                                                className="w-full flex items-center gap-2.5 px-4 py-3 rounded-xl border bg-muted/30 hover:bg-muted/50 transition-colors text-left"
+                                            >
+                                                <span className="text-xl">🐘</span>
+                                                <div className="flex-1">
+                                                    <div className="text-sm font-semibold">
+                                                        Install PHP
+                                                    </div>
+                                                    <div className="text-[11px] text-muted-foreground">
+                                                        {selectedPhp
+                                                            ? `PHP ${selectedPhp} → ${hiveInstallPath("php", selectedPhp)}`
+                                                            : "Select version to install"}
+                                                    </div>
+                                                </div>
+                                                <Badge className="bg-amber-500/10 text-amber-500 border-amber-500/20 text-[10px]">
+                                                    {selectedPhp ? `PHP ${selectedPhp}` : "Choose"}
+                                                </Badge>
+                                                {showPhpPicker ? (
+                                                    <ChevronUp className="w-4 h-4" />
+                                                ) : (
+                                                    <ChevronDown className="w-4 h-4" />
                                                 )}
-                                            <Badge className="bg-green-500/10 text-green-500 border-green-500/20 text-[10px]">
-                                                {selectedNode ? `Node ${selectedNode}` : "Choose"}
-                                            </Badge>
+                                            </button>
+                                            {showPhpPicker && (
+                                                <PhpVersionPicker
+                                                    manifest={phpManifest}
+                                                    selected={selectedPhp}
+                                                    onSelect={setSelectedPhp}
+                                                    os={os}
+                                                    installed={installedPhp}
+                                                />
+                                            )}
                                         </div>
-                                        {showNodePicker ? (
-                                            <ChevronUp className="w-4 h-4" />
-                                        ) : (
-                                            <ChevronDown className="w-4 h-4" />
-                                        )}
-                                    </button>
-                                    {showNodePicker && (
-                                        <NodeVersionPicker
-                                            manifest={nodeManifest}
-                                            selected={selectedNode}
-                                            onSelect={setSelectedNode}
-                                            os={os}
-                                            arch={arch}
-                                            installed={installedNode}
-                                        />
                                     )}
-                                </div>
+
+                                    {nodeManifest && (
+                                        <div className="space-y-2">
+                                            <button
+                                                onClick={() => setShowNodePicker((v) => !v)}
+                                                className="w-full flex items-center gap-2.5 px-4 py-3 rounded-xl border bg-muted/30 hover:bg-muted/50 transition-colors text-left"
+                                            >
+                                                <span className="text-xl">🟩</span>
+                                                <div className="flex-1">
+                                                    <div className="text-sm font-semibold">
+                                                        Install Node.js
+                                                    </div>
+                                                    <div className="text-[11px] text-muted-foreground">
+                                                        {selectedNode
+                                                            ? `Node ${selectedNode} → ${hiveInstallPath("node", selectedNode)}`
+                                                            : "Select version to install"}
+                                                    </div>
+                                                </div>
+                                                <div className="flex items-center gap-1.5">
+                                                    {selectedNode &&
+                                                        nodeManifest.node[selectedNode]?.lts && (
+                                                            <Badge className="bg-blue-500/10 text-blue-500 border-blue-500/20 text-[10px]">
+                                                                LTS
+                                                            </Badge>
+                                                        )}
+                                                    <Badge className="bg-green-500/10 text-green-500 border-green-500/20 text-[10px]">
+                                                        {selectedNode
+                                                            ? `Node ${selectedNode}`
+                                                            : "Choose"}
+                                                    </Badge>
+                                                </div>
+                                                {showNodePicker ? (
+                                                    <ChevronUp className="w-4 h-4" />
+                                                ) : (
+                                                    <ChevronDown className="w-4 h-4" />
+                                                )}
+                                            </button>
+                                            {showNodePicker && (
+                                                <NodeVersionPicker
+                                                    manifest={nodeManifest}
+                                                    selected={selectedNode}
+                                                    onSelect={setSelectedNode}
+                                                    os={os}
+                                                    arch={arch}
+                                                    installed={installedNode}
+                                                />
+                                            )}
+                                        </div>
+                                    )}
+
+                                    <Button
+                                        onClick={startInstall}
+                                        disabled={!needsInstall || manifestLoading}
+                                        className="w-full bg-amber-500 hover:bg-amber-600 text-white gap-2"
+                                    >
+                                        <Download className="w-4 h-4" />
+                                        Install Selected Runtimes
+                                    </Button>
+                                </>
                             )}
 
-                            <Button
-                                onClick={startInstall}
-                                disabled={!needsInstall || manifestLoading}
-                                className="w-full bg-amber-500 hover:bg-amber-600 text-white gap-2"
-                            >
-                                <Download className="w-4 h-4" />
-                                Install Selected Runtimes
-                            </Button>
-                        </>
-                    )}
+                            {isLinux && !allDone && jobs.length === 0 && (
+                                <Button
+                                    onClick={async () => onNext(await getResultData())}
+                                    className="w-full bg-emerald-600 hover:bg-emerald-700 text-white gap-2"
+                                >
+                                    Continue <ArrowRight className="w-4 h-4" />
+                                </Button>
+                            )}
 
-                    {jobs.length > 0 && <InstallProgress jobs={jobs} />}
+                            {jobs.length > 0 && <InstallProgress jobs={jobs} />}
 
-                    {allDone && (
-                        <div className="space-y-3">
-                            <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/5 p-4 space-y-2">
-                                <div className="flex items-center gap-2 text-emerald-500 font-medium text-sm">
-                                    <CheckCircle2 className="w-4 h-4" />
-                                    Runtime setup complete
+                            {allDone && (
+                                <div className="space-y-3">
+                                    <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/5 p-4 space-y-2">
+                                        <div className="flex items-center gap-2 text-emerald-500 font-medium text-sm">
+                                            <CheckCircle2 className="w-4 h-4" />
+                                            Runtime setup complete
+                                        </div>
+                                        {selectedPhp && installedPhp.includes(selectedPhp) && (
+                                            <div className="text-xs font-mono">
+                                                PHP {selectedPhp} →{" "}
+                                                {hiveInstallPath("php", selectedPhp)}
+                                            </div>
+                                        )}
+                                        {selectedNode && installedNode.includes(selectedNode) && (
+                                            <div className="text-xs font-mono">
+                                                Node {selectedNode} →{" "}
+                                                {hiveInstallPath("node", selectedNode)}
+                                            </div>
+                                        )}
+                                    </div>
+                                    <Button
+                                        onClick={async () => {
+                                            await onNext(await getResultData());
+                                            window.location.href = "/";
+                                        }}
+                                        className="w-full bg-amber-500 hover:bg-amber-600 text-white gap-2"
+                                    >
+                                        Continue <ArrowRight className="w-4 h-4" />
+                                    </Button>
                                 </div>
-                                {selectedPhp && installedPhp.includes(selectedPhp) && (
-                                    <div className="text-xs font-mono">
-                                        PHP {selectedPhp} → {hiveInstallPath("php", selectedPhp)}
-                                    </div>
-                                )}
-                                {selectedNode && installedNode.includes(selectedNode) && (
-                                    <div className="text-xs font-mono">
-                                        Node {selectedNode} →{" "}
-                                        {hiveInstallPath("node", selectedNode)}
-                                    </div>
-                                )}
-                            </div>
-                            <Button
-                                onClick={() => onNext(getResultData())}
-                                className="w-full bg-amber-500 hover:bg-amber-600 text-white gap-2"
-                            >
-                                Continue <ArrowRight className="w-4 h-4" />
-                            </Button>
-                        </div>
-                    )}
-
-                    {!detecting && !allDone && jobs.length === 0 && (
-                        <button
-                            onClick={() => onNext(getResultData())}
-                            className="w-full text-center text-xs text-muted-foreground hover:text-foreground transition-colors py-1"
-                        >
-                            Skip for now — I'll manage runtimes manually
-                        </button>
+                            )}
+                        </>
                     )}
                 </CardContent>
             </Card>

@@ -1,5 +1,5 @@
 use std::io::{BufRead, BufReader};
-use std::path::{Path, PathBuf};
+use std::path::{ PathBuf};
 use std::process::{Command, Stdio};
 use std::sync::{Arc, Mutex};
 use std::thread;
@@ -12,48 +12,121 @@ fn expand_home(path: &str) -> String {
             return path.replacen("~", &home, 1);
         }
     }
-
     path.to_string()
 }
 
-fn hive_projects_dir() -> PathBuf {
+fn hive_base_dir() -> PathBuf {
     let home = std::env::var("HOME").unwrap_or_else(|_| ".".to_string());
-    PathBuf::from(home).join(".hive").join("projects")
+    PathBuf::from(home).join(".hive")
 }
 
-fn detect_laravel_command() -> Result<(String, Vec<String>), String> {
+fn hive_projects_dir() -> PathBuf {
+    hive_base_dir().join("projects")
+}
+
+fn hive_bin_dir() -> PathBuf {
+    hive_base_dir().join("bin")
+}
+
+/// FIX: PATH را روی command اعمال می‌کند تا subprocess بتواند laravel، composer و php را پیدا کند
+fn setup_path(cmd: &mut Command) {
+    let hive_bin = hive_bin_dir();
+    let current_path = std::env::var("PATH").unwrap_or_default();
+    let new_path = format!("{}:{}", hive_bin.to_string_lossy(), current_path);
+    cmd.env("PATH", new_path);
+}
+
+/// FIX: lock file های قبلی Laravel installer را پاک می‌کند تا "Another installation in progress" نگیریم
+fn clear_laravel_locks() {
     let home = std::env::var("HOME").unwrap_or_default();
 
-    let paths = vec![
-        format!("{}/.config/composer/vendor/bin/laravel", home),
-        format!("{}/.composer/vendor/bin/laravel", home),
-        "/usr/local/bin/laravel".to_string(),
+    let lock_locations = [
+        format!("{}/.config/laravel/installer/lock", home),
+        format!("{}/.laravel/installer/lock", home),
+        "/tmp/laravel-installer.lock".to_string(),
     ];
 
-    for path in paths {
-        if Path::new(&path).exists() {
-            return Ok((path, vec!["new".to_string()]));
+    for lock in &lock_locations {
+        let lock_path = PathBuf::from(lock);
+        if lock_path.exists() {
+            let _ = std::fs::remove_file(&lock_path);
+        }
+        // اگر directory است
+        if lock_path.is_dir() {
+            let _ = std::fs::remove_dir_all(&lock_path);
         }
     }
+}
 
-    if Command::new("laravel").arg("--version").output().is_ok() {
-        return Ok(("laravel".to_string(), vec!["new".to_string()]));
-    }
+/// FIX: قبل از اجرا وابستگی‌ها را چک می‌کند و خطای شفاف می‌دهد
+fn validate_dependencies() -> Result<(), String> {
+    let bin_dir = hive_bin_dir();
 
-    if Command::new("composer").arg("--version").output().is_ok() {
-        return Ok((
-            "composer".to_string(),
-            vec![
-                "create-project".to_string(),
-                "laravel/laravel".to_string(),
-            ],
+    // چک laravel
+    let laravel_path = bin_dir.join("laravel");
+    if !laravel_path.exists() {
+        return Err(format!(
+            "Laravel installer not found at {}. Please install it first via Runtime Manager.",
+            laravel_path.display()
         ));
     }
 
-    Err(
-        "Laravel CLI or Composer not found. Please install Laravel CLI or Composer."
-            .to_string(),
-    )
+    // چک executable bit
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        if let Ok(meta) = std::fs::metadata(&laravel_path) {
+            let mode = meta.permissions().mode();
+            if mode & 0o111 == 0 {
+                return Err(format!(
+                    "Laravel wrapper at {} is not executable. Run: chmod +x {}",
+                    laravel_path.display(),
+                    laravel_path.display()
+                ));
+            }
+        }
+    }
+
+    // چک laravel.phar
+    let laravel_phar = bin_dir.join("laravel.phar");
+    if !laravel_phar.exists() {
+        return Err(format!(
+            "laravel.phar not found at {}. Please reinstall Laravel installer.",
+            laravel_phar.display()
+        ));
+    }
+
+    // چک composer
+    let composer_path = bin_dir.join("composer");
+    if !composer_path.exists() {
+        return Err(format!(
+            "Composer not found at {}. Please install it first via Runtime Manager.",
+            composer_path.display()
+        ));
+    }
+
+    // چک php (hive یا system)
+    let php_in_hive = bin_dir.join("php");
+    let php_available = if php_in_hive.exists() {
+        true
+    } else {
+        // چک system php
+        Command::new("php").arg("-r").arg("echo 1;").output().is_ok()
+    };
+
+    if !php_available {
+        return Err(
+            "PHP not found. Please install PHP via Runtime Manager or ensure system PHP is available."
+                .to_string(),
+        );
+    }
+
+    Ok(())
+}
+
+/// FIX: مستقیم با path کامل laravel را اجرا می‌کند، نه فقط نام
+fn get_laravel_executable() -> PathBuf {
+    hive_bin_dir().join("laravel")
 }
 
 #[tauri::command]
@@ -69,6 +142,12 @@ pub async fn create_laravel_project(
         return Err("Project name cannot be empty.".to_string());
     }
 
+    // FIX: اول همه dependency ها را چک می‌کنیم
+    validate_dependencies()?;
+
+    // FIX: lock file های قبلی را پاک می‌کنیم
+    clear_laravel_locks();
+
     if !project_path.exists() {
         std::fs::create_dir_all(&project_path)
             .map_err(|e| format!("Failed to create projects directory: {}", e))?;
@@ -77,35 +156,60 @@ pub async fn create_laravel_project(
     let full_path = project_path.join(&name);
 
     if full_path.exists() {
-        return Err(format!(
-            "Project already exists: {}",
-            full_path.display()
-        ));
+        return Err(format!("Project already exists: {}", full_path.display()));
     }
 
-    let (binary, mut command_args) = detect_laravel_command()?;
+    // FIX: آرگومان‌های اضافه را فیلتر می‌کنیم
+    let final_args: Vec<String> = args
+        .into_iter()
+        .filter(|arg| arg != "--no-boost" && arg != "--boost")
+        .collect();
 
-    command_args.push(name.clone());
-    command_args.extend(args.clone());
+    // FIX: path کامل executable را می‌گیریم
+    let laravel_exe = get_laravel_executable();
+    let laravel_exe_str = laravel_exe.to_string_lossy().to_string();
 
     let _ = app.emit(
         "laravel-output",
         serde_json::json!({
             "type": "info",
-            "data": format!("Using command: {} {}", binary, command_args.join(" "))
+            "data": format!(
+                "Creating project: {} in {}\nUsing: {}",
+                name,
+                project_path.display(),
+                laravel_exe_str
+            )
         }),
     );
 
-    let mut cmd = Command::new(&binary);
-
-    cmd.args(&command_args)
+    // FIX: Command با path کامل ساخته می‌شود
+    let mut cmd = Command::new(&laravel_exe);
+    cmd.arg("new")
+        .arg(&name)
+        .args(&final_args)
         .current_dir(&project_path)
         .stdout(Stdio::piped())
         .stderr(Stdio::piped());
 
+    // FIX: PATH را روی همین command اعمال می‌کنیم
+    setup_path(&mut cmd);
+
+    // FIX: HOME را هم set می‌کنیم در صورتی که Tauri آن را inherit نکرده باشد
+    if let Ok(home) = std::env::var("HOME") {
+        cmd.env("HOME", home);
+    }
+
+    let _ = app.emit(
+        "laravel-output",
+        serde_json::json!({
+            "type": "info",
+            "data": format!("Running: {} new {}", laravel_exe_str, name)
+        }),
+    );
+
     let mut child = cmd
         .spawn()
-        .map_err(|e| format!("Failed to start Laravel process: {}", e))?;
+        .map_err(|e| format!("Failed to start Laravel process: {} (executable: {})", e, laravel_exe_str))?;
 
     let stdout = child
         .stdout
@@ -121,10 +225,8 @@ pub async fn create_laravel_project(
 
     let stdout_handle = {
         let app = app.clone();
-
         thread::spawn(move || {
             let reader = BufReader::new(stdout);
-
             for line in reader.lines().map_while(Result::ok) {
                 let _ = app.emit(
                     "laravel-output",
@@ -140,10 +242,8 @@ pub async fn create_laravel_project(
     let stderr_handle = {
         let app = app.clone();
         let error_buffer = error_buffer.clone();
-
         thread::spawn(move || {
             let reader = BufReader::new(stderr);
-
             for line in reader.lines().map_while(Result::ok) {
                 {
                     if let Ok(mut err) = error_buffer.lock() {
@@ -151,7 +251,6 @@ pub async fn create_laravel_project(
                         err.push('\n');
                     }
                 }
-
                 let _ = app.emit(
                     "laravel-output",
                     serde_json::json!({
@@ -177,17 +276,13 @@ pub async fn create_laravel_project(
             .unwrap_or_else(|_| "Unknown Laravel error.".to_string());
 
         if err.trim().is_empty() {
-            return Err(format!(
-                "Laravel failed with exit code: {:?}",
-                status.code()
-            ));
+            return Err(format!("Laravel failed with exit code: {:?}", status.code()));
         }
-
         return Err(format!("Laravel failed:\n{}", err));
     }
 
+    // ذخیره metadata پروژه
     let hive_dir = hive_projects_dir();
-
     std::fs::create_dir_all(&hive_dir)
         .map_err(|e| format!("Failed to create Hive projects directory: {}", e))?;
 
@@ -196,7 +291,6 @@ pub async fn create_laravel_project(
         "type": "laravel",
         "path": full_path.to_string_lossy().to_string(),
         "created_at": chrono::Local::now().to_rfc3339(),
-        "command": format!("{} {}", binary, command_args.join(" ")),
     });
 
     let project_file = hive_dir.join(format!("{}.json", name));
@@ -245,6 +339,5 @@ pub fn get_existing_projects() -> Result<Vec<String>, String> {
     }
 
     projects.sort();
-
     Ok(projects)
 }

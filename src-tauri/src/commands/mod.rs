@@ -1,9 +1,11 @@
-pub mod config;
-pub mod onboarding;
-pub mod laravel;
-pub mod runtime;
+mod config;
+mod laravel;
+mod onboarding;
+mod runtime;
+mod installer;
 
 pub use config::*;
-pub use onboarding::*;
 pub use laravel::*;
+pub use onboarding::*;
 pub use runtime::*;
+pub use installer::*;

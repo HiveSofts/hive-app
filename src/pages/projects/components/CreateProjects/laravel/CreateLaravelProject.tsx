@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useMemo } from "react";
 
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
@@ -44,6 +44,7 @@ interface OutputLine {
 }
 
 let activeInstallation: { name: string; status: string } | null = null;
+const startedInstalls = new Set<string>();
 
 const STEPS = [
     { label: "Name", icon: Layers },
@@ -96,6 +97,12 @@ const DATABASE_OPTIONS: { id: DatabaseDriver; label: string; emoji: string }[] =
     { id: "sqlsrv", label: "SQL Server", emoji: "🪟" },
     { id: "mongodb", label: "MongoDB", emoji: "🍃" },
 ];
+
+const cleanLine = (line: string) =>
+    line
+        .replace(/[\u001b\u009b][[()#;?]*(?:[0-9]{1,4}(?:;[0-9]{0,4})*)?[0-9A-ORZcf-nqry=><]/g, "")
+        .trim();
+
 function TerminalPanel({
     data,
     onDone,
@@ -105,6 +112,7 @@ function TerminalPanel({
     onDone: (project: any) => void;
     projectsPath: string;
 }) {
+    const runId = useMemo(() => crypto.randomUUID(), []);
     const [lines, setLines] = useState<OutputLine[]>([
         { text: `Creating Laravel project: ${data.name}`, type: "info" },
         { text: `Location: ${projectsPath}/${data.name}`, type: "info" },
@@ -116,59 +124,47 @@ function TerminalPanel({
     const bottomRef = useRef<HTMLDivElement>(null);
     const addedLines = useRef<Set<string>>(new Set());
 
-    // فیلتر خطوط تکراری و ناخواسته
     const shouldAddLine = (line: string): boolean => {
-        if (!line.trim()) return false;
-        if (line.startsWith("$") && line.includes("composer create-project")) return false;
-        if (line.includes("───")) return false;
-        if (line.startsWith("[") && line.includes("m")) return false;
-        if (addedLines.current.has(line)) return false;
-        addedLines.current.add(line);
+        const normalized = cleanLine(line);
+        if (!normalized) return false;
+        if (normalized.startsWith("$") && normalized.includes("composer create-project")) return false;
+        if (normalized.includes("───")) return false;
+        if (normalized.startsWith("[") && normalized.includes("m")) return false;
+        if (addedLines.current.has(normalized)) return false;
+        addedLines.current.add(normalized);
         return true;
     };
 
-    // اضافه کردن خط جدید
     const addLine = (text: string, type: OutputLine["type"] = "output") => {
-        if (!shouldAddLine(text)) return;
-        setLines((prev) => [
-            ...prev,
-            {
-                text: text.replace(
-                    /[\u001b\u009b][[()#;?]*(?:[0-9]{1,4}(?:;[0-9]{0,4})*)?[0-9A-ORZcf-nqry=><]/g,
-                    ""
-                ),
-                type,
-            },
-        ]);
+        const normalized = cleanLine(text);
+        if (!shouldAddLine(normalized)) return;
+        setLines((prev) => [...prev, { text: normalized, type }]);
         setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: "smooth" }), 50);
     };
 
     useEffect(() => {
         const unlistenPromise = listen("laravel-output", (event: any) => {
             const payload = event.payload;
+            if (payload.runId && payload.runId !== runId) return;
+
             if (payload.type === "stdout") {
                 payload.data.split("\n").forEach((line: string) => {
                     const trimmed = line.trim();
                     if (trimmed && !trimmed.startsWith("$")) {
-                        if (
-                            trimmed.includes("✔") ||
-                            trimmed.includes("success") ||
-                            trimmed.includes("done")
-                        ) {
+                        if (trimmed.includes("✔") || trimmed.includes("success") || trimmed.includes("done")) {
                             addLine(trimmed, "success");
                         } else if (trimmed.includes("error") || trimmed.includes("failed")) {
                             addLine(trimmed, "error");
-                        } else if (
-                            !trimmed.includes("───") &&
-                            !trimmed.startsWith("[") &&
-                            !trimmed.includes("composer create-project")
-                        ) {
+                        } else if (!trimmed.includes("───") && !trimmed.startsWith("[") && !trimmed.includes("composer create-project")) {
                             addLine(trimmed, "output");
                         }
                     }
                 });
             } else if (payload.type === "stderr") {
-                addLine(payload.data, "error");
+                payload.data.split("\n").forEach((line: string) => {
+                    const trimmed = line.trim();
+                    if (trimmed) addLine(trimmed, "error");
+                });
             } else if (payload.type === "complete") {
                 addLine("✓ Project created successfully!", "success");
                 addLine(`➜ cd ${projectsPath}/${data.name}`, "info");
@@ -176,30 +172,34 @@ function TerminalPanel({
                 setDone(true);
                 setIsInstalling(false);
                 activeInstallation = null;
+                startedInstalls.delete(`${projectsPath}/${data.name}`);
             } else if (payload.type === "error") {
                 setError(payload.data);
                 addLine(`Error: ${payload.data}`, "error");
                 setIsInstalling(false);
                 activeInstallation = null;
+                startedInstalls.delete(`${projectsPath}/${data.name}`);
             }
         });
 
         const sendCommand = async () => {
+            const installKey = `${projectsPath}/${data.name}`;
+            if (startedInstalls.has(installKey)) return;
+            startedInstalls.add(installKey);
+
             if (activeInstallation) {
-                addLine(
-                    `⚠️ Another installation (${activeInstallation.name}) is in progress. Please wait.`,
-                    "error"
-                );
+                addLine(`⚠️ Another installation (${activeInstallation.name}) is in progress. Please wait.`, "error");
                 setIsInstalling(false);
+                startedInstalls.delete(installKey);
                 return;
             }
+
             activeInstallation = { name: data.name, status: "installing" };
+
             try {
                 let args: string[] = [];
-                if (data.starterKit !== "none" && data.starterKit !== "custom")
-                    args.push(`--${data.starterKit}`);
-                if (data.starterKit === "custom" && data.customRepo)
-                    args.push(`--using=${data.customRepo}`);
+                if (data.starterKit !== "none" && data.starterKit !== "custom") args.push(`--${data.starterKit}`);
+                if (data.starterKit === "custom" && data.customRepo) args.push(`--using=${data.customRepo}`);
                 if (data.auth === "workos") args.push("--workos");
                 if (data.auth === "none") args.push("--no-authentication");
                 args.push(`--database=${data.database}`, `--${data.testing}`);
@@ -210,19 +210,23 @@ function TerminalPanel({
                     projectPath: projectsPath,
                     name: data.name,
                     args,
+                    runId,
                 });
             } catch (err: any) {
                 addLine(`Failed to create project: ${err}`, "error");
                 setError(err.toString());
                 setIsInstalling(false);
                 activeInstallation = null;
+                startedInstalls.delete(installKey);
             }
         };
+
         sendCommand();
+
         return () => {
             unlistenPromise.then((unlisten) => unlisten());
         };
-    }, []);
+    }, [data.name, data.starterKit, data.customRepo, data.auth, data.database, data.testing, data.boost, projectsPath, runId]);
 
     return (
         <div className="space-y-4">
@@ -292,6 +296,7 @@ function TerminalPanel({
         </div>
     );
 }
+
 export function CreateLaravelProject({ onSuccess }: CreateLaravelProjectProps) {
     const [step, setStep] = useState(0);
     const [projectsPath, setProjectsPath] = useState("~/Projects");

@@ -141,7 +141,7 @@ export function Step1Intro({ onNext }: { onNext: () => void }) {
                         onClick={onNext}
                         className="w-full bg-amber-500 hover:bg-amber-600 text-white"
                     >
-                        Get Started →
+                        Get Started
                     </Button>
                 </CardContent>
             </Card>

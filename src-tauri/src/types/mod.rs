@@ -37,7 +37,7 @@ pub struct UserConfig {
     pub telemetry: bool,
     pub user_code: String,
     pub github_starred: bool,
-    pub onboarding_completed: bool,
+    pub onboarding_complete: bool,
 }
 
 impl Default for UserConfig {
@@ -77,7 +77,7 @@ impl Default for UserConfig {
             telemetry: false,
             user_code: String::new(),
             github_starred: false,
-            onboarding_completed: false,
+            onboarding_complete: false,
         }
     }
 }
