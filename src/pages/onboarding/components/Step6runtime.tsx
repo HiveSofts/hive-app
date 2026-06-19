@@ -728,7 +728,7 @@ export function Step6Runtime({ onNext }: Props) {
             updateJob((j) => ({ ...j, status: "downloading", progress: 0 }));
 
             try {
-await downloadAndExtract(job.type, job.version, job.url, job.archiveType);
+                await downloadAndExtract(job.type, job.version, job.url, job.archiveType);
                 updateJob((j) => ({ ...j, status: "done", progress: 100 }));
                 if (job.type === "php") setInstalledPhp((prev) => [...prev, job.version]);
                 else setInstalledNode((prev) => [...prev, job.version]);

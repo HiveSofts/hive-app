@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
+
 import { invoke } from "@tauri-apps/api/core";
 import { RouterProvider } from "react-router-dom";
+
 import { OnboardingWizard } from "./pages/onboarding/OnboardingWizard";
 import { router } from "./routes";
 

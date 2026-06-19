@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
+
 import { invoke } from "@tauri-apps/api/core";
+
 import { DEFAULT_USER_CONFIG, UserConfig } from "@/types/onboarding.type";
 
 export function useOnboarding() {
