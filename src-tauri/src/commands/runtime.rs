@@ -121,7 +121,6 @@ fn create_runtime_link(runtime: &str, version: &str, runtime_path: &PathBuf) -> 
     }
 
     if runtime == "composer" || runtime == "laravel" {
-        // ۱. PHAR رو به bin کپی می‌کنیم
         let bin_phar = bin_dir.join(format!("{}.phar", runtime));
         if bin_phar.exists() {
             fs::remove_file(&bin_phar).map_err(|e| format!("Cannot remove old phar: {}", e))?;
@@ -130,14 +129,12 @@ fn create_runtime_link(runtime: &str, version: &str, runtime_path: &PathBuf) -> 
             .map_err(|e| format!("Cannot copy phar to bin: {}", e))?;
         make_executable(&bin_phar)?;
 
-        // ۲. wrapper بدون پسوند می‌سازیم — این مهم‌ترینه
         let no_ext_link = bin_dir.join(runtime);
         if no_ext_link.exists() {
             fs::remove_file(&no_ext_link).map_err(|e| format!("Cannot remove old wrapper: {}", e))?;
         }
         write_phar_wrapper(&no_ext_link, &bin_phar)?;
 
-        // ۳. wrapper با پسوند .sh هم می‌سازیم
         let sh_link = bin_dir.join(format!("{}.sh", runtime));
         if sh_link.exists() {
             fs::remove_file(&sh_link).ok();
@@ -183,7 +180,6 @@ fn write_phar_wrapper(wrapper_path: &PathBuf, phar_path: &PathBuf) -> Result<(),
 
     make_executable(wrapper_path)?;
 
-    // verify که واقعاً ساخته شد
     if !wrapper_path.exists() {
         return Err(format!("Wrapper was not created: {}", wrapper_path.display()));
     }
@@ -241,7 +237,7 @@ pub async fn download_and_extract(
     ));
 
     let client = reqwest::Client::builder()
-        .redirect(reqwest::redirect::Policy::limited(10))  // FIX: redirect را follow می‌کند
+        .redirect(reqwest::redirect::Policy::limited(10)) 
         .build()
         .map_err(|e| e.to_string())?;
 
@@ -384,7 +380,6 @@ fn fix_extracted_permissions(dest: &PathBuf) -> Result<(), String> {
 async fn download_phar(runtime: &str, url: &str, dest: &PathBuf) -> Result<(), String> {
     fs::create_dir_all(dest).map_err(|e| e.to_string())?;
 
-    // FIX: از Client با redirect استفاده می‌کنیم تا GitHub releases درست دانلود شوند
     let client = reqwest::Client::builder()
         .redirect(reqwest::redirect::Policy::limited(10))
         .build()
@@ -396,7 +391,6 @@ async fn download_phar(runtime: &str, url: &str, dest: &PathBuf) -> Result<(), S
         return Err(format!("HTTP error: {}", response.status()));
     }
 
-    // FIX: Content-Type چک می‌کنیم که HTML دریافت نکرده باشیم
     let content_type = response
         .headers()
         .get(reqwest::header::CONTENT_TYPE)
@@ -406,7 +400,6 @@ async fn download_phar(runtime: &str, url: &str, dest: &PathBuf) -> Result<(), S
 
     let content = response.bytes().await.map_err(|e| e.to_string())?;
 
-    // FIX: اگر HTML دریافت کردیم، خطا می‌دهیم
     if content_type.contains("text/html") {
         return Err(format!(
             "Downloaded content is HTML (likely a redirect or error page), not a PHAR. URL: {}",
@@ -414,13 +407,11 @@ async fn download_phar(runtime: &str, url: &str, dest: &PathBuf) -> Result<(), S
         ));
     }
 
-    // FIX: بررسی می‌کنیم PHAR header دارد (<?php یا PHAR signature)
     let is_valid_phar = content.starts_with(b"<?php") || content.len() > 100;
     if !is_valid_phar {
         return Err(format!("Downloaded file appears invalid (too small: {} bytes)", content.len()));
     }
 
-    // FIX: نام فایل از runtime گرفته می‌شود، نه از URL
     let filename = match runtime {
         "composer" => "composer.phar",
         "laravel"  => "laravel.phar",

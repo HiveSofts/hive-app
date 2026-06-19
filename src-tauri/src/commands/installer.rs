@@ -40,8 +40,6 @@ fn set_executable(_path: &PathBuf) -> Result<(), String> {
     Ok(())
 }
 
-/// FIX: هم wrapper بدون پسوند (laravel, composer) هم با پسوند (laravel.sh, composer.sh) میسازه
-/// wrapper از php داخل hive استفاده میکنه، اگر نبود از system php
 fn create_phar_wrappers(bin_dir: &PathBuf, name: &str, phar_path: &PathBuf) -> Result<(), String> {
     fs::create_dir_all(bin_dir).map_err(|e| e.to_string())?;
 
@@ -55,11 +53,9 @@ fn create_phar_wrappers(bin_dir: &PathBuf, name: &str, phar_path: &PathBuf) -> R
             bin, phar_win
         );
 
-        // با پسوند .bat
         let bat_path = bin_dir.join(format!("{}.bat", name));
         fs::write(&bat_path, &content).map_err(|e| format!("Cannot write {}.bat: {}", name, e))?;
 
-        // بدون پسوند (برای Command::new("laravel") در Rust)
         let no_ext = bin_dir.join(name);
         fs::write(&no_ext, &content).map_err(|e| format!("Cannot write {}: {}", name, e))?;
     } else {
@@ -75,17 +71,14 @@ fn create_phar_wrappers(bin_dir: &PathBuf, name: &str, phar_path: &PathBuf) -> R
             phar, phar
         );
 
-        // با پسوند .sh
         let sh_path = bin_dir.join(format!("{}.sh", name));
         fs::write(&sh_path, &content).map_err(|e| format!("Cannot write {}.sh: {}", name, e))?;
         set_executable(&sh_path)?;
 
-        // بدون پسوند — این مهم‌ترینه، Command::new("laravel") این رو پیدا میکنه
         let no_ext = bin_dir.join(name);
         fs::write(&no_ext, &content).map_err(|e| format!("Cannot write {}: {}", name, e))?;
         set_executable(&no_ext)?;
 
-        // verify هر دو ساخته شدن
         if !sh_path.exists() {
             return Err(format!("{}.sh was not created", name));
         }
@@ -113,7 +106,6 @@ async fn download_file(url: &str, output_path: &PathBuf) -> Result<(), String> {
         return Err(format!("HTTP {} for URL: {}", response.status(), url));
     }
 
-    // چک میکنیم HTML نگرفتیم
     let content_type = response
         .headers()
         .get(reqwest::header::CONTENT_TYPE)
@@ -157,7 +149,6 @@ pub async fn check_and_install_dependencies(_app: AppHandle) -> Result<Vec<Insta
     let base_path = get_hive_base_path();
     let runtimes_path = get_hive_runtimes_path();
 
-    // ساخت دایرکتوری‌ها
     for dir in [&base_path, &bin_path, &runtimes_path] {
         if !dir.exists() {
             fs::create_dir_all(dir).map_err(|e| e.to_string())?;
@@ -180,7 +171,6 @@ pub async fn check_and_install_dependencies(_app: AppHandle) -> Result<Vec<Insta
         let no_ext_path = bin_path.join(name);
         let sh_path = bin_path.join(format!("{}.sh", name));
 
-        // چک میکنیم همه فایل‌های لازم هستن
         let already_installed = phar_path.exists() && no_ext_path.exists() && sh_path.exists();
 
         if already_installed {
@@ -193,7 +183,6 @@ pub async fn check_and_install_dependencies(_app: AppHandle) -> Result<Vec<Insta
             continue;
         }
 
-        // دانلود PHAR
         statuses.push(InstallStatus {
             step: format!("download_{}", name),
             message: format!("Downloading {}...", name),
@@ -205,7 +194,6 @@ pub async fn check_and_install_dependencies(_app: AppHandle) -> Result<Vec<Insta
             Ok(_) => {
                 set_executable(&phar_path).ok();
 
-                // FIX: ساخت هر دو wrapper — با پسوند و بدون پسوند
                 match create_phar_wrappers(&bin_path, name, &phar_path) {
                     Ok(_) => {
                         statuses.push(InstallStatus {

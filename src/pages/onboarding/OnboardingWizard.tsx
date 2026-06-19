@@ -1,4 +1,5 @@
 import { useOnboarding } from "@/hooks/useOnboarding";
+
 import { Step1Intro } from "./components/Step1Intro";
 import { Step2Paths } from "./components/Step2Paths";
 import { Step3UserInfo } from "./components/Step3UserInfo";
@@ -26,10 +27,10 @@ export function OnboardingWizard() {
             return <Step5Theme onComplete={(data) => nextStep(data)} onBack={() => prevStep()} />;
         case 5:
             return (
-                <Step6Runtime 
+                <Step6Runtime
                     onNext={(data) => {
                         nextStep(data);
-                    }} 
+                    }}
                 />
             );
         default:

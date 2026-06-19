@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, useMemo } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
@@ -11,6 +11,7 @@ import {
     Layers,
     Loader2,
     Terminal,
+    XCircle,
 } from "lucide-react";
 
 import { ReactIcon } from "@/components/icons/ReactIcon";
@@ -43,8 +44,54 @@ interface OutputLine {
     type: "info" | "success" | "error" | "output";
 }
 
-let activeInstallation: { name: string; status: string } | null = null;
-const startedInstalls = new Set<string>();
+interface ActiveInstallation {
+    name: string;
+    status: string;
+    processId?: number;
+    installKey?: string;
+    runId?: string;
+    projectsPath?: string;
+    formData?: FormData;
+}
+
+const ACTIVE_INSTALL_STORAGE_KEY = "hive:active-laravel-installation";
+
+// activeInstallation is mirrored to localStorage so that reloading the page
+// (which resets all in-memory JS state) does not make the app "forget" that
+// an installation is still running in the background on the Rust side.
+// Reloading the webview never kills the underlying OS process — it only
+// kills our ability to track/cancel it unless we persist the pid somewhere.
+function loadActiveInstallation(): ActiveInstallation | null {
+    try {
+        const raw = localStorage.getItem(ACTIVE_INSTALL_STORAGE_KEY);
+        if (!raw) return null;
+        return JSON.parse(raw) as ActiveInstallation;
+    } catch {
+        return null;
+    }
+}
+
+function persistActiveInstallation(value: ActiveInstallation | null) {
+    try {
+        if (value) {
+            localStorage.setItem(ACTIVE_INSTALL_STORAGE_KEY, JSON.stringify(value));
+        } else {
+            localStorage.removeItem(ACTIVE_INSTALL_STORAGE_KEY);
+        }
+    } catch {
+        // localStorage unavailable; in-memory state still works for this session.
+    }
+}
+
+function setActiveInstallation(value: ActiveInstallation | null) {
+    activeInstallation = value;
+    persistActiveInstallation(value);
+}
+
+let activeInstallation: ActiveInstallation | null = loadActiveInstallation();
+const startedInstalls = new Set<string>(
+    activeInstallation?.installKey ? [activeInstallation.installKey] : []
+);
 
 const STEPS = [
     { label: "Name", icon: Layers },
@@ -107,27 +154,48 @@ function TerminalPanel({
     data,
     onDone,
     projectsPath,
+    onReset,
+    resumeRunId,
 }: {
     data: FormData;
     onDone: (project: any) => void;
     projectsPath: string;
+    onReset: () => void;
+    /** If provided, reconnect to an already-running install instead of starting a new one. */
+    resumeRunId?: string;
 }) {
-    const runId = useMemo(() => crypto.randomUUID(), []);
-    const [lines, setLines] = useState<OutputLine[]>([
-        { text: `Creating Laravel project: ${data.name}`, type: "info" },
-        { text: `Location: ${projectsPath}/${data.name}`, type: "info" },
-        { text: "", type: "output" },
-    ]);
+    const runId = useMemo(() => resumeRunId ?? crypto.randomUUID(), [resumeRunId]);
+    const isResuming = !!resumeRunId;
+    const [lines, setLines] = useState<OutputLine[]>(
+        isResuming
+            ? [
+                  { text: `Reconnecting to Laravel project: ${data.name}`, type: "info" },
+                  { text: `Location: ${projectsPath}/${data.name}`, type: "info" },
+                  {
+                      text: "The installation kept running in the background while the page reloaded.",
+                      type: "info",
+                  },
+                  { text: "", type: "output" },
+              ]
+            : [
+                  { text: `Creating Laravel project: ${data.name}`, type: "info" },
+                  { text: `Location: ${projectsPath}/${data.name}`, type: "info" },
+                  { text: "", type: "output" },
+              ]
+    );
     const [done, setDone] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [isInstalling, setIsInstalling] = useState(true);
+    const [isKilling, setIsKilling] = useState(false);
     const bottomRef = useRef<HTMLDivElement>(null);
     const addedLines = useRef<Set<string>>(new Set());
+    const childProcessRef = useRef<any>(isResuming ? activeInstallation?.processId ?? null : null);
 
     const shouldAddLine = (line: string): boolean => {
         const normalized = cleanLine(line);
         if (!normalized) return false;
-        if (normalized.startsWith("$") && normalized.includes("composer create-project")) return false;
+        if (normalized.startsWith("$") && normalized.includes("composer create-project"))
+            return false;
         if (normalized.includes("───")) return false;
         if (normalized.startsWith("[") && normalized.includes("m")) return false;
         if (addedLines.current.has(normalized)) return false;
@@ -142,20 +210,52 @@ function TerminalPanel({
         setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: "smooth" }), 50);
     };
 
+    const killProcess = async () => {
+        if (!childProcessRef.current) return;
+        setIsKilling(true);
+        try {
+            await invoke("kill_process", { pid: childProcessRef.current });
+            addLine("⚠️ Installation cancelled by user", "error");
+            setError("Installation cancelled");
+            setIsInstalling(false);
+            setActiveInstallation(null);
+            startedInstalls.delete(`${projectsPath}/${data.name}`);
+        } catch (err: any) {
+            addLine(`Failed to kill process: ${err}`, "error");
+        } finally {
+            setIsKilling(false);
+        }
+    };
+
     useEffect(() => {
         const unlistenPromise = listen("laravel-output", (event: any) => {
             const payload = event.payload;
             if (payload.runId && payload.runId !== runId) return;
 
-            if (payload.type === "stdout") {
+            if (payload.type === "started") {
+                if (payload.pid) {
+                    childProcessRef.current = payload.pid;
+                    if (activeInstallation) {
+                        setActiveInstallation({ ...activeInstallation, processId: payload.pid });
+                    }
+                }
+            } else if (payload.type === "stdout") {
                 payload.data.split("\n").forEach((line: string) => {
                     const trimmed = line.trim();
                     if (trimmed && !trimmed.startsWith("$")) {
-                        if (trimmed.includes("✔") || trimmed.includes("success") || trimmed.includes("done")) {
+                        if (
+                            trimmed.includes("✔") ||
+                            trimmed.includes("success") ||
+                            trimmed.includes("done")
+                        ) {
                             addLine(trimmed, "success");
                         } else if (trimmed.includes("error") || trimmed.includes("failed")) {
                             addLine(trimmed, "error");
-                        } else if (!trimmed.includes("───") && !trimmed.startsWith("[") && !trimmed.includes("composer create-project")) {
+                        } else if (
+                            !trimmed.includes("───") &&
+                            !trimmed.startsWith("[") &&
+                            !trimmed.includes("composer create-project")
+                        ) {
                             addLine(trimmed, "output");
                         }
                     }
@@ -171,13 +271,13 @@ function TerminalPanel({
                 addLine(`➜ php artisan serve --port=8000`, "info");
                 setDone(true);
                 setIsInstalling(false);
-                activeInstallation = null;
+                setActiveInstallation(null);
                 startedInstalls.delete(`${projectsPath}/${data.name}`);
             } else if (payload.type === "error") {
                 setError(payload.data);
                 addLine(`Error: ${payload.data}`, "error");
                 setIsInstalling(false);
-                activeInstallation = null;
+                setActiveInstallation(null);
                 startedInstalls.delete(`${projectsPath}/${data.name}`);
             }
         });
@@ -188,35 +288,52 @@ function TerminalPanel({
             startedInstalls.add(installKey);
 
             if (activeInstallation) {
-                addLine(`⚠️ Another installation (${activeInstallation.name}) is in progress. Please wait.`, "error");
+                addLine(
+                    `⚠️ Another installation (${activeInstallation.name}) is in progress. Please wait.`,
+                    "error"
+                );
                 setIsInstalling(false);
                 startedInstalls.delete(installKey);
                 return;
             }
 
-            activeInstallation = { name: data.name, status: "installing" };
+            setActiveInstallation({
+                name: data.name,
+                status: "installing",
+                installKey,
+                runId,
+                projectsPath,
+                formData: data,
+            });
 
             try {
                 let args: string[] = [];
-                if (data.starterKit !== "none" && data.starterKit !== "custom") args.push(`--${data.starterKit}`);
-                if (data.starterKit === "custom" && data.customRepo) args.push(`--using=${data.customRepo}`);
+                if (data.starterKit !== "none" && data.starterKit !== "custom")
+                    args.push(`--${data.starterKit}`);
+                if (data.starterKit === "custom" && data.customRepo)
+                    args.push(`--using=${data.customRepo}`);
                 if (data.auth === "workos") args.push("--workos");
                 if (data.auth === "none") args.push("--no-authentication");
                 args.push(`--database=${data.database}`, `--${data.testing}`);
                 if (!data.boost) args.push("--no-boost");
 
                 addLine(`> laravel new ${data.name} ${args.join(" ")}`, "info");
-                await invoke("create_laravel_project", {
+                await invoke<any>("create_laravel_project", {
                     projectPath: projectsPath,
                     name: data.name,
                     args,
                     runId,
                 });
             } catch (err: any) {
-                addLine(`Failed to create project: ${err}`, "error");
-                setError(err.toString());
+                const message = typeof err === "string" ? err : err?.toString?.() ?? String(err);
+                if (message.includes("cancelled") || message.includes("killed")) {
+                    addLine("Installation cancelled", "error");
+                } else {
+                    addLine(`Failed to create project: ${message}`, "error");
+                    setError(message);
+                }
                 setIsInstalling(false);
-                activeInstallation = null;
+                setActiveInstallation(null);
                 startedInstalls.delete(installKey);
             }
         };
@@ -226,20 +343,115 @@ function TerminalPanel({
         return () => {
             unlistenPromise.then((unlisten) => unlisten());
         };
-    }, [data.name, data.starterKit, data.customRepo, data.auth, data.database, data.testing, data.boost, projectsPath, runId]);
+    }, [
+        data.name,
+        data.starterKit,
+        data.customRepo,
+        data.auth,
+        data.database,
+        data.testing,
+        data.boost,
+        projectsPath,
+        runId,
+    ]);
+
+    const handleTryAgain = () => {
+        setError(null);
+        setDone(false);
+        setIsInstalling(true);
+        setLines([
+            { text: `Creating Laravel project: ${data.name}`, type: "info" },
+            { text: `Location: ${projectsPath}/${data.name}`, type: "info" },
+            { text: "", type: "output" },
+        ]);
+        addedLines.current.clear();
+        childProcessRef.current = null;
+        startedInstalls.delete(`${projectsPath}/${data.name}`);
+        onReset();
+
+        const sendCommandAgain = async () => {
+            const installKey = `${projectsPath}/${data.name}`;
+            if (startedInstalls.has(installKey)) return;
+            startedInstalls.add(installKey);
+
+            if (activeInstallation) {
+                addLine(
+                    `⚠️ Another installation (${activeInstallation.name}) is in progress. Please wait.`,
+                    "error"
+                );
+                setIsInstalling(false);
+                startedInstalls.delete(installKey);
+                return;
+            }
+
+            setActiveInstallation({
+                name: data.name,
+                status: "installing",
+                installKey,
+                runId,
+                projectsPath,
+                formData: data,
+            });
+
+            try {
+                let args: string[] = [];
+                if (data.starterKit !== "none" && data.starterKit !== "custom")
+                    args.push(`--${data.starterKit}`);
+                if (data.starterKit === "custom" && data.customRepo)
+                    args.push(`--using=${data.customRepo}`);
+                if (data.auth === "workos") args.push("--workos");
+                if (data.auth === "none") args.push("--no-authentication");
+                args.push(`--database=${data.database}`, `--${data.testing}`);
+                if (!data.boost) args.push("--no-boost");
+
+                addLine(`> laravel new ${data.name} ${args.join(" ")}`, "info");
+                await invoke<any>("create_laravel_project", {
+                    projectPath: projectsPath,
+                    name: data.name,
+                    args,
+                    runId,
+                });
+            } catch (err: any) {
+                const message = typeof err === "string" ? err : err?.toString?.() ?? String(err);
+                if (message.includes("cancelled") || message.includes("killed")) {
+                    addLine("Installation cancelled", "error");
+                } else {
+                    addLine(`Failed to create project: ${message}`, "error");
+                    setError(message);
+                }
+                setIsInstalling(false);
+                setActiveInstallation(null);
+                startedInstalls.delete(installKey);
+            }
+        };
+
+        setTimeout(sendCommandAgain, 300);
+    };
 
     return (
         <div className="space-y-4">
             <div className="rounded-xl overflow-hidden border border-zinc-700/60 bg-zinc-950 shadow-lg">
-                <div className="flex items-center gap-1.5 px-4 py-2.5 border-b border-zinc-800 bg-zinc-900 sticky top-0">
-                    <div className="flex gap-1.5">
-                        <span className="w-2.5 h-2.5 rounded-full bg-red-500/80" />
-                        <span className="w-2.5 h-2.5 rounded-full bg-yellow-500/80" />
-                        <span className="w-2.5 h-2.5 rounded-full bg-emerald-500/80" />
+                <div className="flex items-center justify-between px-4 py-2.5 border-b border-zinc-800 bg-zinc-900 sticky top-0">
+                    <div className="flex items-center gap-3">
+                        <div className="flex gap-1.5">
+                            <span className="w-2.5 h-2.5 rounded-full bg-red-500/80" />
+                            <span className="w-2.5 h-2.5 rounded-full bg-yellow-500/80" />
+                            <span className="w-2.5 h-2.5 rounded-full bg-emerald-500/80" />
+                        </div>
+                        <span className="text-[11px] text-zinc-500 font-mono">
+                            hive — laravel installer
+                        </span>
                     </div>
-                    <span className="ml-3 text-[11px] text-zinc-500 font-mono">
-                        hive — laravel installer
-                    </span>
+                    {isInstalling && !done && !error && (
+                        <button
+                            onClick={killProcess}
+                            disabled={isKilling}
+                            className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-red-500/10 hover:bg-red-500/20 text-red-400 text-xs transition-colors disabled:opacity-50"
+                        >
+                            <XCircle className="w-3.5 h-3.5" />
+                            {isKilling ? "Killing..." : "Cancel"}
+                        </button>
+                    )}
                 </div>
                 <div className="p-4 font-mono text-xs h-96 overflow-y-auto">
                     {lines.map((line, i) => (
@@ -262,7 +474,7 @@ function TerminalPanel({
                     {isInstalling && !error && !done && (
                         <div className="flex items-center gap-2 mt-2 text-zinc-400">
                             <Loader2 className="w-3 h-3 animate-spin text-amber-400" />
-                            <span>Installing Laravel...</span>
+                            <span>Setting up Laravel project...</span>
                         </div>
                     )}
                     <div ref={bottomRef} />
@@ -287,9 +499,10 @@ function TerminalPanel({
             )}
             {error && (
                 <Button
-                    onClick={() => window.location.reload()}
-                    className="w-full bg-red-600 hover:bg-red-700 text-white gap-2"
+                    onClick={handleTryAgain}
+                    className="w-full bg-amber-500 hover:bg-amber-600 text-white gap-2"
                 >
+                    <Loader2 className="w-4 h-4" />
                     Try Again
                 </Button>
             )}
@@ -311,6 +524,12 @@ export function CreateLaravelProject({ onSuccess }: CreateLaravelProjectProps) {
         boost: false,
     });
     const [isInstallingAny, setIsInstallingAny] = useState(!!activeInstallation);
+    const [activeProcessId, setActiveProcessId] = useState<number | undefined>(
+        activeInstallation?.processId
+    );
+    const [activeName, setActiveName] = useState<string | undefined>(activeInstallation?.name);
+    const [isKillingActive, setIsKillingActive] = useState(false);
+    const [resetKey, setResetKey] = useState(0);
 
     useEffect(() => {
         loadProjectsPath();
@@ -318,6 +537,8 @@ export function CreateLaravelProject({ onSuccess }: CreateLaravelProjectProps) {
 
         const interval = setInterval(() => {
             setIsInstallingAny(!!activeInstallation);
+            setActiveProcessId(activeInstallation?.processId);
+            setActiveName(activeInstallation?.name);
         }, 500);
 
         return () => clearInterval(interval);
@@ -381,7 +602,7 @@ export function CreateLaravelProject({ onSuccess }: CreateLaravelProjectProps) {
     const handleInstall = () => {
         if (isInstallingAny) {
             alert(
-                `Another project "${activeInstallation?.name}" is currently being installed. Please wait for it to complete before creating a new project.`
+                `Another project "${activeInstallation?.name}" is currently being installed. Cancel it using the button above to continue.`
             );
             return;
         }
@@ -392,22 +613,65 @@ export function CreateLaravelProject({ onSuccess }: CreateLaravelProjectProps) {
         onSuccess(project);
     };
 
+    const handleReset = () => {
+        setResetKey((prev) => prev + 1);
+    };
+
+    const killActiveInstallation = async () => {
+        if (!activeInstallation) return;
+        if (!activeProcessId) {
+            alert("The previous installation hasn't started its process yet. Please try again in a moment.");
+            return;
+        }
+        if (
+            !window.confirm(
+                `Cancel installation of "${activeInstallation.name}"? This will stop it immediately.`
+            )
+        )
+            return;
+
+        setIsKillingActive(true);
+        try {
+            await invoke("kill_process", { pid: activeProcessId });
+        } catch (err) {
+            console.error("Failed to kill active installation:", err);
+        } finally {
+            if (activeInstallation?.installKey) {
+                startedInstalls.delete(activeInstallation.installKey);
+            }
+            setActiveInstallation(null);
+            setIsInstallingAny(false);
+            setActiveProcessId(undefined);
+            setActiveName(undefined);
+            setIsKillingActive(false);
+        }
+    };
+
     const visualStep = step === 4 ? 4 : step >= 3 ? 3 : step;
 
     return (
         <div className="space-y-6">
             {isInstallingAny && step !== 4 && (
                 <div className="rounded-xl border border-amber-500/30 bg-amber-500/5 p-4 flex items-center gap-3">
-                    <Loader2 className="w-5 h-5 animate-spin text-amber-500" />
-                    <div>
+                    <Loader2 className="w-5 h-5 animate-spin text-amber-500 shrink-0" />
+                    <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium text-amber-600 dark:text-amber-400">
                             Another installation in progress
                         </p>
                         <p className="text-xs text-muted-foreground">
-                            Project "{activeInstallation?.name}" is currently being installed.
-                            Please wait.
+                            Project "{activeName}" is currently being installed. Wait for it to
+                            finish, or cancel it to start a new one.
                         </p>
                     </div>
+                    <button
+                        onClick={killActiveInstallation}
+                        disabled={isKillingActive || !activeProcessId}
+                        className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md bg-red-500/10 hover:bg-red-500/20 text-red-400 text-xs font-medium transition-colors disabled:opacity-50 shrink-0"
+                        title={!activeProcessId ? "Process is still starting up..." : undefined}
+                    >
+                        <XCircle className="w-3.5 h-3.5" />
+                        {isKillingActive ? "Cancelling..." : "Cancel it"}
+                    </button>
                 </div>
             )}
 
@@ -693,7 +957,13 @@ export function CreateLaravelProject({ onSuccess }: CreateLaravelProjectProps) {
             )}
 
             {step === 4 && (
-                <TerminalPanel data={formData} onDone={handleDone} projectsPath={projectsPath} />
+                <TerminalPanel
+                    key={resetKey}
+                    data={formData}
+                    onDone={handleDone}
+                    projectsPath={projectsPath}
+                    onReset={handleReset}
+                />
             )}
         </div>
     );
