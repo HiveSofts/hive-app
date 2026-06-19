@@ -1,7 +1,7 @@
-import { useState } from "react";
-
-import { ChevronRight, FolderOpen, Plus, Server, Terminal, Trash2 } from "lucide-react";
+import { useState, useEffect } from "react";
+import { ChevronRight, FolderOpen, Plus, Server, Terminal, Trash2, Loader2, AlertCircle } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { invoke } from "@tauri-apps/api/core";
 
 import {
     DataBaseIcon,
@@ -44,139 +44,87 @@ const PROJECT_TYPE_CONFIG: Record<
         icon: <ReactIcon className="w-8 h-8" />,
         color: "border-cyan-500/30 bg-cyan-500/5 hover:bg-cyan-500/10 dark:border-cyan-500/20 dark:bg-cyan-500/5 dark:hover:bg-cyan-500/10",
         badge: "bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 border-cyan-500/20",
-        soon: true,
     },
     vue: {
         icon: <VueIcon className="w-8 h-8" />,
         color: "border-emerald-500/30 bg-emerald-500/5 hover:bg-emerald-500/10 dark:border-emerald-500/20 dark:bg-emerald-500/5 dark:hover:bg-emerald-500/10",
         badge: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20",
-        soon: true,
     },
     nextjs: {
         icon: <NextjsIcon className="w-8 h-8" />,
         color: "border-zinc-500/30 bg-zinc-500/5 hover:bg-zinc-500/10 dark:border-zinc-500/20 dark:bg-zinc-500/5 dark:hover:bg-zinc-500/10",
         badge: "bg-zinc-500/10 text-zinc-600 dark:text-zinc-400 border-zinc-500/20",
-        soon: true,
     },
     vite: {
         icon: <ViteIcon className="w-8 h-8" />,
         color: "border-purple-500/30 bg-purple-500/5 hover:bg-purple-500/10 dark:border-purple-500/20 dark:bg-purple-500/5 dark:hover:bg-purple-500/10",
         badge: "bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/20",
-        soon: true,
     },
     docker: {
         icon: <DockerIcon className="w-8 h-8" />,
         color: "border-blue-500/30 bg-blue-500/5 hover:bg-blue-500/10 dark:border-blue-500/20 dark:bg-blue-500/5 dark:hover:bg-blue-500/10",
         badge: "bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20",
-        soon: true,
     },
     php: {
         icon: <PhpIcon className="w-8 h-8" />,
         color: "border-indigo-500/30 bg-indigo-500/5 hover:bg-indigo-500/10 dark:border-indigo-500/20 dark:bg-indigo-500/5 dark:hover:bg-indigo-500/10",
         badge: "bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border-indigo-500/20",
-        soon: true,
     },
     wordpress: {
         icon: <WordpressIcon className="w-8 h-8" />,
         color: "border-sky-500/30 bg-sky-500/5 hover:bg-sky-500/10 dark:border-sky-500/20 dark:bg-sky-500/5 dark:hover:bg-sky-500/10",
         badge: "bg-sky-500/10 text-sky-600 dark:text-sky-400 border-sky-500/20",
-        soon: true,
     },
     django: {
         icon: <DjangoIcon className="w-8 h-8" />,
         color: "border-emerald-500/30 bg-emerald-500/5 hover:bg-emerald-500/10 dark:border-emerald-500/20 dark:bg-emerald-500/5 dark:hover:bg-emerald-500/10",
         badge: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20",
-        soon: true,
     },
     nginx: {
         icon: <NginxIcon className="w-8 h-8" />,
         color: "border-green-500/30 bg-green-500/5 hover:bg-green-500/10 dark:border-green-500/20 dark:bg-green-500/5 dark:hover:bg-green-500/10",
         badge: "bg-green-500/10 text-green-600 dark:text-green-400 border-green-500/20",
-        soon: true,
     },
     nodejs: {
         icon: <NodejsIcon className="w-8 h-8" />,
         color: "border-lime-500/30 bg-lime-500/5 hover:bg-lime-500/10 dark:border-lime-500/20 dark:bg-lime-500/5 dark:hover:bg-lime-500/10",
         badge: "bg-lime-500/10 text-lime-600 dark:text-lime-400 border-lime-500/20",
-        soon: true,
     },
     database: {
         icon: <DataBaseIcon className="w-8 h-8" />,
         color: "border-amber-500/30 bg-amber-500/5 hover:bg-amber-500/10 dark:border-amber-500/20 dark:bg-amber-500/5 dark:hover:bg-amber-500/10",
         badge: "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20",
-        soon: true,
     },
     fastapi: {
         icon: <FastApiIcon className="w-8 h-8" />,
         color: "border-teal-500/30 bg-teal-500/5 hover:bg-teal-500/10 dark:border-teal-500/20 dark:bg-teal-500/5 dark:hover:bg-teal-500/10",
         badge: "bg-teal-500/10 text-teal-600 dark:text-teal-400 border-teal-500/20",
-        soon: true,
     },
     html5: {
         icon: <Html5Icon className="w-8 h-8" />,
         color: "border-orange-500/30 bg-orange-500/5 hover:bg-orange-500/10 dark:border-orange-500/20 dark:bg-orange-500/5 dark:hover:bg-orange-500/10",
         badge: "bg-orange-500/10 text-orange-600 dark:text-orange-400 border-orange-500/20",
-        soon: true,
+    },
+    static: {
+        icon: <Html5Icon className="w-8 h-8" />,
+        color: "border-orange-500/30 bg-orange-500/5 hover:bg-orange-500/10 dark:border-orange-500/20 dark:bg-orange-500/5 dark:hover:bg-orange-500/10",
+        badge: "bg-orange-500/10 text-orange-600 dark:text-orange-400 border-orange-500/20",
     },
 };
-const mockProjects = [
-    {
-        id: "550e8400-e29b-41d4-a716-446655440000",
-        name: "my-blog",
-        type: "laravel",
-        path: "~/Projects/my-blog",
-        description: "Personal blog built with Laravel & Livewire",
-        status: "stopped" as const,
-    },
-    {
-        id: "550e8400-e29b-41d4-a716-446655440001",
-        name: "dashboard-app",
-        type: "react",
-        path: "~/Projects/dashboard-app",
-        description: "Admin dashboard with React & Tailwind",
-        status: "running" as const,
-    },
-    {
-        id: "550e8400-e29b-41d4-a716-446655440002",
-        name: "api-gateway",
-        type: "nextjs",
-        path: "~/Projects/api-gateway",
-        description: "",
-        status: "stopped" as const,
-    },
-    {
-        id: "550e8400-e29b-41d4-a716-446655440003",
-        name: "shop-backend",
-        type: "php",
-        path: "~/Projects/shop-backend",
-        description: "Legacy PHP e-commerce backend",
-        status: "stopped" as const,
-    },
-    {
-        id: "550e8400-e29b-41d4-a716-446655440004",
-        name: "vue-portfolio",
-        type: "vue",
-        path: "~/Projects/vue-portfolio",
-        description: "Personal portfolio built with Vue 3",
-        status: "running" as const,
-    },
-    {
-        id: "550e8400-e29b-41d4-a716-446655440005",
-        name: "infra-stack",
-        type: "docker",
-        path: "~/Projects/infra-stack",
-        description: "Docker compose infrastructure",
-        status: "stopped" as const,
-    },
-];
 
 interface Project {
-    id: string;
+    id?: string;
     name: string;
-    type: string;
+    project_type?: string;
+    type?: string;
     path: string;
-    description: string;
-    status: "running" | "stopped";
+    description?: string;
+    created_at?: string;
+    package_manager?: string;
+    status?: "running" | "stopped";
+    version?: string;
+    source_type?: string;
+    github_repo?: string;
 }
 
 interface DeleteDialogState {
@@ -187,26 +135,67 @@ interface DeleteDialogState {
 
 export default function ProjectsListPage() {
     const navigate = useNavigate();
-    const [projects, setProjects] = useState<Project[]>(mockProjects);
+    const [projects, setProjects] = useState<Project[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
     const [deleteDialog, setDeleteDialog] = useState<DeleteDialogState>({
         open: false,
         project: null,
         deleteFiles: false,
     });
 
+    useEffect(() => {
+        loadProjects();
+    }, []);
+
+    const loadProjects = async () => {
+        setLoading(true);
+        setError(null);
+        try {
+            const result = await invoke<Project[]>("list_all_projects");
+            setProjects(result || []);
+        } catch (err) {
+            setError(err instanceof Error ? err.message : "Failed to load projects");
+            setProjects([]);
+        } finally {
+            setLoading(false);
+        }
+    };
+
     const openDeleteDialog = (project: Project) => {
         setDeleteDialog({ open: true, project, deleteFiles: false });
     };
 
-    const confirmDelete = () => {
+    const confirmDelete = async () => {
         if (!deleteDialog.project) return;
-        setProjects((prev) => prev.filter((p) => p.id !== deleteDialog.project!.id));
-        setDeleteDialog({ open: false, project: null, deleteFiles: false });
+
+        try {
+            await invoke("remove_project", {
+                projectPath: deleteDialog.project.path,
+                deleteFiles: deleteDialog.deleteFiles,
+            });
+
+            setProjects((prev) => prev.filter((p) => p.path !== deleteDialog.project!.path));
+            setDeleteDialog({ open: false, project: null, deleteFiles: false });
+        } catch (err) {
+            setError(err instanceof Error ? err.message : "Failed to delete project");
+        }
     };
 
-    const handleProjectClick = (projectId: string) => {
-        navigate(`/projects/${projectId}`);
+    const handleProjectClick = (project: Project) => {
+        navigate(`/projects/${project.name}`);
     };
+
+    if (loading) {
+        return (
+            <div className="min-h-screen flex items-center justify-center">
+                <div className="flex flex-col items-center gap-3">
+                    <Loader2 className="w-8 h-8 animate-spin text-amber-500" />
+                    <p className="text-sm text-muted-foreground">Loading projects...</p>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="min-h-screen p-6 space-y-6">
@@ -227,6 +216,16 @@ export default function ProjectsListPage() {
                     New Project
                 </Button>
             </div>
+
+            {error && (
+                <div className="flex items-center gap-2 p-3 rounded-lg bg-red-500/10 border border-red-500/30 text-red-500 text-sm">
+                    <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                    <span className="flex-1">{error}</span>
+                    <button onClick={() => setError(null)} className="text-xs hover:underline">
+                        Dismiss
+                    </button>
+                </div>
+            )}
 
             {/* Projects Grid */}
             {projects.length === 0 ? (
@@ -249,13 +248,13 @@ export default function ProjectsListPage() {
             ) : (
                 <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
                     {projects.map((project) => {
-                        const config =
-                            PROJECT_TYPE_CONFIG[project.type] || PROJECT_TYPE_CONFIG["docker"];
+                        const projectType = project.project_type || project.type || "unknown";
+                        const config = PROJECT_TYPE_CONFIG[projectType] || PROJECT_TYPE_CONFIG["docker"];
 
                         return (
                             <div
-                                key={project.id}
-                                onClick={() => handleProjectClick(project.id)}
+                                key={project.path}
+                                onClick={() => handleProjectClick(project)}
                                 className={`group relative rounded-xl border transition-all duration-200 cursor-pointer ${config.color}`}
                             >
                                 <div className="p-4">
@@ -278,7 +277,7 @@ export default function ProjectsListPage() {
                                                     variant="outline"
                                                     className={`text-[10px] px-1.5 py-0 font-mono mt-0.5 ${config.badge}`}
                                                 >
-                                                    {project.type}
+                                                    {projectType}
                                                 </Badge>
                                             </div>
                                         </div>
@@ -304,6 +303,32 @@ export default function ProjectsListPage() {
                                             {project.description}
                                         </p>
                                     )}
+
+                                    {/* Meta */}
+                                    <div className="flex items-center gap-3 text-[10px] text-muted-foreground">
+                                        {project.package_manager && (
+                                            <span className="font-mono">
+                                                {project.package_manager}
+                                            </span>
+                                        )}
+                                        {project.version && (
+                                            <span className="font-mono">
+                                                v{project.version}
+                                            </span>
+                                        )}
+                                        {project.created_at && (
+                                            <span>
+                                                {new Date(project.created_at).toLocaleDateString(
+                                                    "en-US",
+                                                    {
+                                                        year: "numeric",
+                                                        month: "short",
+                                                        day: "numeric",
+                                                    }
+                                                )}
+                                            </span>
+                                        )}
+                                    </div>
 
                                     {/* Actions */}
                                     <div className="flex gap-2 mt-3">

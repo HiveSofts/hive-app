@@ -18,10 +18,13 @@ fn main() {
             complete_onboarding,
             get_onboarding_status,
             
+            // Project Management
+            list_all_projects,
+            remove_project,
+            
             // Project Creation - Existing
             create_laravel_project,
             get_existing_projects,
-            
             // WordPress Project Creation
             create_wordpress_project,
             fetch_wordpress_tags,
