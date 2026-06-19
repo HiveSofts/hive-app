@@ -376,7 +376,9 @@ pub async fn create_laravel_project(
     std::fs::create_dir_all(&hive_dir)
         .map_err(|e| format!("Failed to create Hive projects directory: {}", e))?;
 
+    let uuid = uuid::Uuid::new_v4().to_string();
     let project_info = serde_json::json!({
+        "id": uuid,
         "name": name,
         "type": "laravel",
         "path": full_path.to_string_lossy().to_string(),

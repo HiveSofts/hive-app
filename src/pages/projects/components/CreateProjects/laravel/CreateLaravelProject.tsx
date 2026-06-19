@@ -189,7 +189,9 @@ function TerminalPanel({
     const [isKilling, setIsKilling] = useState(false);
     const bottomRef = useRef<HTMLDivElement>(null);
     const addedLines = useRef<Set<string>>(new Set());
-    const childProcessRef = useRef<any>(isResuming ? activeInstallation?.processId ?? null : null);
+    const childProcessRef = useRef<any>(
+        isResuming ? (activeInstallation?.processId ?? null) : null
+    );
 
     const shouldAddLine = (line: string): boolean => {
         const normalized = cleanLine(line);
@@ -325,7 +327,7 @@ function TerminalPanel({
                     runId,
                 });
             } catch (err: any) {
-                const message = typeof err === "string" ? err : err?.toString?.() ?? String(err);
+                const message = typeof err === "string" ? err : (err?.toString?.() ?? String(err));
                 if (message.includes("cancelled") || message.includes("killed")) {
                     addLine("Installation cancelled", "error");
                 } else {
@@ -412,7 +414,7 @@ function TerminalPanel({
                     runId,
                 });
             } catch (err: any) {
-                const message = typeof err === "string" ? err : err?.toString?.() ?? String(err);
+                const message = typeof err === "string" ? err : (err?.toString?.() ?? String(err));
                 if (message.includes("cancelled") || message.includes("killed")) {
                     addLine("Installation cancelled", "error");
                 } else {
@@ -620,7 +622,9 @@ export function CreateLaravelProject({ onSuccess }: CreateLaravelProjectProps) {
     const killActiveInstallation = async () => {
         if (!activeInstallation) return;
         if (!activeProcessId) {
-            alert("The previous installation hasn't started its process yet. Please try again in a moment.");
+            alert(
+                "The previous installation hasn't started its process yet. Please try again in a moment."
+            );
             return;
         }
         if (

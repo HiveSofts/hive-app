@@ -28,4 +28,4 @@ zip = "8.6.0"
 futures-util = "0.3.32"
 liblzma = "0.4.6"
 zstd = "0.13.3"
-uuid = "1.23.3"
+uuid = { version = "1.23.3", features = ["v4"] }

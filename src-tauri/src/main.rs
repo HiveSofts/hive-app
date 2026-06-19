@@ -26,7 +26,11 @@ fn main() {
             install_runtime,
             get_available_links,
             uninstall_runtime,
-            initialize_hive
+            initialize_hive,
+            kill_process,
+            check_package_manager,
+            install_package_manager,
+            create_nextjs_project,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
