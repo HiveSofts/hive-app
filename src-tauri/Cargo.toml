@@ -29,3 +29,8 @@ futures-util = "0.3.32"
 liblzma = "0.4.6"
 zstd = "0.13.3"
 uuid = { version = "1.23.3", features = ["v4"] }
+regex = "1.12.4"
+rand = "0.8.5"
+tokio = { version = "1.52.3", features = ["full"] }
+tauri-plugin-fs = "2.5.1"
+tauri-plugin-shell = "2.3.5"

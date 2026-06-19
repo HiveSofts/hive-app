@@ -4,7 +4,6 @@ import { ArrowLeft } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
 import {
-    DataBaseIcon,
     FastApiIcon,
     Html5Icon,
     NginxIcon,
@@ -20,7 +19,6 @@ import { ReactIcon } from "@/components/icons/ReactIcon";
 import { ViteIcon } from "@/components/icons/ViteIcon";
 import { VueIcon } from "@/components/icons/VueIcon";
 import { Button } from "@/components/ui/button";
-import { CreateDataBaseProject } from "@/pages/projects/components/CreateProjects/database/CreateDataBaseProject.tsx";
 import { CreateNextJsProject } from "@/pages/projects/components/CreateProjects/nextjs/CreateNextJsProject.tsx";
 import { CreateNodejsProject } from "@/pages/projects/components/CreateProjects/nodejs/CreateNodejsProject.tsx";
 import { CreatePhpProject } from "@/pages/projects/components/CreateProjects/php/CreatePhpProject.tsx";
@@ -29,8 +27,9 @@ import { CreateStaticProject } from "@/pages/projects/components/CreateProjects/
 import { CreateViteProject } from "@/pages/projects/components/CreateProjects/vite/CreateViteProject.tsx";
 import { CreateVueProject } from "@/pages/projects/components/CreateProjects/vue/CreateVueProject.tsx";
 import { CreateWordPressProject } from "@/pages/projects/components/CreateProjects/wordpress/CreateWordPressProject.tsx";
-
+import { SiGin } from "react-icons/si";
 import { CreateLaravelProject } from "./components/CreateProjects/laravel/CreateLaravelProject.tsx";
+import { IconBrandGolang } from "@tabler/icons-react";
 
 const TECHNOLOGIES = [
     {
@@ -66,12 +65,22 @@ const TECHNOLOGIES = [
         available: true,
     },
     {
-        id: "database",
-        name: "Database",
-        icon: DataBaseIcon,
-        color: "border-amber-500/40 hover:border-amber-500/80 hover:bg-amber-500/5",
-        selectedColor: "border-amber-500 bg-amber-500/10 ring-1 ring-amber-500/50",
-        available: true,
+        id: "go",
+        name: "Go",
+        icon: IconBrandGolang,
+        color: "border-cyan-500/40 hover:border-cyan-500/80 hover:bg-cyan-500/5",
+        selectedColor: "border-cyan-500 bg-cyan-500/10 ring-1 ring-cyan-500/50",
+        available: false,
+        soon: true,
+    },
+    {
+        id: "gin",
+        name: "Gin",
+        icon: SiGin,
+        color: "border-sky-500/40 hover:border-sky-500/80 hover:bg-sky-500/5",
+        selectedColor: "border-sky-500 bg-sky-500/10 ring-1 ring-sky-500/50",
+        available: false,
+        soon: true,
     },
     {
         id: "html5",
@@ -149,6 +158,7 @@ const TECHNOLOGIES = [
         available: false,
         soon: true,
     },
+
 ];
 
 export default function CreateProjectPage() {
@@ -182,9 +192,7 @@ export default function CreateProjectPage() {
                 return <CreateNodejsProject onSuccess={handleProjectCreated} />;
             case "wordpress":
                 return <CreateWordPressProject onSuccess={handleProjectCreated} />;
-            case "database":
-                return <CreateDataBaseProject onSuccess={handleProjectCreated} />;
-            case "html5":
+                case "html5":
                 return <CreateStaticProject onSuccess={handleProjectCreated} />;
             default:
                 return null;
