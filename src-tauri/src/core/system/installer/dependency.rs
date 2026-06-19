@@ -1,6 +1,6 @@
+use crate::core::system::os::{get_hive_base_path, get_hive_bin_path, get_runtimes_path};
 use std::{fs, path::PathBuf};
 use tauri::AppHandle;
-use crate::core::system::os::{get_hive_base_path, get_hive_bin_path, get_runtimes_path};
 
 #[derive(Debug, serde::Serialize, Clone)]
 pub struct InstallStatus {
@@ -89,7 +89,10 @@ async fn download_file(url: &str, output_path: &PathBuf) -> Result<(), String> {
         .map_err(|e| format!("Failed to read response: {}", e))?;
 
     if content.len() < 100 {
-        return Err(format!("Downloaded file too small ({} bytes)", content.len()));
+        return Err(format!(
+            "Downloaded file too small ({} bytes)",
+            content.len()
+        ));
     }
 
     if let Some(parent) = output_path.parent() {
@@ -185,7 +188,11 @@ pub async fn check_and_install_dependencies(_app: AppHandle) -> Result<Vec<Insta
 
     let all_ok = statuses.iter().all(|s| s.success);
     statuses.push(InstallStatus {
-        step: if all_ok { "finished".to_string() } else { "warning".to_string() },
+        step: if all_ok {
+            "finished".to_string()
+        } else {
+            "warning".to_string()
+        },
         message: if all_ok {
             "All dependencies installed successfully!".to_string()
         } else {

@@ -17,10 +17,26 @@ pub fn html_template(title: &str, css: bool, js: bool) -> String {
     {}
 </body>
 </html>"#,
-        if title.is_empty() { "My Static Site" } else { title },
-        if css { r#"<link rel="stylesheet" href="styles.css">"# } else { "" },
-        if title.is_empty() { "My Static Site" } else { title },
-        if js { r#"<script src="script.js"></script>"# } else { "" }
+        if title.is_empty() {
+            "My Static Site"
+        } else {
+            title
+        },
+        if css {
+            r#"<link rel="stylesheet" href="styles.css">"#
+        } else {
+            ""
+        },
+        if title.is_empty() {
+            "My Static Site"
+        } else {
+            title
+        },
+        if js {
+            r#"<script src="script.js"></script>"#
+        } else {
+            ""
+        }
     )
 }
 

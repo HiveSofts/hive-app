@@ -5,7 +5,12 @@ pub fn setup_path(cmd: &mut Command) {
     let hive_bin = crate::modules::common::path::hive_bin_dir();
     let current_path = std::env::var("PATH").unwrap_or_default();
     let separator = if cfg!(windows) { ";" } else { ":" };
-    let new_path = format!("{}{}{}", hive_bin.to_string_lossy(), separator, current_path);
+    let new_path = format!(
+        "{}{}{}",
+        hive_bin.to_string_lossy(),
+        separator,
+        current_path
+    );
     cmd.env("PATH", new_path);
 }
 

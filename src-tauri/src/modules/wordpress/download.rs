@@ -1,10 +1,10 @@
+use reqwest::Client;
 use std::fs;
 use std::path::Path;
-use reqwest::Client;
-use zip::ZipArchive;
 use tauri::AppHandle;
+use zip::ZipArchive;
 
-use super::config::{GitHubTag, CreateWordPressRequest};
+use super::config::{CreateWordPressRequest, GitHubTag};
 use super::create::get_projects_dir;
 
 const GITHUB_API: &str = "https://api.github.com/repos/WordPress/WordPress";
@@ -13,7 +13,7 @@ const GITHUB_API: &str = "https://api.github.com/repos/WordPress/WordPress";
 pub async fn fetch_wordpress_tags() -> Result<Vec<GitHubTag>, String> {
     let client = Client::new();
     let url = format!("{}/tags?per_page=100", GITHUB_API);
-    
+
     let response = client
         .get(&url)
         .header("Accept", "application/vnd.github+json")
@@ -88,8 +88,9 @@ pub async fn extract_zip(
                 .map_err(|e| format!("Failed to create dir {}: {}", out_path.display(), e))?;
         } else {
             if let Some(parent) = out_path.parent() {
-                fs::create_dir_all(parent)
-                    .map_err(|e| format!("Failed to create parent dir {}: {}", parent.display(), e))?;
+                fs::create_dir_all(parent).map_err(|e| {
+                    format!("Failed to create parent dir {}: {}", parent.display(), e)
+                })?;
             }
 
             let mut out_file = fs::File::create(&out_path)
@@ -105,7 +106,7 @@ pub async fn extract_zip(
 
 pub async fn get_github_zip_url(version: &str) -> Result<String, String> {
     let tags = fetch_wordpress_tags().await?;
-    
+
     if version == "latest" {
         if let Some(tag) = tags.first() {
             return Ok(tag.zipball_url.clone());
@@ -120,10 +121,7 @@ pub async fn get_github_zip_url(version: &str) -> Result<String, String> {
     Err(format!("Version {} not found", version))
 }
 
-pub async fn download_and_extract_wordpress(
-    project_path: &Path,
-    url: &str,
-) -> Result<(), String> {
+pub async fn download_and_extract_wordpress(project_path: &Path, url: &str) -> Result<(), String> {
     let zip_name = "wordpress.zip";
     let zip_path = project_path.join(zip_name);
 
@@ -143,14 +141,11 @@ pub async fn download_and_extract_wordpress(
         .await
         .map_err(|e| format!("Failed to read response: {}", e))?;
 
-    fs::write(&zip_path, &bytes)
-        .map_err(|e| format!("Failed to write zip: {}", e))?;
+    fs::write(&zip_path, &bytes).map_err(|e| format!("Failed to write zip: {}", e))?;
 
-    let file = fs::File::open(&zip_path)
-        .map_err(|e| format!("Failed to open zip: {}", e))?;
-    
-    let mut archive = ZipArchive::new(file)
-        .map_err(|e| format!("Failed to read zip: {}", e))?;
+    let file = fs::File::open(&zip_path).map_err(|e| format!("Failed to open zip: {}", e))?;
+
+    let mut archive = ZipArchive::new(file).map_err(|e| format!("Failed to read zip: {}", e))?;
 
     let mut root_dir = String::new();
     let mut is_first = true;
@@ -161,7 +156,7 @@ pub async fn download_and_extract_wordpress(
             .map_err(|e| format!("Failed to read entry {}: {}", i, e))?;
 
         let name = file.name().to_string();
-        
+
         if is_first {
             if let Some(first_part) = name.split('/').next() {
                 root_dir = first_part.to_string();
@@ -180,8 +175,9 @@ pub async fn download_and_extract_wordpress(
                 .map_err(|e| format!("Failed to create dir {}: {}", out_path.display(), e))?;
         } else {
             if let Some(parent) = out_path.parent() {
-                fs::create_dir_all(parent)
-                    .map_err(|e| format!("Failed to create parent dir {}: {}", parent.display(), e))?;
+                fs::create_dir_all(parent).map_err(|e| {
+                    format!("Failed to create parent dir {}: {}", parent.display(), e)
+                })?;
             }
 
             let mut out_file = fs::File::create(&out_path)
@@ -192,8 +188,7 @@ pub async fn download_and_extract_wordpress(
         }
     }
 
-    fs::remove_file(&zip_path)
-        .map_err(|e| format!("Failed to remove zip: {}", e))?;
+    fs::remove_file(&zip_path).map_err(|e| format!("Failed to remove zip: {}", e))?;
 
     Ok(())
 }

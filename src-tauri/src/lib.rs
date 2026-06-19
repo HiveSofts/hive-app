@@ -18,11 +18,9 @@ pub fn run() {
             get_user_config,
             save_user_config,
             initialize_hive,
-            
             // Core - Onboarding
             complete_onboarding,
             get_onboarding_status,
-            
             // Core - Runtime
             detect_php,
             detect_node,
@@ -30,21 +28,17 @@ pub fn run() {
             install_runtime,
             get_available_links,
             uninstall_runtime,
-            
             // Core - System
             check_and_install_dependencies,
             get_os,
             get_arch,
             kill_process,
-            
             // Core - Storage (Projects)
             list_all_projects,
             remove_project,
-            
             // Modules - Package Managers
             check_package_manager,
             install_package_manager,
-            
             // Modules - Create
             create_laravel_project,
             get_existing_projects,
@@ -55,7 +49,6 @@ pub fn run() {
             create_static_project,
             create_vite_project,
             create_vue_project,
-            
             // Modules - WordPress
             create_wordpress_project,
             fetch_wordpress_tags,

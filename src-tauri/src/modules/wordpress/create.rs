@@ -1,17 +1,17 @@
+use rand::Rng;
 use std::fs;
 use std::path::Path;
 use std::process::Command;
 use tauri::AppHandle;
-use rand::Rng;
 
 use crate::modules::common::path::expand_home;
 use crate::modules::common::utils::setup_path;
 
 use super::config::{
-    WordPressProject, WordPressConfig, DatabaseConfig, SiteConfig, AdminConfig,
-    CreateWordPressRequest, WordPressResponse,
+    AdminConfig, CreateWordPressRequest, DatabaseConfig, SiteConfig, WordPressConfig,
+    WordPressProject, WordPressResponse,
 };
-use super::download::{get_github_zip_url, download_and_extract_wordpress};
+use super::download::{download_and_extract_wordpress, get_github_zip_url};
 
 pub fn get_projects_dir() -> std::path::PathBuf {
     if let Some(home) = std::env::home_dir() {
@@ -22,7 +22,8 @@ pub fn get_projects_dir() -> std::path::PathBuf {
 }
 
 fn generate_secure_password() -> String {
-    const CHARSET: &[u8] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*()_+-=[]{}|;:,.<>?";
+    const CHARSET: &[u8] =
+        b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*()_+-=[]{}|;:,.<>?";
 
     let mut rng = rand::thread_rng();
     let password: String = (0..32)
@@ -44,20 +45,21 @@ fn generate_salts() -> String {
         "AUTH_SALT",
         "SECURE_AUTH_SALT",
         "LOGGED_IN_SALT",
-        "NONCE_SALT"
+        "NONCE_SALT",
     ];
-    
+
     let mut salts = String::new();
     for name in salt_names.iter() {
-        salts.push_str(&format!("define('{}', '{}');\n", name, generate_secure_password()));
+        salts.push_str(&format!(
+            "define('{}', '{}');\n",
+            name,
+            generate_secure_password()
+        ));
     }
     salts
 }
 
-fn generate_wp_config(
-    project_path: &Path,
-    request: &CreateWordPressRequest,
-) -> Result<(), String> {
+fn generate_wp_config(project_path: &Path, request: &CreateWordPressRequest) -> Result<(), String> {
     let db_password = if request.db_password.is_empty() {
         generate_secure_password()
     } else {
@@ -131,10 +133,7 @@ require_once ABSPATH . 'wp-settings.php';
     Ok(())
 }
 
-fn generate_env_file(
-    project_path: &Path,
-    request: &CreateWordPressRequest,
-) -> Result<(), String> {
+fn generate_env_file(project_path: &Path, request: &CreateWordPressRequest) -> Result<(), String> {
     let admin_password = request
         .admin_password
         .clone()
@@ -176,8 +175,7 @@ HOST={}
     );
 
     let env_path = project_path.join(".env");
-    fs::write(&env_path, env_content)
-        .map_err(|e| format!("Failed to write .env: {}", e))?;
+    fs::write(&env_path, env_content).map_err(|e| format!("Failed to write .env: {}", e))?;
 
     Ok(())
 }
@@ -185,10 +183,9 @@ HOST={}
 fn save_project_metadata(project_path: &Path, project: &WordPressProject) -> Result<(), String> {
     let metadata = serde_json::to_string_pretty(project)
         .map_err(|e| format!("Failed to serialize metadata: {}", e))?;
-    
+
     let metadata_path = project_path.join(".hive-project");
-    fs::write(&metadata_path, metadata)
-        .map_err(|e| format!("Failed to write metadata: {}", e))?;
+    fs::write(&metadata_path, metadata).map_err(|e| format!("Failed to write metadata: {}", e))?;
 
     Ok(())
 }
@@ -276,7 +273,10 @@ pub async fn create_wordpress_project(
             success: false,
             message: "Project already exists".to_string(),
             project: None,
-            error: Some(format!("Directory {} already exists", project_path.display())),
+            error: Some(format!(
+                "Directory {} already exists",
+                project_path.display()
+            )),
         });
     }
 
@@ -322,9 +322,9 @@ pub async fn create_wordpress_project(
     let project = WordPressProject {
         name: request.name.clone(),
         path: project_path.to_string_lossy().to_string(),
-        description: request.description.unwrap_or_else(|| {
-            format!("WordPress {} site", request.version)
-        }),
+        description: request
+            .description
+            .unwrap_or_else(|| format!("WordPress {} site", request.version)),
         config: WordPressConfig {
             port: request.port,
             host: request.host.clone(),

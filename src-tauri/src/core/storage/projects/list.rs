@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
+use std::env;
 use std::fs;
 use std::path::PathBuf;
-use std::env;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ProjectInfo {

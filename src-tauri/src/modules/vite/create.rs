@@ -6,7 +6,7 @@ use std::thread;
 
 use tauri::{AppHandle, Emitter};
 
-use crate::modules::common::path::{expand_home, hive_projects_dir, hive_bin_dir};
+use crate::modules::common::path::{expand_home, hive_bin_dir, hive_projects_dir};
 use crate::modules::common::utils::setup_path;
 
 #[tauri::command]

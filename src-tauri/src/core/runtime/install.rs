@@ -1,9 +1,9 @@
+use crate::core::system::os::{get_hive_bin_path, get_runtimes_path};
+use futures_util::StreamExt;
 use std::fs;
 use std::io::Write;
 use std::path::PathBuf;
 use tauri::Emitter;
-use futures_util::StreamExt;
-use crate::core::system::os::{get_runtimes_path, get_hive_bin_path};
 
 #[derive(Debug, serde::Serialize, Clone)]
 pub struct InstallResult {
@@ -15,8 +15,20 @@ pub struct InstallResult {
 
 fn get_executable_name(runtime: &str) -> String {
     match runtime {
-        "php" => if cfg!(windows) { "php.exe".to_string() } else { "php".to_string() },
-        "node" => if cfg!(windows) { "node.exe".to_string() } else { "node".to_string() },
+        "php" => {
+            if cfg!(windows) {
+                "php.exe".to_string()
+            } else {
+                "php".to_string()
+            }
+        }
+        "node" => {
+            if cfg!(windows) {
+                "node.exe".to_string()
+            } else {
+                "node".to_string()
+            }
+        }
         "composer" => "composer.phar".to_string(),
         "laravel" => "laravel.phar".to_string(),
         _ => runtime.to_string(),
@@ -87,7 +99,11 @@ pub fn write_binary_wrapper(wrapper_path: &PathBuf, binary_path: &PathBuf) -> Re
     Ok(())
 }
 
-pub fn create_runtime_link(runtime: &str, _version: &str, runtime_path: &PathBuf) -> Result<(), String> {
+pub fn create_runtime_link(
+    runtime: &str,
+    _version: &str,
+    runtime_path: &PathBuf,
+) -> Result<(), String> {
     let bin_dir = get_hive_bin_path();
     fs::create_dir_all(&bin_dir).map_err(|e| e.to_string())?;
 
@@ -95,7 +111,10 @@ pub fn create_runtime_link(runtime: &str, _version: &str, runtime_path: &PathBuf
     let executable_path = runtime_path.join(&executable_name);
 
     if !executable_path.exists() {
-        return Err(format!("Executable not found: {}", executable_path.display()));
+        return Err(format!(
+            "Executable not found: {}",
+            executable_path.display()
+        ));
     }
 
     if runtime == "composer" || runtime == "laravel" {
@@ -345,7 +364,10 @@ async fn download_phar(runtime: &str, url: &str, dest: &PathBuf) -> Result<(), S
     let content = response.bytes().await.map_err(|e| e.to_string())?;
 
     if content.len() < 100 {
-        return Err(format!("Downloaded file too small: {} bytes", content.len()));
+        return Err(format!(
+            "Downloaded file too small: {} bytes",
+            content.len()
+        ));
     }
 
     let filename = match runtime {
