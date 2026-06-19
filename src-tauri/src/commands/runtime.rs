@@ -1,6 +1,6 @@
 use std::env;
 use std::fs;
-use std::io::Write;
+use std::io::{ Write};
 use std::path::PathBuf;
 use tauri::command;
 use tauri::Emitter;
@@ -209,6 +209,7 @@ fn write_binary_wrapper(wrapper_path: &PathBuf, binary_path: &PathBuf) -> Result
 
     Ok(())
 }
+
 #[command]
 pub async fn download_and_extract(
     runtime: String,
