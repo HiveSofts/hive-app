@@ -5,11 +5,12 @@ use std::thread;
 
 use tauri::{AppHandle, Emitter};
 
-use crate::modules::common::path::{expand_home, hive_projects_dir, hive_bin_dir};
+use crate::modules::common::path::{expand_home, hive_bin_dir, hive_projects_dir};
 use crate::modules::common::utils::setup_path;
 
 fn is_valid_package_name(name: &str) -> bool {
-    let re = regex::Regex::new(r"^[a-z0-9]([_.-]?[a-z0-9]+)*/[a-z0-9](([_.]|-{1,2})?[a-z0-9]+)*$").unwrap();
+    let re = regex::Regex::new(r"^[a-z0-9]([_.-]?[a-z0-9]+)*/[a-z0-9](([_.]|-{1,2})?[a-z0-9]+)*$")
+        .unwrap();
     re.is_match(name)
 }
 

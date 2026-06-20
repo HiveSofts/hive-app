@@ -1,6 +1,6 @@
+use crate::types::UserConfig;
 use std::fs;
 use std::path::{Path, PathBuf};
-use crate::types::UserConfig;
 
 /// Returns the path to the Hive configuration file
 fn get_config_path() -> PathBuf {
@@ -38,28 +38,28 @@ pub fn save_user_config(config: UserConfig) -> Result<(), String> {
     let content = serde_json::to_string_pretty(&config).map_err(|e| e.to_string())?;
     fs::write(&config_path, content).map_err(|e| e.to_string())?;
     set_permissions(&config_path, 0o644)?;
-    
+
     Ok(())
 }
 
 #[tauri::command]
 pub fn initialize_hive() -> Result<(), String> {
     let config_path = get_config_path();
-    
+
     if let Some(parent) = config_path.parent() {
         if !parent.exists() {
             fs::create_dir_all(parent).map_err(|e| e.to_string())?;
             set_permissions(parent, 0o755)?;
         }
     }
-    
+
     if !config_path.exists() {
         let default_config = UserConfig::default();
         let content = serde_json::to_string_pretty(&default_config).map_err(|e| e.to_string())?;
         fs::write(&config_path, content).map_err(|e| e.to_string())?;
         set_permissions(&config_path, 0o644)?;
     }
-    
+
     Ok(())
 }
 

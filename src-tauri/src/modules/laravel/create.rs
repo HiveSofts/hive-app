@@ -6,7 +6,7 @@ use std::thread;
 
 use tauri::{AppHandle, Emitter};
 
-use crate::modules::common::path::{expand_home, hive_projects_dir, hive_bin_dir};
+use crate::modules::common::path::{expand_home, hive_bin_dir, hive_projects_dir};
 use crate::modules::common::utils::setup_path;
 
 fn clear_laravel_locks() {
@@ -58,7 +58,11 @@ fn validate_dependencies() -> Result<(), String> {
     let php_available = if php_in_hive.exists() {
         true
     } else {
-        Command::new("php").arg("-r").arg("echo 1;").output().is_ok()
+        Command::new("php")
+            .arg("-r")
+            .arg("echo 1;")
+            .output()
+            .is_ok()
     };
 
     if !php_available {
@@ -177,9 +181,12 @@ pub async fn create_laravel_project(
         }),
     );
 
-    let mut child = cmd
-        .spawn()
-        .map_err(|e| format!("Failed to start Laravel process: {} (executable: {})", e, laravel_exe_str))?;
+    let mut child = cmd.spawn().map_err(|e| {
+        format!(
+            "Failed to start Laravel process: {} (executable: {})",
+            e, laravel_exe_str
+        )
+    })?;
 
     let pid = child.id();
     let _ = app.emit(

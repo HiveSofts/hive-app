@@ -32,5 +32,9 @@ pub fn get_arch() -> Result<String, String> {
 
 /// Returns the script extension for the current platform
 pub fn get_script_extension() -> &'static str {
-    if cfg!(windows) { ".bat" } else { ".sh" }
+    if cfg!(windows) {
+        ".bat"
+    } else {
+        ".sh"
+    }
 }

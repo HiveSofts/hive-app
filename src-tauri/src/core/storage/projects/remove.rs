@@ -1,6 +1,6 @@
+use std::env;
 use std::fs;
 use std::path::PathBuf;
-use std::env;
 
 use super::list::ProjectInfo;
 
@@ -21,8 +21,8 @@ pub fn remove_project(project_path: String, delete_files: bool) -> Result<(), St
         let path = entry.path();
 
         if path.extension().and_then(|ext| ext.to_str()) == Some("json") {
-            let content = fs::read_to_string(&path)
-                .map_err(|e| format!("Failed to read file: {}", e))?;
+            let content =
+                fs::read_to_string(&path).map_err(|e| format!("Failed to read file: {}", e))?;
 
             if let Ok(project) = serde_json::from_str::<ProjectInfo>(&content) {
                 if project.path == project_path {
@@ -32,8 +32,9 @@ pub fn remove_project(project_path: String, delete_files: bool) -> Result<(), St
                     if delete_files {
                         let project_dir = PathBuf::from(&project_path);
                         if project_dir.exists() {
-                            fs::remove_dir_all(&project_dir)
-                                .map_err(|e| format!("Failed to delete project directory: {}", e))?;
+                            fs::remove_dir_all(&project_dir).map_err(|e| {
+                                format!("Failed to delete project directory: {}", e)
+                            })?;
                         }
                     }
 

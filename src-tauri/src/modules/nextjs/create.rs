@@ -7,8 +7,8 @@ use std::time::{Duration, Instant};
 
 use tauri::{AppHandle, Emitter};
 
-use crate::modules::common::path::{expand_home, hive_projects_dir,};
-use crate::modules::common::utils::{setup_path, is_valid_package_manager};
+use crate::modules::common::path::{expand_home, hive_projects_dir};
+use crate::modules::common::utils::{is_valid_package_manager, setup_path};
 
 fn command_exists_with_timeout(
     program: &str,
@@ -99,19 +99,30 @@ pub async fn install_package_manager(manager: String) -> Result<(), String> {
     }
 
     if manager == "bun" {
-        return Err("Automatic Bun installation is disabled. Please install Bun manually.".to_string());
+        return Err(
+            "Automatic Bun installation is disabled. Please install Bun manually.".to_string(),
+        );
     }
 
     tauri::async_runtime::spawn_blocking(move || {
         match command_exists_with_timeout("npm", &["--version"], Duration::from_secs(5)) {
             Ok(Some(_)) => {}
-            _ => return Err("npm is required but it is not installed or not available in PATH.".to_string()),
+            _ => {
+                return Err(
+                    "npm is required but it is not installed or not available in PATH.".to_string(),
+                )
+            }
         }
 
         let package_name = match manager.as_str() {
             "yarn" => "yarn",
             "pnpm" => "pnpm",
-            _ => return Err(format!("Automatic install is not supported for {}", manager)),
+            _ => {
+                return Err(format!(
+                    "Automatic install is not supported for {}",
+                    manager
+                ))
+            }
         };
 
         let mut cmd = Command::new("npm");

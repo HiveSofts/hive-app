@@ -1,7 +1,7 @@
 pub mod installer;
-pub mod process;
 pub mod os;
+pub mod process;
 
 pub use installer::*;
-pub use process::*;
 pub use os::*;
+pub use process::*;

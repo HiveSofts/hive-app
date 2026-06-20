@@ -1,5 +1,5 @@
-pub mod projects;
 pub mod metadata;
+pub mod projects;
 
-pub use projects::*;
 pub use metadata::*;
+pub use projects::*;

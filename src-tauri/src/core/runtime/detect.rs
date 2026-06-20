@@ -1,5 +1,5 @@
-use std::process::Command;
 use crate::core::system::os::get_hive_bin_path;
+use std::process::Command;
 
 #[derive(Debug, serde::Serialize, Clone)]
 pub struct RuntimeInfo {
@@ -35,7 +35,12 @@ pub fn detect_php() -> Result<RuntimeInfo, String> {
         }
     }
 
-    Ok(RuntimeInfo { found: false, version: None, path: None, is_hive: false })
+    Ok(RuntimeInfo {
+        found: false,
+        version: None,
+        path: None,
+        is_hive: false,
+    })
 }
 
 #[tauri::command]
@@ -63,5 +68,10 @@ pub fn detect_node() -> Result<RuntimeInfo, String> {
         }
     }
 
-    Ok(RuntimeInfo { found: false, version: None, path: None, is_hive: false })
+    Ok(RuntimeInfo {
+        found: false,
+        version: None,
+        path: None,
+        is_hive: false,
+    })
 }

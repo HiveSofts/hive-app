@@ -1,6 +1,6 @@
-use std::fs;
-use crate::core::system::os::{get_runtimes_path, get_hive_bin_path};
 use super::install::create_runtime_link;
+use crate::core::system::os::{get_hive_bin_path, get_runtimes_path};
+use std::fs;
 
 #[tauri::command]
 pub fn get_installed_runtimes(r#type: String) -> Result<Vec<String>, String> {
@@ -60,19 +60,37 @@ pub fn uninstall_runtime(runtime: String, version: String) -> Result<(), String>
 
     if runtime == "composer" || runtime == "laravel" {
         let phar_link = bin_dir.join(format!("{}.phar", runtime));
-        if phar_link.exists() { let _ = fs::remove_file(&phar_link); }
+        if phar_link.exists() {
+            let _ = fs::remove_file(&phar_link);
+        }
 
-        let sh_link = bin_dir.join(format!("{}{}", runtime, if cfg!(windows) { ".bat" } else { ".sh" }));
-        if sh_link.exists() { let _ = fs::remove_file(&sh_link); }
+        let sh_link = bin_dir.join(format!(
+            "{}{}",
+            runtime,
+            if cfg!(windows) { ".bat" } else { ".sh" }
+        ));
+        if sh_link.exists() {
+            let _ = fs::remove_file(&sh_link);
+        }
 
         let no_ext_link = bin_dir.join(&runtime);
-        if no_ext_link.exists() { let _ = fs::remove_file(&no_ext_link); }
+        if no_ext_link.exists() {
+            let _ = fs::remove_file(&no_ext_link);
+        }
     } else {
-        let sh_link = bin_dir.join(format!("{}{}", runtime, if cfg!(windows) { ".bat" } else { ".sh" }));
-        if sh_link.exists() { let _ = fs::remove_file(&sh_link); }
+        let sh_link = bin_dir.join(format!(
+            "{}{}",
+            runtime,
+            if cfg!(windows) { ".bat" } else { ".sh" }
+        ));
+        if sh_link.exists() {
+            let _ = fs::remove_file(&sh_link);
+        }
 
         let no_ext_link = bin_dir.join(&runtime);
-        if no_ext_link.exists() { let _ = fs::remove_file(&no_ext_link); }
+        if no_ext_link.exists() {
+            let _ = fs::remove_file(&no_ext_link);
+        }
 
         // Try to restore previous version
         let installed = get_installed_runtimes(runtime.clone())?;
@@ -80,8 +98,20 @@ pub fn uninstall_runtime(runtime: String, version: String) -> Result<(), String>
             let last_version = installed.last().unwrap();
             let first_path = get_runtimes_path().join(&runtime).join(last_version);
             let executable_name = match runtime.as_str() {
-                "php" => if cfg!(windows) { "php.exe" } else { "php" },
-                "node" => if cfg!(windows) { "node.exe" } else { "node" },
+                "php" => {
+                    if cfg!(windows) {
+                        "php.exe"
+                    } else {
+                        "php"
+                    }
+                }
+                "node" => {
+                    if cfg!(windows) {
+                        "node.exe"
+                    } else {
+                        "node"
+                    }
+                }
                 _ => &runtime,
             };
             let executable_path = first_path.join(executable_name);

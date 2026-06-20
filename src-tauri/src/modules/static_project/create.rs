@@ -5,9 +5,9 @@ use std::thread;
 
 use tauri::{AppHandle, Emitter};
 
-use crate::modules::common::path::{expand_home, hive_projects_dir, hive_bin_dir};
+use crate::modules::common::path::{expand_home, hive_bin_dir, hive_projects_dir};
+use crate::modules::common::templates::{css_template, html_template, js_template};
 use crate::modules::common::utils::setup_path;
-use crate::modules::common::templates::{html_template, css_template, js_template};
 
 #[tauri::command]
 pub async fn create_static_project(
@@ -361,8 +361,9 @@ pub async fn create_static_project(
                             }
                             std::fs::write(
                                 &package_json_path,
-                                serde_json::to_string_pretty(&json)
-                                    .map_err(|e| format!("Failed to serialize package.json: {}", e))?,
+                                serde_json::to_string_pretty(&json).map_err(|e| {
+                                    format!("Failed to serialize package.json: {}", e)
+                                })?,
                             )
                             .map_err(|e| format!("Failed to write package.json: {}", e))?;
                         }
