@@ -1,8 +1,8 @@
+import { cn } from "@/core/lib/utils";
+
 import * as React from "react";
 
 import { Progress as ProgressPrimitive } from "radix-ui";
-
-import { cn } from "@/lib/utils";
 
 function Progress({
     className,

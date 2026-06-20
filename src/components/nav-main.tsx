@@ -1,3 +1,5 @@
+import { cn } from "@/core/lib/utils";
+
 import { type Icon } from "@tabler/icons-react";
 import { motion } from "framer-motion";
 import { useLocation, useNavigate } from "react-router-dom";
@@ -9,7 +11,6 @@ import {
     SidebarMenuButton,
     SidebarMenuItem,
 } from "@/components/ui/sidebar";
-import { cn } from "@/lib/utils.ts";
 
 export function NavMain({ items }: { items: { title: string; url: string; icon: Icon }[] }) {
     const navigate = useNavigate();

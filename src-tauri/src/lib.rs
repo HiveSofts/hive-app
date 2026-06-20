@@ -9,6 +9,8 @@ use tauri::Manager;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    modules::laravel::cleanup_orphaned_servers();
+
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
@@ -30,28 +32,37 @@ pub fn run() {
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
+            // Core
             check_user_config_exists,
             get_user_config,
             save_user_config,
             initialize_hive,
             complete_onboarding,
             get_onboarding_status,
+            // Runtime
             detect_php,
             detect_node,
             get_installed_runtimes,
             install_runtime,
             get_available_links,
             uninstall_runtime,
+            // System
             check_and_install_dependencies,
             get_os,
             get_arch,
             kill_process,
+            execute_shell_command,
+            execute_shell_streaming,
+            check_command_exists,
+            // Projects
             list_all_projects,
             remove_project,
+            get_existing_projects,
+            // Package Managers
             check_package_manager,
             install_package_manager,
+            // Create Projects
             create_laravel_project,
-            get_existing_projects,
             create_nextjs_project,
             create_nodejs_project,
             create_php_project,
@@ -60,9 +71,75 @@ pub fn run() {
             create_vite_project,
             create_vue_project,
             create_wordpress_project,
+            // WordPress
             fetch_wordpress_tags,
             download_wordpress_zip,
             extract_zip,
+            // Laravel Server
+            start_laravel_project,
+            stop_laravel_project,
+            restart_laravel_project,
+            is_laravel_running,
+            get_laravel_server_status,
+            get_all_running_servers,
+            get_server_logs,
+            clear_server_logs,
+            // Laravel Commands
+            run_artisan_command,
+            get_artisan_commands,
+            get_artisan_commands_with_details,
+            // Queue
+            get_queue_workers,
+            get_queue_stats,
+            get_queue_connection_info,
+            get_queue_worker_logs,
+            start_queue_worker,
+            stop_queue_worker,
+            restart_queue_worker,
+            run_queue_command,
+            get_failed_jobs,
+            retry_failed_job,
+            retry_all_failed_jobs,
+            forget_failed_job,
+            flush_failed_jobs,
+            clear_queue,
+            pause_queue,
+            resume_queue,
+            // Scheduled Tasks
+            get_scheduled_tasks,
+            run_scheduled_task,
+            run_all_scheduled_tasks,
+            // Logs
+            get_project_logs,
+            clear_project_logs,
+            tail_project_logs,
+            // Packages
+            get_installed_packages,
+            install_package,
+            remove_package,
+            update_package,
+            search_packages,
+            get_package_details,
+            // Database
+            get_database_info,
+            restart_database,
+            backup_database,
+            export_database_sql,
+            // Laravel Deploy
+            check_deployer_installed,
+            install_deployer,
+            run_deployment,
+            run_deploy_rollback,
+            run_deploy_unlock,
+            get_deploy_config,
+            save_deploy_config,
+            get_deploy_php_content,
+            save_deploy_php_content,
+            create_deploy_php,
+            // Laravel Metrics
+            get_system_metrics,
+            // Laravel Readme
+            read_project_file,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

@@ -1,8 +1,9 @@
+import { UserConfig } from "@/features/onboarding/types";
+
 import { useEffect, useState } from "react";
 
 import { SiNodeDotJs } from "@react-icons/all-files/si/SiNodeDotJs";
 import { SiPhp } from "@react-icons/all-files/si/SiPhp";
-import { SiPython } from "@react-icons/all-files/si/SiPython";
 import {
     IconDashboard,
     IconDatabase,
@@ -28,50 +29,11 @@ import {
 
 import { NavUser } from "./nav-user";
 
-interface UserConfig {
-    firstName: string;
-    lastName: string;
-    email: string;
-    username: string;
-    bio: string;
-    company: string;
-    website: string;
-    avatar: string | null;
-    github: string;
-    twitter: string;
-    linkedin: string;
-    theme: string;
-    accentColor: string;
-    sidebarCollapsed: boolean;
-    fontSize: string;
-    animations: boolean;
-    hivePath: string;
-    defaultProjectsPath: string;
-    hiveDataPath: string;
-    domainTld: string;
-    dnsResolver: string;
-    proxyPort: number;
-    autoStartProxy: boolean;
-    launchOnLogin: boolean;
-    startServicesOnLaunch: boolean;
-    startLastProjects: boolean;
-    minimizeToTray: boolean;
-    emailNotifications: boolean;
-    desktopNotifications: boolean;
-    soundEffects: boolean;
-    autoUpdate: boolean;
-    telemetry: boolean;
-    userCode: string;
-    githubStarred: boolean;
-    onboardingCompleted: boolean;
-}
-
 const navMainItems = [
     { title: "Dashboard", url: "/", icon: IconDashboard },
     { title: "Projects", url: "/projects", icon: IconFolder },
     { title: "PHP", url: "/php", icon: SiPhp },
     { title: "Node.js", url: "/nodejs", icon: SiNodeDotJs },
-    { title: "Python", url: "/python", icon: SiPython },
     { title: "Databases", url: "/databases", icon: IconDatabase },
     { title: "Tunnel", url: "/tunnel", icon: IconShare },
 ];

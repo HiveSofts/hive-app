@@ -1,10 +1,12 @@
 pub mod config;
+pub mod database;
 pub mod onboarding;
 pub mod runtime;
 pub mod storage;
 pub mod system;
 
 pub use config::*;
+pub use database::*;
 pub use onboarding::*;
 pub use runtime::*;
 pub use storage::*;

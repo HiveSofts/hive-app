@@ -1,0 +1,230 @@
+import { IconBrandGolang } from "@tabler/icons-react";
+import { SiGin } from "react-icons/si";
+
+import {
+    DjangoIcon,
+    DockerIcon,
+    FastApiIcon,
+    Html5Icon,
+    LaravelIcon,
+    NextjsIcon,
+    NginxIcon,
+    NodejsIcon,
+    PhpIcon,
+    ReactIcon,
+    ViteIcon,
+    VueIcon,
+    WordpressIcon,
+} from "@/components/icons";
+
+import { Technology } from "../types";
+
+export const TECHNOLOGIES: Technology[] = [
+    {
+        id: "laravel",
+        name: "Laravel",
+        icon: LaravelIcon,
+        color: "border-red-500/40 hover:border-red-500/80 hover:bg-red-500/5",
+        selectedColor: "border-red-500 bg-red-500/10 ring-1 ring-red-500/50",
+        available: true,
+    },
+    {
+        id: "php",
+        name: "PHP",
+        icon: PhpIcon,
+        color: "border-indigo-500/40 hover:border-indigo-500/80 hover:bg-indigo-500/5",
+        selectedColor: "border-indigo-500 bg-indigo-500/10 ring-1 ring-indigo-500/50",
+        available: true,
+    },
+    {
+        id: "wordpress",
+        name: "WordPress",
+        icon: WordpressIcon,
+        color: "border-sky-500/40 hover:border-sky-500/80 hover:bg-sky-500/5",
+        selectedColor: "border-sky-500 bg-sky-500/10 ring-1 ring-sky-500/50",
+        available: true,
+    },
+    {
+        id: "nodejs",
+        name: "Node.js",
+        icon: NodejsIcon,
+        color: "border-lime-500/40 hover:border-lime-500/80 hover:bg-lime-500/5",
+        selectedColor: "border-lime-500 bg-lime-500/10 ring-1 ring-lime-500/50",
+        available: true,
+    },
+    {
+        id: "go",
+        name: "Go",
+        icon: IconBrandGolang,
+        color: "border-cyan-500/40 hover:border-cyan-500/80 hover:bg-cyan-500/5",
+        selectedColor: "border-cyan-500 bg-cyan-500/10 ring-1 ring-cyan-500/50",
+        available: false,
+        soon: true,
+    },
+    {
+        id: "gin",
+        name: "Gin",
+        icon: SiGin,
+        color: "border-sky-500/40 hover:border-sky-500/80 hover:bg-sky-500/5",
+        selectedColor: "border-sky-500 bg-sky-500/10 ring-1 ring-sky-500/50",
+        available: false,
+        soon: true,
+    },
+    {
+        id: "html5",
+        name: "HTML5",
+        icon: Html5Icon,
+        color: "border-orange-500/40 hover:border-orange-500/80 hover:bg-orange-500/5",
+        selectedColor: "border-orange-500 bg-orange-500/10 ring-1 ring-orange-500/50",
+        available: true,
+    },
+    {
+        id: "react",
+        name: "React",
+        icon: ReactIcon,
+        color: "border-cyan-500/40 hover:border-cyan-500/80 hover:bg-cyan-500/5",
+        selectedColor: "border-cyan-500 bg-cyan-500/10 ring-1 ring-cyan-500/50",
+        available: true,
+    },
+    {
+        id: "vue",
+        name: "Vue",
+        icon: VueIcon,
+        color: "border-emerald-500/40 hover:border-emerald-500/80 hover:bg-emerald-500/5",
+        selectedColor: "border-emerald-500 bg-emerald-500/10 ring-1 ring-emerald-500/50",
+        available: true,
+    },
+    {
+        id: "nextjs",
+        name: "Next.js",
+        icon: NextjsIcon,
+        color: "border-zinc-500/40 hover:border-zinc-500/80 hover:bg-zinc-500/5",
+        selectedColor: "border-zinc-500 bg-zinc-500/10 ring-1 ring-zinc-500/50",
+        available: true,
+    },
+    {
+        id: "vite",
+        name: "Vite",
+        icon: ViteIcon,
+        color: "border-purple-500/40 hover:border-purple-500/80 hover:bg-purple-500/5",
+        selectedColor: "border-purple-500 bg-purple-500/10 ring-1 ring-purple-500/50",
+        available: true,
+    },
+    {
+        id: "docker",
+        name: "Docker",
+        icon: DockerIcon,
+        color: "border-blue-500/40 hover:border-blue-500/80 hover:bg-blue-500/5",
+        selectedColor: "border-blue-500 bg-blue-500/10 ring-1 ring-blue-500/50",
+        available: false,
+        soon: true,
+    },
+    {
+        id: "django",
+        name: "Django",
+        icon: DjangoIcon,
+        color: "border-indigo-500/40 hover:border-indigo-500/80 hover:bg-indigo-500/5",
+        selectedColor: "border-indigo-500 bg-indigo-500/10 ring-1 ring-indigo-500/50",
+        available: false,
+        soon: true,
+    },
+    {
+        id: "nginx",
+        name: "Nginx",
+        icon: NginxIcon,
+        color: "border-green-500/40 hover:border-green-500/80 hover:bg-green-500/5",
+        selectedColor: "border-green-500 bg-green-500/10 ring-1 ring-green-500/50",
+        available: false,
+        soon: true,
+    },
+    {
+        id: "fastapi",
+        name: "FastAPI",
+        icon: FastApiIcon,
+        color: "border-teal-500/40 hover:border-teal-500/80 hover:bg-teal-500/5",
+        selectedColor: "border-teal-500 bg-teal-500/10 ring-1 ring-teal-500/50",
+        available: false,
+        soon: true,
+    },
+];
+
+export const PROJECT_TYPE_CONFIG: Record<
+    string,
+    { icon: React.ComponentType<{ className?: string }>; color: string; badge: string }
+> = {
+    laravel: {
+        icon: LaravelIcon,
+        color: "border-red-500/30 bg-red-500/5 hover:bg-red-500/10 dark:border-red-500/20 dark:bg-red-500/5 dark:hover:bg-red-500/10",
+        badge: "bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/20",
+    },
+    react: {
+        icon: ReactIcon,
+        color: "border-cyan-500/30 bg-cyan-500/5 hover:bg-cyan-500/10 dark:border-cyan-500/20 dark:bg-cyan-500/5 dark:hover:bg-cyan-500/10",
+        badge: "bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 border-cyan-500/20",
+    },
+    vue: {
+        icon: VueIcon,
+        color: "border-emerald-500/30 bg-emerald-500/5 hover:bg-emerald-500/10 dark:border-emerald-500/20 dark:bg-emerald-500/5 dark:hover:bg-emerald-500/10",
+        badge: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20",
+    },
+    nextjs: {
+        icon: NextjsIcon,
+        color: "border-zinc-500/30 bg-zinc-500/5 hover:bg-zinc-500/10 dark:border-zinc-500/20 dark:bg-zinc-500/5 dark:hover:bg-zinc-500/10",
+        badge: "bg-zinc-500/10 text-zinc-600 dark:text-zinc-400 border-zinc-500/20",
+    },
+    vite: {
+        icon: ViteIcon,
+        color: "border-purple-500/30 bg-purple-500/5 hover:bg-purple-500/10 dark:border-purple-500/20 dark:bg-purple-500/5 dark:hover:bg-purple-500/10",
+        badge: "bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/20",
+    },
+    php: {
+        icon: PhpIcon,
+        color: "border-indigo-500/30 bg-indigo-500/5 hover:bg-indigo-500/10 dark:border-indigo-500/20 dark:bg-indigo-500/5 dark:hover:bg-indigo-500/10",
+        badge: "bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border-indigo-500/20",
+    },
+    wordpress: {
+        icon: WordpressIcon,
+        color: "border-sky-500/30 bg-sky-500/5 hover:bg-sky-500/10 dark:border-sky-500/20 dark:bg-sky-500/5 dark:hover:bg-sky-500/10",
+        badge: "bg-sky-500/10 text-sky-600 dark:text-sky-400 border-sky-500/20",
+    },
+    nodejs: {
+        icon: NodejsIcon,
+        color: "border-lime-500/30 bg-lime-500/5 hover:bg-lime-500/10 dark:border-lime-500/20 dark:bg-lime-500/5 dark:hover:bg-lime-500/10",
+        badge: "bg-lime-500/10 text-lime-600 dark:text-lime-400 border-lime-500/20",
+    },
+    html5: {
+        icon: Html5Icon,
+        color: "border-orange-500/30 bg-orange-500/5 hover:bg-orange-500/10 dark:border-orange-500/20 dark:bg-orange-500/5 dark:hover:bg-orange-500/10",
+        badge: "bg-orange-500/10 text-orange-600 dark:text-orange-400 border-orange-500/20",
+    },
+    docker: {
+        icon: DockerIcon,
+        color: "border-blue-500/30 bg-blue-500/5 hover:bg-blue-500/10 dark:border-blue-500/20 dark:bg-blue-500/5 dark:hover:bg-blue-500/10",
+        badge: "bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20",
+    },
+    django: {
+        icon: DjangoIcon,
+        color: "border-emerald-500/30 bg-emerald-500/5 hover:bg-emerald-500/10 dark:border-emerald-500/20 dark:bg-emerald-500/5 dark:hover:bg-emerald-500/10",
+        badge: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20",
+    },
+    nginx: {
+        icon: NginxIcon,
+        color: "border-green-500/30 bg-green-500/5 hover:bg-green-500/10 dark:border-green-500/20 dark:bg-green-500/5 dark:hover:bg-green-500/10",
+        badge: "bg-green-500/10 text-green-600 dark:text-green-400 border-green-500/20",
+    },
+    fastapi: {
+        icon: FastApiIcon,
+        color: "border-teal-500/30 bg-teal-500/5 hover:bg-teal-500/10 dark:border-teal-500/20 dark:bg-teal-500/5 dark:hover:bg-teal-500/10",
+        badge: "bg-teal-500/10 text-teal-600 dark:text-teal-400 border-teal-500/20",
+    },
+    go: {
+        icon: IconBrandGolang,
+        color: "border-cyan-500/30 bg-cyan-500/5 hover:bg-cyan-500/10 dark:border-cyan-500/20 dark:bg-cyan-500/5 dark:hover:bg-cyan-500/10",
+        badge: "bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 border-cyan-500/20",
+    },
+    gin: {
+        icon: SiGin,
+        color: "border-sky-500/30 bg-sky-500/5 hover:bg-sky-500/10 dark:border-sky-500/20 dark:bg-sky-500/5 dark:hover:bg-sky-500/10",
+        badge: "bg-sky-500/10 text-sky-600 dark:text-sky-400 border-sky-500/20",
+    },
+};
