@@ -17,6 +17,16 @@ pub struct ProjectInfo {
     pub version: Option<String>,
     pub source_type: Option<String>,
     pub github_repo: Option<String>,
+    // PHP-specific fields (stored as php_version / entry_point by create_php_project,
+    // serialized as phpVersion / entryPoint so the frontend Project type receives them)
+    #[serde(rename = "phpVersion", alias = "php_version", default)]
+    pub php_version: Option<String>,
+    #[serde(rename = "entryPoint", alias = "entry_point", default)]
+    pub entry_point: Option<String>,
+    #[serde(default)]
+    pub port: Option<u16>,
+    #[serde(default)]
+    pub host: Option<String>,
 }
 
 fn get_hive_projects_dir() -> PathBuf {
