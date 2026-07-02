@@ -28,10 +28,12 @@ import {
 } from "@/components/ui/sidebar";
 
 import { NavUser } from "./nav-user";
+import { SiDocker } from "react-icons/si";
 
 const navMainItems = [
     { title: "Dashboard", url: "/", icon: IconDashboard },
     { title: "Projects", url: "/projects", icon: IconFolder },
+    { title: "Docker", url: "/docker", icon: SiDocker },
     { title: "PHP", url: "/php", icon: SiPhp },
     { title: "Node.js", url: "/nodejs", icon: SiNodeDotJs },
     { title: "Databases", url: "/databases", icon: IconDatabase },

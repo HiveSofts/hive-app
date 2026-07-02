@@ -18,12 +18,7 @@ export function usePhp() {
                 setVersions((prev) =>
                     prev.map((v) =>
                         v.id === id
-                            ? {
-                                  ...v,
-                                  state: "installed",
-                                  progress: undefined,
-                                  installedAt: new Date().toISOString().slice(0, 10),
-                              }
+                            ? { ...v, state: "installed", progress: undefined, installedAt: new Date().toISOString().slice(0, 10) }
                             : v
                     )
                 );

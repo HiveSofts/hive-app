@@ -142,6 +142,21 @@ pub fn run() {
             get_all_active_tunnels,
             get_tunnel_history,
             get_tunnel_session,
+            detect_docker,
+            get_docker_install_url,
+            install_docker_linux,
+            list_docker_containers,
+            create_database_container,
+            start_docker_container,
+            stop_docker_container,
+            restart_docker_container,
+            remove_docker_container,
+            get_container_logs,
+            get_container_stats,
+            pull_docker_image,
+            list_docker_volumes,
+            remove_docker_volume,
+            execute_sql_in_container,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

@@ -9,7 +9,10 @@ pub mod vite;
 pub mod vue;
 pub mod wordpress;
 pub mod tunnel;
+pub mod docker;
 
+
+pub use docker::*;
 pub use common::*;
 pub use laravel::*;
 pub use nextjs::*;

@@ -1,17 +1,17 @@
-import { Download, Star, Trash2 } from "lucide-react";
+import { Download, Star, Terminal, Trash2 } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 
 import { PhpVersion } from "../types";
 
-const versionBadgeColor = (v: string) =>
+const versionColor = (v: string) =>
     ({
-        "8.4": "border-violet-500/40 bg-violet-500/10 text-violet-400",
-        "8.3": "border-amber-500/40 bg-amber-500/10 text-amber-400",
-        "8.2": "border-blue-500/40 bg-blue-500/10 text-blue-400",
-        "8.1": "border-zinc-500/40 bg-zinc-500/10 text-zinc-400",
-    })[v] ?? "border-border bg-muted text-muted-foreground";
+        "8.4": { badge: "border-violet-500/40 bg-violet-500/10 text-violet-400", dot: "bg-violet-500", glow: "shadow-violet-500/20" },
+        "8.3": { badge: "border-amber-500/40 bg-amber-500/10 text-amber-400", dot: "bg-amber-500", glow: "shadow-amber-500/20" },
+        "8.2": { badge: "border-blue-500/40 bg-blue-500/10 text-blue-400", dot: "bg-blue-500", glow: "shadow-blue-500/20" },
+        "8.1": { badge: "border-zinc-500/40 bg-zinc-500/10 text-zinc-400", dot: "bg-zinc-500", glow: "shadow-zinc-500/20" },
+    })[v] ?? { badge: "border-border bg-muted text-muted-foreground", dot: "bg-zinc-600", glow: "" };
 
 interface PhpVersionCardProps {
     ver: PhpVersion;
@@ -23,68 +23,66 @@ interface PhpVersionCardProps {
 export function PhpVersionCard({ ver, onInstall, onSetDefault, onRemove }: PhpVersionCardProps) {
     const installed = ver.state === "installed";
     const installing = ver.state === "installing";
+    const colors = versionColor(ver.minor);
 
     return (
         <div
             className={`relative rounded-2xl border p-5 transition-all duration-200 flex flex-col gap-4
-            ${
-                installed
-                    ? ver.isDefault
-                        ? "border-amber-500/50 bg-amber-500/5 shadow-sm shadow-amber-500/10"
-                        : "border-border bg-card hover:border-border/80"
-                    : "border-dashed border-border/60 bg-muted/20"
+            ${installed
+                ? ver.isDefault
+                    ? "border-amber-500/50 bg-amber-500/5 shadow-md shadow-amber-500/10"
+                    : "border-border bg-card hover:border-border/80"
+                : "border-dashed border-border/50 bg-muted/10 opacity-70 hover:opacity-90"
             }`}
         >
             {ver.isDefault && (
-                <span className="absolute -top-2.5 left-4 text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-500 text-white tracking-wide uppercase">
+                <span className="absolute -top-2.5 left-4 text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-amber-500 text-white tracking-widest uppercase">
                     Default
+                </span>
+            )}
+            {ver.eol && (
+                <span className="absolute -top-2.5 right-4 text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-red-500/80 text-white tracking-widest uppercase">
+                    EOL
                 </span>
             )}
 
             <div className="flex items-start justify-between">
-                <div>
+                <div className="space-y-1.5">
                     <div className="flex items-center gap-2">
-                        <Badge
-                            variant="outline"
-                            className={`font-mono text-sm px-2.5 py-0.5 font-bold ${versionBadgeColor(ver.minor)}`}
-                        >
+                        <Badge variant="outline" className={`font-mono text-sm px-2.5 py-0.5 font-bold ${colors.badge}`}>
                             PHP {ver.minor}
                         </Badge>
                         {installed && (
-                            <span className="text-xs text-muted-foreground font-mono">
-                                {ver.patch}
-                            </span>
+                            <span className="text-xs text-muted-foreground font-mono">{ver.patch}</span>
                         )}
                     </div>
-                    <div className="mt-2 space-y-0.5">
-                        {installed ? (
-                            <>
-                                <p className="text-[11px] font-mono text-muted-foreground">
-                                    {ver.installPath}
-                                </p>
-                                <p className="text-[11px] text-muted-foreground">
-                                    Installed {ver.installedAt}
-                                </p>
-                            </>
-                        ) : (
-                            <p className="text-[11px] text-muted-foreground">
-                                {ver.downloadSize} download
-                            </p>
-                        )}
-                    </div>
+                    {installed ? (
+                        <>
+                            <div className="flex items-center gap-1.5">
+                                <Terminal className="w-3 h-3 text-muted-foreground" />
+                                <code className="text-[10px] font-mono text-muted-foreground">
+                                    php{ver.minor.replace(".", "")}
+                                </code>
+                            </div>
+                            <p className="text-[11px] text-muted-foreground">Installed {ver.installedAt}</p>
+                        </>
+                    ) : (
+                        <>
+                            <p className="text-[11px] text-muted-foreground">{ver.downloadSize} download</p>
+                            <p className="text-[11px] text-muted-foreground">Released {ver.releaseDate}</p>
+                        </>
+                    )}
                 </div>
-                <div
-                    className={`w-2.5 h-2.5 rounded-full mt-1 ${installed ? "bg-emerald-500 shadow-sm shadow-emerald-500/50" : "bg-zinc-600"}`}
-                />
+                <div className={`w-2.5 h-2.5 rounded-full mt-1 ${installed ? `${colors.dot} shadow-sm ${colors.glow}` : "bg-zinc-700"}`} />
             </div>
 
             {installing && typeof ver.progress === "number" && (
-                <div className="space-y-1">
+                <div className="space-y-1.5">
                     <div className="flex justify-between text-[10px] text-muted-foreground">
-                        <span>Downloading & extracting...</span>
-                        <span>{ver.progress}%</span>
+                        <span>Downloading & extracting…</span>
+                        <span className="font-mono">{ver.progress}%</span>
                     </div>
-                    <div className="h-1.5 rounded-full bg-muted overflow-hidden">
+                    <div className="h-1 rounded-full bg-muted overflow-hidden">
                         <div
                             className="h-full bg-amber-500 rounded-full transition-all duration-300"
                             style={{ width: `${ver.progress}%` }}
@@ -107,7 +105,7 @@ export function PhpVersionCard({ ver, onInstall, onSetDefault, onRemove }: PhpVe
                 {installing && (
                     <Button disabled size="sm" className="flex-1 h-8 text-xs gap-1.5">
                         <span className="w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin" />
-                        Installing...
+                        Installing…
                     </Button>
                 )}
                 {installed && !ver.isDefault && (

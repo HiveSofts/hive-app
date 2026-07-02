@@ -9,6 +9,9 @@ export interface PhpVersion {
     isDefault: boolean;
     downloadSize: string;
     progress?: number;
+    alias?: string;
+    eol?: boolean;
+    releaseDate?: string;
 }
 
 export interface Project {
@@ -16,6 +19,7 @@ export interface Project {
     name: string;
     type: string;
     phpVersion: string | null;
+    path?: string;
 }
 
 export interface IniSetting {
@@ -31,4 +35,13 @@ export interface Extension {
     name: string;
     enabled: boolean;
     builtin: boolean;
+    description?: string;
+    category?: string;
+}
+
+export interface ShellAlias {
+    alias: string;
+    version: string;
+    command: string;
+    isActive: boolean;
 }

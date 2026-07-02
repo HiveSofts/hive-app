@@ -6,6 +6,8 @@ import { createBrowserRouter } from "react-router-dom";
 
 import { AppLayout } from "@/components/layouts/app-layout";
 import { LoadingSpinner } from "@/components/loading-spinner";
+import DockerDatabaseManagerPage from "@/features/docker/DockerDatabaseManagerPage";
+import DockerManagerPage from "@/features/docker/DockerManagerPage";
 
 const Dashboard = lazy(() => import("@/features/dashboard/Dashboard"));
 const ProjectsListPage = lazy(() => import("@/features/projects/pages/ProjectsListPage"));
@@ -13,7 +15,6 @@ const CreateProjectPage = lazy(() => import("@/features/projects/pages/CreatePro
 const ProjectDetailPage = lazy(() => import("@/features/projects/pages/ProjectDetailPage"));
 const PhpManagerPage = lazy(() => import("@/features/modules/php/PhpManagerPage"));
 const NodeManagerPage = lazy(() => import("@/features/modules/nodejs/NodeManagerPage"));
-const DatabaseManagerPage = lazy(() => import("@/features/database/DatabaseManagerPage"));
 const TunnelManagerPage = lazy(() => import("@/features/tunnel/TunnelManagerPage"));
 const SettingsPage = lazy(() => import("@/features/settings/SettingsPage"));
 
@@ -78,7 +79,7 @@ export const router = createBrowserRouter([
                 path: "databases",
                 element: (
                     <LazyPage>
-                        <DatabaseManagerPage />
+                        <DockerDatabaseManagerPage />
                     </LazyPage>
                 ),
             },
@@ -95,6 +96,14 @@ export const router = createBrowserRouter([
                 element: (
                     <LazyPage>
                         <SettingsPage />
+                    </LazyPage>
+                ),
+            },
+               {
+                path: "docker",
+                element: (
+                    <LazyPage>
+                        <DockerManagerPage />
                     </LazyPage>
                 ),
             },
