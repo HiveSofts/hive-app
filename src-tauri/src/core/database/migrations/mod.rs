@@ -5,6 +5,8 @@ mod v2_session_id;
 mod v3_last_activity;
 mod v4_error_count;
 mod v5_metadata;
+mod v6_tunnel;
+
 
 pub trait Migration {
     fn version(&self) -> &str;
@@ -27,6 +29,7 @@ pub fn run_migrations(conn: &Connection) -> Result<()> {
         Box::new(v3_last_activity::MigrationV3),
         Box::new(v4_error_count::MigrationV4),
         Box::new(v5_metadata::MigrationV5),
+        Box::new(v6_tunnel::MigrationV6),
     ];
 
     for migration in migrations {

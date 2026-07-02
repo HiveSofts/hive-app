@@ -32,21 +32,18 @@ pub fn run() {
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
-            // Core
             check_user_config_exists,
             get_user_config,
             save_user_config,
             initialize_hive,
             complete_onboarding,
             get_onboarding_status,
-            // Runtime
             detect_php,
             detect_node,
             get_installed_runtimes,
             install_runtime,
             get_available_links,
             uninstall_runtime,
-            // System
             check_and_install_dependencies,
             get_os,
             get_arch,
@@ -54,14 +51,11 @@ pub fn run() {
             execute_shell_command,
             execute_shell_streaming,
             check_command_exists,
-            // Projects
             list_all_projects,
             remove_project,
             get_existing_projects,
-            // Package Managers
             check_package_manager,
             install_package_manager,
-            // Create Projects
             create_laravel_project,
             create_nextjs_project,
             create_nodejs_project,
@@ -71,11 +65,9 @@ pub fn run() {
             create_vite_project,
             create_vue_project,
             create_wordpress_project,
-            // WordPress
             fetch_wordpress_tags,
             download_wordpress_zip,
             extract_zip,
-            // Laravel Server
             start_laravel_project,
             stop_laravel_project,
             restart_laravel_project,
@@ -84,17 +76,14 @@ pub fn run() {
             get_all_running_servers,
             get_server_logs,
             clear_server_logs,
-            // PHP Server
             start_php_project,
             stop_php_project,
             restart_php_project,
             get_php_server_status,
-            // PHP Info
-            get_php_info,            // Laravel Commands
+            get_php_info,
             run_artisan_command,
             get_artisan_commands,
             get_artisan_commands_with_details,
-            // Queue
             get_queue_workers,
             get_queue_stats,
             get_queue_connection_info,
@@ -111,27 +100,22 @@ pub fn run() {
             clear_queue,
             pause_queue,
             resume_queue,
-            // Scheduled Tasks
             get_scheduled_tasks,
             run_scheduled_task,
             run_all_scheduled_tasks,
-            // Logs
             get_project_logs,
             clear_project_logs,
             tail_project_logs,
-            // Packages
             get_installed_packages,
             install_package,
             remove_package,
             update_package,
             search_packages,
             get_package_details,
-            // Database
             get_database_info,
             restart_database,
             backup_database,
             export_database_sql,
-            // Laravel Deploy
             check_deployer_installed,
             install_deployer,
             run_deployment,
@@ -142,10 +126,22 @@ pub fn run() {
             get_deploy_php_content,
             save_deploy_php_content,
             create_deploy_php,
-            // Laravel Metrics
             get_system_metrics,
-            // Laravel Readme
             read_project_file,
+            detect_cloudflared,
+            check_cloudflared_installed,
+            install_cloudflared,
+            get_tunnel_config,
+            save_tunnel_auth_token,
+            delete_tunnel_auth_token,
+            start_tunnel,
+            start_quick_tunnel,
+            stop_tunnel,
+            stop_all_tunnels,
+            get_tunnel_status,
+            get_all_active_tunnels,
+            get_tunnel_history,
+            get_tunnel_session,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

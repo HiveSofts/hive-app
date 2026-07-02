@@ -154,10 +154,7 @@ export function PhpExtensionsPanel({ projectPath, version }: PhpExtensionsPanelP
                     </thead>
                     <tbody>
                         {phpInfo.ini_settings.map((s) => (
-                            <tr
-                                key={s.key}
-                                className="border-b last:border-0 hover:bg-muted/20"
-                            >
+                            <tr key={s.key} className="border-b last:border-0 hover:bg-muted/20">
                                 <td className="px-4 py-2.5 font-mono text-foreground/80">
                                     {s.key}
                                 </td>
