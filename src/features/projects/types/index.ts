@@ -34,8 +34,10 @@ export interface Project {
     status: ProjectStatus;
     version?: string;
     phpVersion?: string;
-    nodeVersion?: string;
+    entryPoint?: string;
+    host?: string;
     port?: number;
+    nodeVersion?: string;
     package_manager?: string;
     source_type?: string;
     github_repo?: string;
