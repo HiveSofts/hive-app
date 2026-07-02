@@ -22,24 +22,7 @@ interface TerminalShellProps {
     version?: string;
 }
 
-const QUICK = [
-    "php artisan cache:clear",
-    "php artisan migrate",
-    "php artisan migrate:fresh --seed",
-    "php artisan optimize",
-    "php artisan optimize:clear",
-    "composer install",
-    "composer update",
-    "php artisan queue:restart",
-    "php artisan config:clear",
-    "php artisan route:list",
-    "php artisan tinker",
-    "npm run dev",
-    "npm run build",
-    "php artisan make:model",
-    "php artisan make:controller",
-    "php artisan vendor:publish",
-];
+
 
 function parseInteractivePrompt(lines: string[]): InteractivePrompt | null {
     const last = lines[lines.length - 1] ?? "";
@@ -92,7 +75,7 @@ export function TerminalShell({
     const [promptInput, setPromptInput] = useState("");
     const [choiceSearch, setChoiceSearch] = useState("");
     const [selectedChoice, setSelectedChoice] = useState(0);
-    const [pendingLines, setPendingLines] = useState<string[]>([]);
+    const [ setPendingLines] = useState<string[]>([]);
     const [sessionId, setSessionId] = useState("");
 
     const cmdHistory = useRef<string[]>([]);

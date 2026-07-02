@@ -10,13 +10,10 @@ import {
     CheckCircle2,
     ChevronRight,
     Clock,
-    Hash,
     Play,
     RefreshCw,
-    RotateCcw,
     Terminal,
     Timer,
-    XCircle,
     Zap,
 } from "lucide-react";
 
