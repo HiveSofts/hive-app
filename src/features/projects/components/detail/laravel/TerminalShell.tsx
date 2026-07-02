@@ -22,8 +22,6 @@ interface TerminalShellProps {
     version?: string;
 }
 
-
-
 function parseInteractivePrompt(lines: string[]): InteractivePrompt | null {
     const last = lines[lines.length - 1] ?? "";
     const joined = lines.slice(-20).join("\n");
@@ -75,7 +73,6 @@ export function TerminalShell({
     const [promptInput, setPromptInput] = useState("");
     const [choiceSearch, setChoiceSearch] = useState("");
     const [selectedChoice, setSelectedChoice] = useState(0);
-    const [ setPendingLines] = useState<string[]>([]);
     const [sessionId, setSessionId] = useState("");
 
     const cmdHistory = useRef<string[]>([]);
@@ -105,7 +102,6 @@ export function TerminalShell({
             setHistIdx(-1);
             setInput("");
             setPrompt(null);
-            setPendingLines([]);
             pendingRef.current = [];
 
             if (trimmed === "clear") {
@@ -144,7 +140,6 @@ export function TerminalShell({
                     unlisten();
                     setRunning(false);
                     setPrompt(null);
-                    setPendingLines([]);
                     pendingRef.current = [];
                     if (event.payload.exit_code !== 0 && event.payload.exit_code !== null) {
                         appendLine({
@@ -157,7 +152,6 @@ export function TerminalShell({
 
                 const newLine = event.payload.line;
                 pendingRef.current = [...pendingRef.current, newLine];
-                setPendingLines([...pendingRef.current]);
 
                 appendLine({
                     type: event.payload.is_stderr ? "err" : "out",

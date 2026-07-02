@@ -166,7 +166,7 @@ export function SchedulesPanel({ projectPath }: SchedulesPanelProps) {
                 projectPath,
                 command,
             });
-            const entry = addLog(result);
+            addLog(result);
             if (result.success) {
                 addToast("success", `${command} ran in ${result.duration_ms}ms`);
             } else {
