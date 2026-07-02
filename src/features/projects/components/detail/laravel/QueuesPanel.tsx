@@ -4,21 +4,17 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import { invoke } from "@tauri-apps/api/core";
 import {
-    Activity,
     AlertCircle,
-    ArrowRight,
     CheckCircle,
     ChevronRight,
     Clock,
     Cpu,
     Database,
     Eye,
-    Filter,
     Hash,
     Maximize2,
     Minimize2,
     MoreVertical,
-    Pause,
     Play,
     Plus,
     Power,
@@ -26,17 +22,14 @@ import {
     RefreshCw,
     RotateCcw,
     Server,
-    Settings,
-    Square,
     Terminal,
     Trash2,
     X,
     Zap,
 } from "lucide-react";
-
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import {
     Dialog,
     DialogContent,
@@ -49,7 +42,6 @@ import {
     DropdownMenu,
     DropdownMenuContent,
     DropdownMenuItem,
-    DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";

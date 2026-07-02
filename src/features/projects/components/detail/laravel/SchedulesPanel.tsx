@@ -10,13 +10,10 @@ import {
     CheckCircle2,
     ChevronRight,
     Clock,
-    Hash,
     Play,
     RefreshCw,
-    RotateCcw,
     Terminal,
     Timer,
-    XCircle,
     Zap,
 } from "lucide-react";
 
@@ -169,7 +166,7 @@ export function SchedulesPanel({ projectPath }: SchedulesPanelProps) {
                 projectPath,
                 command,
             });
-            const entry = addLog(result);
+            addLog(result);
             if (result.success) {
                 addToast("success", `${command} ran in ${result.duration_ms}ms`);
             } else {
