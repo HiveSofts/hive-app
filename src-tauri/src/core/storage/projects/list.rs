@@ -23,6 +23,9 @@ pub struct ProjectInfo {
     pub php_version: Option<String>,
     #[serde(rename = "entryPoint", alias = "entry_point", default)]
     pub entry_point: Option<String>,
+    // Next.js-specific field (serialized as nodeVersion so the frontend Project type receives it)
+    #[serde(rename = "nodeVersion", alias = "node_version", default)]
+    pub node_version: Option<String>,
     #[serde(default)]
     pub port: Option<u16>,
     #[serde(default)]

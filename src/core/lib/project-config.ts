@@ -7,6 +7,12 @@ import { QueuesPanel } from "@/features/projects/components/detail/laravel/Queue
 import { ReadmePanel } from "@/features/projects/components/detail/laravel/ReadmePanel";
 import { SchedulesPanel } from "@/features/projects/components/detail/laravel/SchedulesPanel";
 import { TerminalShell } from "@/features/projects/components/detail/laravel/TerminalShell";
+import { NextjsBuildPanel } from "@/features/projects/components/detail/nextjs/NextjsBuildPanel";
+import { NextjsDependenciesPanel } from "@/features/projects/components/detail/nextjs/NextjsDependenciesPanel";
+import { NextjsDeployPanel } from "@/features/projects/components/detail/nextjs/NextjsDeployPanel";
+import { NextjsLogsPanel } from "@/features/projects/components/detail/nextjs/NextjsLogsPanel";
+import { NextjsOverviewPanel } from "@/features/projects/components/detail/nextjs/NextjsOverviewPanel";
+import { NextjsShellPanel } from "@/features/projects/components/detail/nextjs/NextjsShellPanel";
 import { PhpComposerPanel } from "@/features/projects/components/detail/php/PhpComposerPanel";
 import { PhpExtensionsPanel } from "@/features/projects/components/detail/php/PhpExtensionsPanel";
 import { PhpLogsPanel } from "@/features/projects/components/detail/php/PhpLogsPanel";
@@ -63,7 +69,50 @@ export const PROJECT_DETAIL_CONFIG: Record<ProjectType, ProjectConfig> = {
             { id: "logs", label: "Logs", icon: "📄" },
             { id: "deploy", label: "Deploy", icon: "🚀" },
         ],
-        panels: [],
+        panels: [
+            {
+                id: "overview",
+                component: NextjsOverviewPanel,
+                props: {
+                    packageManager: (p: any) => p.package_manager,
+                    nodeVersion: (p: any) => p.nodeVersion,
+                    host: (p: any) => p.host,
+                    port: (p: any) => p.port,
+                    description: (p: any) => p.description,
+                    github_repo: (p: any) => p.github_repo,
+                    created_at: (p: any) => p.created_at,
+                },
+            },
+            {
+                id: "shell",
+                component: NextjsShellPanel,
+                props: {
+                    packageManager: (p: any) => p.package_manager,
+                },
+            },
+            {
+                id: "dependencies",
+                component: NextjsDependenciesPanel,
+                props: {
+                    packageManager: (p: any) => p.package_manager,
+                },
+            },
+            {
+                id: "build",
+                component: NextjsBuildPanel,
+                props: {
+                    packageManager: (p: any) => p.package_manager,
+                },
+            },
+            { id: "logs", component: NextjsLogsPanel },
+            {
+                id: "deploy",
+                component: NextjsDeployPanel,
+                props: {
+                    packageManager: (p: any) => p.package_manager,
+                },
+            },
+        ],
     },
     vue: {
         tabs: [
