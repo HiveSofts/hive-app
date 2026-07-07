@@ -48,7 +48,6 @@ export function DeployPanel({ projectPath }: DeployPanelProps) {
         key_path: "~/.ssh/id_rsa",
     });
     const [deployPhp, setDeployPhp] = useState("");
-    const [initialLoad, setInitialLoad] = useState(true);
     const logRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
@@ -88,12 +87,10 @@ export function DeployPanel({ projectPath }: DeployPanelProps) {
                 const defaultContent = generateDefaultDeployPhp();
                 setDeployPhp(defaultContent);
             }
-            setInitialLoad(false);
         } catch (error) {
             console.error("Failed to load deploy.php content:", error);
             const defaultContent = generateDefaultDeployPhp();
             setDeployPhp(defaultContent);
-            setInitialLoad(false);
         }
     };
 

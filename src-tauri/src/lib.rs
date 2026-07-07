@@ -84,7 +84,13 @@ pub fn run() {
             get_all_running_servers,
             get_server_logs,
             clear_server_logs,
-            // Laravel Commands
+            // PHP Server
+            start_php_project,
+            stop_php_project,
+            restart_php_project,
+            get_php_server_status,
+            // PHP Info
+            get_php_info,            // Laravel Commands
             run_artisan_command,
             get_artisan_commands,
             get_artisan_commands_with_details,

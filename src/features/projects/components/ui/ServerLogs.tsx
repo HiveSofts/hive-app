@@ -19,7 +19,7 @@ function lineColor(line: string): string {
     return "text-zinc-400";
 }
 
-export function ServerLogs({ projectName, isRunning, serverUrl, port }: ServerLogsProps) {
+export function ServerLogs({ projectName, isRunning, serverUrl }: ServerLogsProps) {
     const [logs, setLogs] = useState<string[]>([]);
     const [minimized, setMinimized] = useState(false);
     const bottomRef = useRef<HTMLDivElement>(null);

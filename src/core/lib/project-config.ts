@@ -7,6 +7,17 @@ import { QueuesPanel } from "@/features/projects/components/detail/laravel/Queue
 import { ReadmePanel } from "@/features/projects/components/detail/laravel/ReadmePanel";
 import { SchedulesPanel } from "@/features/projects/components/detail/laravel/SchedulesPanel";
 import { TerminalShell } from "@/features/projects/components/detail/laravel/TerminalShell";
+import { PhpComposerPanel } from "@/features/projects/components/detail/php/PhpComposerPanel";
+import { PhpExtensionsPanel } from "@/features/projects/components/detail/php/PhpExtensionsPanel";
+import { PhpLogsPanel } from "@/features/projects/components/detail/php/PhpLogsPanel";
+import { PhpOverviewPanel } from "@/features/projects/components/detail/php/PhpOverviewPanel";
+import { PhpShellPanel } from "@/features/projects/components/detail/php/PhpShellPanel";
+import { NextjsOverviewPanel } from "@/features/projects/components/detail/nextjs/NextjsOverviewPanel";
+import { NextjsShellPanel } from "@/features/projects/components/detail/nextjs/NextjsShellPanel";
+import { NextjsDependenciesPanel } from "@/features/projects/components/detail/nextjs/NextjsDependenciesPanel";
+import { NextjsBuildPanel } from "@/features/projects/components/detail/nextjs/NextjsBuildPanel";
+import { NextjsLogsPanel } from "@/features/projects/components/detail/nextjs/NextjsLogsPanel";
+import { NextjsDeployPanel } from "@/features/projects/components/detail/nextjs/NextjsDeployPanel";
 import type { PanelConfig, ProjectType, TabConfig } from "@/features/projects/types";
 
 interface ProjectConfig {
@@ -58,7 +69,38 @@ export const PROJECT_DETAIL_CONFIG: Record<ProjectType, ProjectConfig> = {
             { id: "logs", label: "Logs", icon: "📄" },
             { id: "deploy", label: "Deploy", icon: "🚀" },
         ],
-        panels: [],
+        panels: [
+            {
+                id: "overview",
+                component: NextjsOverviewPanel,
+                props: {
+                    packageManager: (p: any) => p.package_manager,
+                    nodeVersion: (p: any) => p.nodeVersion,
+                    host: (p: any) => p.host,
+                    port: (p: any) => p.port,
+                    description: (p: any) => p.description,
+                    github_repo: (p: any) => p.github_repo,
+                    created_at: (p: any) => p.created_at,
+                },
+            },
+            { id: "shell", component: NextjsShellPanel },
+            {
+                id: "dependencies",
+                component: NextjsDependenciesPanel,
+                props: { packageManager: (p: any) => p.package_manager },
+            },
+            {
+                id: "build",
+                component: NextjsBuildPanel,
+                props: { packageManager: (p: any) => p.package_manager },
+            },
+            { id: "logs", component: NextjsLogsPanel },
+            {
+                id: "deploy",
+                component: NextjsDeployPanel,
+                props: { packageManager: (p: any) => p.package_manager },
+            },
+        ],
     },
     vue: {
         tabs: [
@@ -92,10 +134,35 @@ export const PROJECT_DETAIL_CONFIG: Record<ProjectType, ProjectConfig> = {
         tabs: [
             { id: "overview", label: "Overview", icon: "📊" },
             { id: "shell", label: "Shell", icon: "💻" },
+            { id: "composer", label: "Composer", icon: "📦" },
             { id: "extensions", label: "Extensions", icon: "🔌" },
             { id: "logs", label: "Logs", icon: "📄" },
         ],
-        panels: [],
+        panels: [
+            {
+                id: "overview",
+                component: PhpOverviewPanel,
+                props: {
+                    phpVersion: (p: any) => p.phpVersion,
+                    entryPoint: (p: any) => p.entryPoint,
+                    host: (p: any) => p.host,
+                    port: (p: any) => p.port,
+                    description: (p: any) => p.description,
+                    github_repo: (p: any) => p.github_repo,
+                    created_at: (p: any) => p.created_at,
+                },
+            },
+            { id: "shell", component: PhpShellPanel },
+            { id: "composer", component: PhpComposerPanel },
+            {
+                id: "extensions",
+                component: PhpExtensionsPanel,
+                props: {
+                    version: (p: any) => p.phpVersion,
+                },
+            },
+            { id: "logs", component: PhpLogsPanel },
+        ],
     },
     html5: {
         tabs: [
