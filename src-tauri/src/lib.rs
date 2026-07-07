@@ -75,6 +75,15 @@ pub fn run() {
             fetch_wordpress_tags,
             download_wordpress_zip,
             extract_zip,
+            // WordPress Server
+            start_wordpress_project,
+            stop_wordpress_project,
+            restart_wordpress_project,
+            get_wordpress_server_status,
+            // WordPress Content
+            get_wordpress_plugins,
+            get_wordpress_themes,
+            get_wordpress_logs,
             // Laravel Server
             start_laravel_project,
             stop_laravel_project,

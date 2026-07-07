@@ -1,6 +1,6 @@
 import { cn } from "@/core/lib/utils";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 
 import { invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
@@ -8,6 +8,7 @@ import {
     AlertCircle,
     CheckCircle2,
     ChevronRight,
+    Download,
     FileArchive,
     FolderOpen,
     GitBranch,
@@ -22,7 +23,7 @@ import { Label } from "@/components/ui/label.tsx";
 import { Textarea } from "@/components/ui/textarea.tsx";
 
 type DatabaseDriver = "mysql" | "mariadb";
-type SourceType = "github_clone" | "github_zip";
+type SourceType = "wordpress_org" | "github_clone" | "github_zip";
 
 interface FormData {
     name: string;
@@ -71,7 +72,7 @@ export function CreateWordPressProject({ onSuccess }: { onSuccess: (project: any
         host: "localhost",
         port: 8080,
         version: "",
-        sourceType: "github_clone",
+        sourceType: "wordpress_org",
         githubRepo: "https://github.com/WordPress/WordPress",
         githubBranch: "master",
         githubZipUrl: "",
@@ -130,9 +131,35 @@ export function CreateWordPressProject({ onSuccess }: { onSuccess: (project: any
             return;
         }
 
+        if (!formData.siteTitle || !formData.siteUrl || !formData.adminUser || !formData.adminEmail) {
+            setError("Site title, URL, admin user and admin email are required");
+            return;
+        }
+
+        if (
+            formData.sourceType === "github_clone" &&
+            !formData.githubRepo
+        ) {
+            setError("A GitHub repository URL is required for clone source");
+            return;
+        }
+
+        if (
+            formData.sourceType === "wordpress_org" &&
+            !formData.version &&
+            tags.length === 0
+        ) {
+            setError("Please select a WordPress version");
+            return;
+        }
+
         setLoading(true);
         setError(null);
-        setDownloadProgress(0);
+        setDownloadProgress(8);
+
+        const progressTimer = setInterval(() => {
+            setDownloadProgress((p) => (p < 90 ? p + Math.random() * 12 : p));
+        }, 400);
 
         try {
             const requestData = {
@@ -177,17 +204,27 @@ export function CreateWordPressProject({ onSuccess }: { onSuccess: (project: any
         } catch (err) {
             setError(err instanceof Error ? err.message : "Failed to create WordPress site");
         } finally {
+            clearInterval(progressTimer);
             setLoading(false);
         }
     };
 
     const getCreateCommand = () => {
+        const target = formData.wpPath || formData.name;
         if (formData.sourceType === "github_clone") {
             const repo = formData.githubRepo || "https://github.com/WordPress/WordPress";
-            const branch = formData.githubBranch ? `--branch ${formData.githubBranch}` : "";
-            return `git clone ${branch} ${repo} ${formData.wpPath || formData.name}`;
+            const branch = formData.githubBranch ? ` --branch ${formData.githubBranch}` : "";
+            return `git clone${branch} ${repo} ${target}`;
         }
-        return `Download WordPress ${formData.version || "latest"} from GitHub`;
+        if (formData.sourceType === "github_zip") {
+            const url =
+                formData.githubZipUrl ||
+                `https://github.com/WordPress/WordPress/archive/refs/tags/${formData.version || "latest"}.zip`;
+            return `curl -L ${url} -o ${target}.zip && unzip ${target}.zip -d ${target}`;
+        }
+        const version = formData.version || "latest";
+        const file = version === "latest" ? "latest" : `wordpress-${version}`;
+        return `curl -L https://wordpress.org/${file}.zip -o ${target}.zip && unzip ${target}.zip -d ${target}`;
     };
 
     return (
@@ -281,69 +318,27 @@ export function CreateWordPressProject({ onSuccess }: { onSuccess: (project: any
             {step === 1 && (
                 <div className="space-y-4">
                     <div className="space-y-3">
-                        <div
-                            className={cn(
-                                "flex items-start justify-between p-3 rounded-lg border cursor-pointer transition-all",
-                                formData.sourceType === "github_clone"
-                                    ? "border-amber-500 bg-amber-500/10"
-                                    : "border-border hover:bg-muted/30"
-                            )}
+                        <SourceOption
+                            active={formData.sourceType === "wordpress_org"}
+                            onClick={() => update({ sourceType: "wordpress_org" })}
+                            icon={<Download className="w-4 h-4" />}
+                            title="WordPress.org"
+                            description="Download the official WordPress release (recommended)"
+                        />
+                        <SourceOption
+                            active={formData.sourceType === "github_clone"}
                             onClick={() => update({ sourceType: "github_clone" })}
-                        >
-                            <div className="flex-1">
-                                <div className="text-sm font-medium flex items-center gap-2">
-                                    <GitBranch className="w-4 h-4" />
-                                    Clone from GitHub
-                                </div>
-                                <div className="text-[11px] text-muted-foreground">
-                                    Clone WordPress repository via git (official or custom repo)
-                                </div>
-                            </div>
-                            <div
-                                className={cn(
-                                    "w-4 h-4 rounded-full border-2 flex items-center justify-center flex-shrink-0 mt-0.5",
-                                    formData.sourceType === "github_clone"
-                                        ? "bg-amber-500 border-amber-500"
-                                        : "border-muted-foreground"
-                                )}
-                            >
-                                {formData.sourceType === "github_clone" && (
-                                    <div className="w-2 h-2 rounded-full bg-white" />
-                                )}
-                            </div>
-                        </div>
-
-                        <div
-                            className={cn(
-                                "flex items-start justify-between p-3 rounded-lg border cursor-pointer transition-all",
-                                formData.sourceType === "github_zip"
-                                    ? "border-amber-500 bg-amber-500/10"
-                                    : "border-border hover:bg-muted/30"
-                            )}
+                            icon={<GitBranch className="w-4 h-4" />}
+                            title="Clone from GitHub"
+                            description="Clone the WordPress repository via git"
+                        />
+                        <SourceOption
+                            active={formData.sourceType === "github_zip"}
                             onClick={() => update({ sourceType: "github_zip" })}
-                        >
-                            <div className="flex-1">
-                                <div className="text-sm font-medium flex items-center gap-2">
-                                    <FileArchive className="w-4 h-4" />
-                                    Download ZIP from GitHub
-                                </div>
-                                <div className="text-[11px] text-muted-foreground">
-                                    Download WordPress as ZIP from GitHub tags (official or custom)
-                                </div>
-                            </div>
-                            <div
-                                className={cn(
-                                    "w-4 h-4 rounded-full border-2 flex items-center justify-center flex-shrink-0 mt-0.5",
-                                    formData.sourceType === "github_zip"
-                                        ? "bg-amber-500 border-amber-500"
-                                        : "border-muted-foreground"
-                                )}
-                            >
-                                {formData.sourceType === "github_zip" && (
-                                    <div className="w-2 h-2 rounded-full bg-white" />
-                                )}
-                            </div>
-                        </div>
+                            icon={<FileArchive className="w-4 h-4" />}
+                            title="Download ZIP from GitHub"
+                            description="Download a specific version as a ZIP from GitHub tags"
+                        />
                     </div>
 
                     {formData.sourceType === "github_clone" && (
@@ -369,61 +364,40 @@ export function CreateWordPressProject({ onSuccess }: { onSuccess: (project: any
                         </div>
                     )}
 
+                    {formData.sourceType === "wordpress_org" && (
+                        <WordPressVersionSelector
+                            tags={tags}
+                            loadingTags={loadingTags}
+                            selectedVersion={selectedVersion}
+                            onSelect={(v) => {
+                                setSelectedVersion(v);
+                                update({ version: v });
+                            }}
+                            onLoad={fetchTags}
+                            customUrl={formData.githubZipUrl}
+                            onCustomUrl={(v) => update({ githubZipUrl: v })}
+                            customUrlLabel="Or pin a specific WordPress.org version URL"
+                            customUrlPlaceholder="https://wordpress.org/wordpress-6.4.2.zip"
+                            note="Leave empty to use the selected version from WordPress.org."
+                        />
+                    )}
+
                     {formData.sourceType === "github_zip" && (
-                        <div className="space-y-3">
-                            {loadingTags ? (
-                                <div className="flex items-center gap-2 text-muted-foreground">
-                                    <Loader2 className="w-4 h-4 animate-spin" />
-                                    <span className="text-sm">Loading WordPress versions...</span>
-                                </div>
-                            ) : tags.length > 0 ? (
-                                <div className="space-y-3">
-                                    <div className="space-y-1.5">
-                                        <Label className="text-sm">Select WordPress Version</Label>
-                                        <div className="grid grid-cols-4 gap-2 max-h-48 overflow-y-auto p-1">
-                                            {tags.map((tag) => (
-                                                <button
-                                                    key={tag.name}
-                                                    onClick={() => {
-                                                        setSelectedVersion(tag.name);
-                                                        update({ version: tag.name });
-                                                    }}
-                                                    className={cn(
-                                                        "px-3 py-2 rounded-lg text-xs transition-all text-center font-mono",
-                                                        selectedVersion === tag.name
-                                                            ? "bg-amber-500 text-white"
-                                                            : "bg-muted hover:bg-muted/80"
-                                                    )}
-                                                >
-                                                    {tag.name}
-                                                </button>
-                                            ))}
-                                        </div>
-                                    </div>
-                                    <div className="space-y-1.5">
-                                        <Label className="text-sm">Or Custom ZIP URL</Label>
-                                        <Input
-                                            value={formData.githubZipUrl}
-                                            onChange={(e) =>
-                                                update({ githubZipUrl: e.target.value })
-                                            }
-                                            placeholder="https://github.com/user/repo/archive/refs/tags/version.zip"
-                                            className="font-mono text-xs"
-                                        />
-                                        <p className="text-[10px] text-muted-foreground">
-                                            Leave empty to use the selected version from WordPress
-                                        </p>
-                                    </div>
-                                </div>
-                            ) : (
-                                <div className="flex items-center justify-center p-4">
-                                    <Button variant="outline" onClick={fetchTags} className="gap-2">
-                                        <RefreshCw className="w-4 h-4" />
-                                        Load WordPress Versions
-                                    </Button>
-                                </div>
-                            )}
-                        </div>
+                        <WordPressVersionSelector
+                            tags={tags}
+                            loadingTags={loadingTags}
+                            selectedVersion={selectedVersion}
+                            onSelect={(v) => {
+                                setSelectedVersion(v);
+                                update({ version: v });
+                            }}
+                            onLoad={fetchTags}
+                            customUrl={formData.githubZipUrl}
+                            onCustomUrl={(v) => update({ githubZipUrl: v })}
+                            customUrlLabel="Or Custom ZIP URL"
+                            customUrlPlaceholder="https://github.com/user/repo/archive/refs/tags/version.zip"
+                            note="Leave empty to use the selected version from WordPress."
+                        />
                     )}
 
                     <div className="space-y-1.5">
@@ -455,6 +429,9 @@ export function CreateWordPressProject({ onSuccess }: { onSuccess: (project: any
                                 (formData.sourceType === "github_clone" && !formData.githubRepo) ||
                                 (formData.sourceType === "github_zip" &&
                                     !formData.githubZipUrl &&
+                                    tags.length === 0) ||
+                                (formData.sourceType === "wordpress_org" &&
+                                    !formData.version &&
                                     tags.length === 0)
                             }
                             className="flex-1 bg-amber-500 hover:bg-amber-600 text-white gap-2"
@@ -633,6 +610,12 @@ export function CreateWordPressProject({ onSuccess }: { onSuccess: (project: any
                         </Button>
                         <Button
                             onClick={goNext}
+                            disabled={
+                                !formData.siteTitle ||
+                                !formData.siteUrl ||
+                                !formData.adminUser ||
+                                !formData.adminEmail
+                            }
                             className="flex-1 bg-amber-500 hover:bg-amber-600 text-white gap-2"
                         >
                             Continue <ChevronRight className="w-4 h-4" />
@@ -655,9 +638,11 @@ export function CreateWordPressProject({ onSuccess }: { onSuccess: (project: any
                             <div className="flex justify-between">
                                 <span className="text-muted-foreground">Source:</span>
                                 <span className="font-mono text-foreground">
-                                    {formData.sourceType === "github_clone"
-                                        ? "GitHub Clone"
-                                        : "GitHub ZIP"}
+                                    {formData.sourceType === "wordpress_org"
+                                        ? "WordPress.org"
+                                        : formData.sourceType === "github_clone"
+                                          ? "GitHub Clone"
+                                          : "GitHub ZIP"}
                                 </span>
                             </div>
                             <div className="flex justify-between">
@@ -743,6 +728,126 @@ export function CreateWordPressProject({ onSuccess }: { onSuccess: (project: any
                     </div>
                 </div>
             )}
+        </div>
+    );
+}
+
+function SourceOption({
+    active,
+    onClick,
+    icon,
+    title,
+    description,
+}: {
+    active: boolean;
+    onClick: () => void;
+    icon: ReactNode;
+    title: string;
+    description: string;
+}) {
+    return (
+        <div
+            className={cn(
+                "flex items-start justify-between p-3 rounded-lg border cursor-pointer transition-all",
+                active
+                    ? "border-amber-500 bg-amber-500/10"
+                    : "border-border hover:bg-muted/30"
+            )}
+            onClick={onClick}
+        >
+            <div className="flex-1">
+                <div className="text-sm font-medium flex items-center gap-2">
+                    {icon}
+                    {title}
+                </div>
+                <div className="text-[11px] text-muted-foreground">{description}</div>
+            </div>
+            <div
+                className={cn(
+                    "w-4 h-4 rounded-full border-2 flex items-center justify-center flex-shrink-0 mt-0.5",
+                    active ? "bg-amber-500 border-amber-500" : "border-muted-foreground"
+                )}
+            >
+                {active && <div className="w-2 h-2 rounded-full bg-white" />}
+            </div>
+        </div>
+    );
+}
+
+function WordPressVersionSelector({
+    tags,
+    loadingTags,
+    selectedVersion,
+    onSelect,
+    onLoad,
+    customUrl,
+    onCustomUrl,
+    customUrlLabel,
+    customUrlPlaceholder,
+    note,
+}: {
+    tags: GitHubTag[];
+    loadingTags: boolean;
+    selectedVersion: string;
+    onSelect: (v: string) => void;
+    onLoad: () => void;
+    customUrl: string;
+    onCustomUrl: (v: string) => void;
+    customUrlLabel: string;
+    customUrlPlaceholder: string;
+    note: string;
+}) {
+    if (loadingTags) {
+        return (
+            <div className="flex items-center gap-2 text-muted-foreground">
+                <Loader2 className="w-4 h-4 animate-spin" />
+                <span className="text-sm">Loading WordPress versions...</span>
+            </div>
+        );
+    }
+
+    if (tags.length === 0) {
+        return (
+            <div className="flex items-center justify-center p-4">
+                <Button variant="outline" onClick={onLoad} className="gap-2">
+                    <RefreshCw className="w-4 h-4" />
+                    Load WordPress Versions
+                </Button>
+            </div>
+        );
+    }
+
+    return (
+        <div className="space-y-3">
+            <div className="space-y-1.5">
+                <Label className="text-sm">Select WordPress Version</Label>
+                <div className="grid grid-cols-4 gap-2 max-h-48 overflow-y-auto p-1">
+                    {tags.map((tag) => (
+                        <button
+                            key={tag.name}
+                            onClick={() => onSelect(tag.name)}
+                            className={cn(
+                                "px-3 py-2 rounded-lg text-xs transition-all text-center font-mono",
+                                selectedVersion === tag.name
+                                    ? "bg-amber-500 text-white"
+                                    : "bg-muted hover:bg-muted/80"
+                            )}
+                        >
+                            {tag.name}
+                        </button>
+                    ))}
+                </div>
+            </div>
+            <div className="space-y-1.5">
+                <Label className="text-sm">{customUrlLabel}</Label>
+                <Input
+                    value={customUrl}
+                    onChange={(e) => onCustomUrl(e.target.value)}
+                    placeholder={customUrlPlaceholder}
+                    className="font-mono text-xs"
+                />
+                <p className="text-[10px] text-muted-foreground">{note}</p>
+            </div>
         </div>
     );
 }

@@ -18,6 +18,11 @@ import { NextjsDependenciesPanel } from "@/features/projects/components/detail/n
 import { NextjsBuildPanel } from "@/features/projects/components/detail/nextjs/NextjsBuildPanel";
 import { NextjsLogsPanel } from "@/features/projects/components/detail/nextjs/NextjsLogsPanel";
 import { NextjsDeployPanel } from "@/features/projects/components/detail/nextjs/NextjsDeployPanel";
+import { WordPressOverviewPanel } from "@/features/projects/components/detail/wordpress/WordPressOverviewPanel";
+import { WordPressPluginsPanel } from "@/features/projects/components/detail/wordpress/WordPressPluginsPanel";
+import { WordPressThemesPanel } from "@/features/projects/components/detail/wordpress/WordPressThemesPanel";
+import { WordPressDatabasePanel } from "@/features/projects/components/detail/wordpress/WordPressDatabasePanel";
+import { WordPressLogsPanel } from "@/features/projects/components/detail/wordpress/WordPressLogsPanel";
 import type { PanelConfig, ProjectType, TabConfig } from "@/features/projects/types";
 
 interface ProjectConfig {
@@ -175,13 +180,49 @@ export const PROJECT_DETAIL_CONFIG: Record<ProjectType, ProjectConfig> = {
     wordpress: {
         tabs: [
             { id: "overview", label: "Overview", icon: "📊" },
-            { id: "shell", label: "Shell", icon: "💻" },
             { id: "plugins", label: "Plugins", icon: "🧩" },
             { id: "themes", label: "Themes", icon: "🎨" },
             { id: "database", label: "Database", icon: "🗄️" },
             { id: "logs", label: "Logs", icon: "📄" },
         ],
-        panels: [],
+        panels: [
+            {
+                id: "overview",
+                component: WordPressOverviewPanel,
+                props: {
+                    version: (p: any) => p.version,
+                    host: (p: any) => p.host,
+                    port: (p: any) => p.port,
+                    description: (p: any) => p.description,
+                    sourceType: (p: any) => p.source_type,
+                    githubRepo: (p: any) => p.github_repo,
+                    created_at: (p: any) => p.created_at,
+                    dbDriver: (p: any) => p.dbDriver,
+                    dbName: (p: any) => p.dbName,
+                    dbUser: (p: any) => p.dbUser,
+                    dbHost: (p: any) => p.dbHost,
+                    dbPort: (p: any) => p.dbPort,
+                    siteTitle: (p: any) => p.siteTitle,
+                    siteUrl: (p: any) => p.siteUrl,
+                    adminUser: (p: any) => p.adminUser,
+                    adminEmail: (p: any) => p.adminEmail,
+                },
+            },
+            { id: "plugins", component: WordPressPluginsPanel },
+            { id: "themes", component: WordPressThemesPanel },
+            {
+                id: "database",
+                component: WordPressDatabasePanel,
+                props: {
+                    dbDriver: (p: any) => p.dbDriver,
+                    dbName: (p: any) => p.dbName,
+                    dbUser: (p: any) => p.dbUser,
+                    dbHost: (p: any) => p.dbHost,
+                    dbPort: (p: any) => p.dbPort,
+                },
+            },
+            { id: "logs", component: WordPressLogsPanel },
+        ],
     },
     go: {
         tabs: [

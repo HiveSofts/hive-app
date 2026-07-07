@@ -27,6 +27,26 @@ pub struct ProjectInfo {
     pub port: Option<u16>,
     #[serde(default)]
     pub host: Option<String>,
+    // WordPress-specific fields (serialized with camelCase keys so the frontend
+    // Project type receives them directly)
+    #[serde(rename = "dbDriver", default)]
+    pub db_driver: Option<String>,
+    #[serde(rename = "dbName", default)]
+    pub db_name: Option<String>,
+    #[serde(rename = "dbUser", default)]
+    pub db_user: Option<String>,
+    #[serde(rename = "dbHost", default)]
+    pub db_host: Option<String>,
+    #[serde(rename = "dbPort", default)]
+    pub db_port: Option<u16>,
+    #[serde(rename = "siteTitle", default)]
+    pub site_title: Option<String>,
+    #[serde(rename = "siteUrl", default)]
+    pub site_url: Option<String>,
+    #[serde(rename = "adminUser", default)]
+    pub admin_user: Option<String>,
+    #[serde(rename = "adminEmail", default)]
+    pub admin_email: Option<String>,
 }
 
 fn get_hive_projects_dir() -> PathBuf {
