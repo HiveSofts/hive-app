@@ -5,6 +5,7 @@ pub struct WordPressProject {
     pub name: String,
     pub path: String,
     pub description: String,
+    pub source_type: String,
     pub config: WordPressConfig,
 }
 

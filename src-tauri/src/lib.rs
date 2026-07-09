@@ -68,6 +68,16 @@ pub fn run() {
             fetch_wordpress_tags,
             download_wordpress_zip,
             extract_zip,
+            // WordPress Server
+            start_wordpress_project,
+            stop_wordpress_project,
+            restart_wordpress_project,
+            get_wordpress_server_status,
+            // WordPress Content
+            get_wordpress_plugins,
+            get_wordpress_themes,
+            get_wordpress_logs,
+            // Laravel Server
             start_laravel_project,
             stop_laravel_project,
             restart_laravel_project,
@@ -76,11 +86,13 @@ pub fn run() {
             get_all_running_servers,
             get_server_logs,
             clear_server_logs,
+            // PHP Server
             start_php_project,
             stop_php_project,
             restart_php_project,
             get_php_server_status,
-            get_php_info,
+            // PHP Info
+            get_php_info,            // Laravel Commands
             run_artisan_command,
             get_artisan_commands,
             get_artisan_commands_with_details,

@@ -44,6 +44,16 @@ export interface Project {
     created_at?: string;
     database?: DatabaseConfig;
     readme?: string;
+    // WordPress-specific fields
+    dbDriver?: string;
+    dbName?: string;
+    dbUser?: string;
+    dbHost?: string;
+    dbPort?: number;
+    siteTitle?: string;
+    siteUrl?: string;
+    adminUser?: string;
+    adminEmail?: string;
 }
 
 export interface DeleteDialogState {

@@ -1,10 +1,10 @@
 use rand::Rng;
 use std::fs;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::process::Command;
 use tauri::AppHandle;
 
-use crate::modules::common::path::expand_home;
+use crate::modules::common::path::{expand_home, hive_projects_dir};
 use crate::modules::common::utils::setup_path;
 
 use super::config::{
@@ -190,6 +190,49 @@ fn save_project_metadata(project_path: &Path, project: &WordPressProject) -> Res
     Ok(())
 }
 
+/// Register the WordPress project in Hive's central registry
+/// (`~/.hive/projects/<name>.json`) so it appears in the projects list and the
+/// detail view can read its properties.
+fn register_project(project: &WordPressProject) -> Result<(), String> {
+    let hive_dir = hive_projects_dir();
+    fs::create_dir_all(&hive_dir)
+        .map_err(|e| format!("Failed to create Hive projects directory: {}", e))?;
+
+    let uuid = uuid::Uuid::new_v4().to_string();
+    let project_info = serde_json::json!({
+        "id": uuid,
+        "name": project.name,
+        "type": "wordpress",
+        "path": project.path,
+        "description": project.description,
+        "created_at": chrono::Local::now().to_rfc3339(),
+        "version": project.config.version,
+        "host": project.config.host,
+        "port": project.config.port,
+        "source_type": project.source_type,
+        "dbDriver": project.config.database.driver,
+        "dbName": project.config.database.name,
+        "dbUser": project.config.database.user,
+        "dbHost": project.config.database.host,
+        "dbPort": project.config.database.port,
+        "siteTitle": project.config.site.title,
+        "siteUrl": project.config.site.url,
+        "adminUser": project.config.admin.user,
+        "adminEmail": project.config.admin.email,
+    });
+
+    let project_file = hive_dir.join(format!("{}.json", project.name));
+
+    fs::write(
+        &project_file,
+        serde_json::to_string_pretty(&project_info)
+            .map_err(|e| format!("Failed to serialize project metadata: {}", e))?,
+    )
+    .map_err(|e| format!("Failed to save project metadata: {}", e))?;
+
+    Ok(())
+}
+
 async fn download_from_wordpress_org(
     project_path: &Path,
     request: &CreateWordPressRequest,
@@ -260,57 +303,130 @@ async fn download_from_github_zip(
     download_and_extract_wordpress(project_path, &url).await
 }
 
+/// Returns true when the directory contains no entries.
+fn is_dir_empty(path: &Path) -> bool {
+    match fs::read_dir(path) {
+        Ok(mut entries) => entries.next().is_none(),
+        Err(_) => false,
+    }
+}
+
+/// Returns true when the directory looks like an existing WordPress
+/// installation. We look for core loader files that are always present in a
+/// real install (`wp-load.php` / `wp-settings.php`).
+fn is_wordpress_install(path: &Path) -> bool {
+    path.join("wp-load.php").exists() || path.join("wp-settings.php").exists()
+}
+
+/// Best-effort detection of the installed WordPress version by reading
+/// `wp-includes/version.php`. Returns `None` when it cannot be determined.
+fn detect_wordpress_version(path: &Path) -> Option<String> {
+    let version_file = path.join("wp-includes").join("version.php");
+    let content = fs::read_to_string(version_file).ok()?;
+    for line in content.lines() {
+        let line = line.trim();
+        if let Some(rest) = line.strip_prefix("$wp_version") {
+            if let Some(eq) = rest.find('=') {
+                let value = rest[eq + 1..]
+                    .trim()
+                    .trim_matches('\'')
+                    .trim_matches('"')
+                    .trim_end_matches(';')
+                    .trim();
+                if !value.is_empty() {
+                    return Some(value.to_string());
+                }
+            }
+        }
+    }
+    None
+}
+
 #[tauri::command]
 pub async fn create_wordpress_project(
     _app: AppHandle,
     request: CreateWordPressRequest,
 ) -> Result<WordPressResponse, String> {
     let projects_dir = get_projects_dir();
-    let project_path = projects_dir.join(&request.name);
 
-    if project_path.exists() {
+    // Respect an explicit installation path when provided, otherwise fall back
+    // to ~/Projects/<name>.
+    let project_path = if let Some(wp_path) = &request.wp_path {
+        if !wp_path.trim().is_empty() {
+            PathBuf::from(expand_home(wp_path.trim()))
+        } else {
+            projects_dir.join(&request.name)
+        }
+    } else {
+        projects_dir.join(&request.name)
+    };
+
+    // Decide how to handle a pre-existing target directory.
+    let dir_pre_existed = project_path.exists();
+    let existing_wp = dir_pre_existed && is_wordpress_install(&project_path);
+    let dir_empty = dir_pre_existed && project_path.is_dir() && is_dir_empty(&project_path);
+
+    if dir_pre_existed && !existing_wp && !dir_empty {
         return Ok(WordPressResponse {
             success: false,
-            message: "Project already exists".to_string(),
+            message: "Directory is not empty".to_string(),
             project: None,
             error: Some(format!(
-                "Directory {} already exists",
+                "Directory {} already exists and does not contain a WordPress installation. Choose an empty directory or an existing WordPress site.",
                 project_path.display()
             )),
         });
     }
 
-    if let Err(e) = fs::create_dir_all(&project_path) {
-        return Err(format!("Failed to create directory: {}", e));
+    // Create the directory only when it does not already exist.
+    if !dir_pre_existed {
+        if let Err(e) = fs::create_dir_all(&project_path) {
+            return Err(format!("Failed to create directory: {}", e));
+        }
     }
 
-    let result = match request.source_type.as_str() {
-        "wordpress_org" => download_from_wordpress_org(&project_path, &request).await,
-        "github_clone" => clone_from_github(&project_path, &request).await,
-        "github_zip" => download_from_github_zip(&project_path, &request).await,
-        _ => Err("Invalid source type".to_string()),
-    };
+    // In import mode (an existing WordPress site) we skip downloading and
+    // extracting WordPress, as well as generating wp-config.php which the site
+    // already owns.
+    if !existing_wp {
+        let result = match request.source_type.as_str() {
+            "wordpress_org" => download_from_wordpress_org(&project_path, &request).await,
+            "github_clone" => clone_from_github(&project_path, &request).await,
+            "github_zip" => download_from_github_zip(&project_path, &request).await,
+            _ => Err("Invalid source type".to_string()),
+        };
 
-    if let Err(e) = result {
-        let _ = fs::remove_dir_all(&project_path);
-        return Ok(WordPressResponse {
-            success: false,
-            message: "Failed to create project".to_string(),
-            project: None,
-            error: Some(e),
-        });
-    }
+        if let Err(e) = result {
+            // Only remove the directory if we created it ourselves; never delete
+            // a directory the user already had on disk.
+            if !dir_pre_existed {
+                let _ = fs::remove_dir_all(&project_path);
+            }
+            return Ok(WordPressResponse {
+                success: false,
+                message: "Failed to create project".to_string(),
+                project: None,
+                error: Some(e),
+            });
+        }
 
-    if let Err(e) = generate_wp_config(&project_path, &request) {
-        return Ok(WordPressResponse {
-            success: false,
-            message: "Failed to generate wp-config.php".to_string(),
-            project: None,
-            error: Some(e),
-        });
+        if let Err(e) = generate_wp_config(&project_path, &request) {
+            if !dir_pre_existed {
+                let _ = fs::remove_dir_all(&project_path);
+            }
+            return Ok(WordPressResponse {
+                success: false,
+                message: "Failed to generate wp-config.php".to_string(),
+                project: None,
+                error: Some(e),
+            });
+        }
     }
 
     if let Err(e) = generate_env_file(&project_path, &request) {
+        if !dir_pre_existed {
+            let _ = fs::remove_dir_all(&project_path);
+        }
         return Ok(WordPressResponse {
             success: false,
             message: "Failed to generate .env file".to_string(),
@@ -319,16 +435,33 @@ pub async fn create_wordpress_project(
         });
     }
 
+    // For an imported site, prefer the actually installed version when we can
+    // detect it, falling back to the requested version.
+    let resolved_version = if existing_wp {
+        detect_wordpress_version(&project_path).unwrap_or_else(|| request.version.clone())
+    } else {
+        request.version.clone()
+    };
+
     let project = WordPressProject {
         name: request.name.clone(),
         path: project_path.to_string_lossy().to_string(),
-        description: request
-            .description
-            .unwrap_or_else(|| format!("WordPress {} site", request.version)),
+        description: request.description.clone().unwrap_or_else(|| {
+            if existing_wp {
+                format!("Imported WordPress {} site", resolved_version)
+            } else {
+                format!("WordPress {} site", resolved_version)
+            }
+        }),
+        source_type: if existing_wp {
+            "import".to_string()
+        } else {
+            request.source_type.clone()
+        },
         config: WordPressConfig {
             port: request.port,
             host: request.host.clone(),
-            version: request.version.clone(),
+            version: resolved_version,
             database: DatabaseConfig {
                 driver: request.db_driver.clone(),
                 host: request.db_host.clone(),
@@ -356,9 +489,26 @@ pub async fn create_wordpress_project(
         });
     }
 
+    // Register the project in Hive's central registry so it shows up in the
+    // projects list and the detail view can read its properties.
+    if let Err(e) = register_project(&project) {
+        return Ok(WordPressResponse {
+            success: false,
+            message: "Failed to register project".to_string(),
+            project: None,
+            error: Some(e),
+        });
+    }
+
+    let message = if existing_wp {
+        "Existing WordPress site imported successfully".to_string()
+    } else {
+        "WordPress site created successfully".to_string()
+    };
+
     Ok(WordPressResponse {
         success: true,
-        message: "WordPress site created successfully".to_string(),
+        message,
         project: Some(project),
         error: None,
     })
