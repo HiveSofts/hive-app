@@ -102,10 +102,7 @@ export function NextjsShellPanel({
                 if (event.payload.is_done) {
                     unlisten();
                     setRunning(false);
-                    if (
-                        event.payload.exit_code !== 0 &&
-                        event.payload.exit_code !== null
-                    ) {
+                    if (event.payload.exit_code !== 0 && event.payload.exit_code !== null) {
                         appendLine({
                             type: "err",
                             text: `Process exited with code ${event.payload.exit_code}`,

@@ -1,4 +1,4 @@
-import { AccentColors } from "@/types/runtime.types";
+import { AccentColors } from "../types/runtime.types";
 
 export const accentMap: Record<string, AccentColors> = {
     indigo: {

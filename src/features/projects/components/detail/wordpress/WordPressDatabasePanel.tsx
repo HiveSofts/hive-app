@@ -63,18 +63,13 @@ define('DB_COLLATE', '');`;
             <div className="rounded-xl border bg-card overflow-hidden">
                 <div className="flex items-center gap-2 px-4 py-2.5 border-b bg-muted/30">
                     <Server className="w-3.5 h-3.5 text-muted-foreground" />
-                    <span className="text-xs font-medium text-muted-foreground">
-                        Connection
-                    </span>
+                    <span className="text-xs font-medium text-muted-foreground">Connection</span>
                 </div>
                 <div className="p-4 grid grid-cols-2 sm:grid-cols-3 gap-x-6 gap-y-3 text-sm">
                     <Field label="Driver" value={dbDriver ? dbDriver.toUpperCase() : "—"} />
                     <Field label="Database" value={dbName || "—"} />
                     <Field label="User" value={dbUser || "—"} />
-                    <Field
-                        label="Host"
-                        value={dbHost ? `${dbHost}:${dbPort ?? ""}` : "—"}
-                    />
+                    <Field label="Host" value={dbHost ? `${dbHost}:${dbPort ?? ""}` : "—"} />
                 </div>
             </div>
 

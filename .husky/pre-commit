@@ -1,6 +1,6 @@
 #!/usr/bin/env sh
 
-bun run format
+npm run format
 
 #rustup component add rustfmt
 cargo fmt --manifest-path src-tauri/Cargo.toml
