@@ -14,10 +14,7 @@ use std::process::{Child, Command, Stdio};
 use std::sync::Mutex;
 use tauri::Emitter;
 
-
-static TUNNEL_PROCS: Lazy<Mutex<HashMap<i64, Child>>> =
-    Lazy::new(|| Mutex::new(HashMap::new()));
-
+static TUNNEL_PROCS: Lazy<Mutex<HashMap<i64, Child>>> = Lazy::new(|| Mutex::new(HashMap::new()));
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct StartTunnelRequest {
@@ -39,7 +36,6 @@ pub struct TunnelLog {
     pub is_error: bool,
     pub timestamp: Option<String>,
 }
-
 
 fn kill_pid(pid: u32) {
     #[cfg(unix)]
@@ -74,7 +70,9 @@ fn extract_url(line: &str) -> Option<String> {
             .find(|c: char| c.is_whitespace() || c == '"' || c == '\'' || c == ',')
             .unwrap_or(rest.len());
         let url = &rest[..end];
-        if url.contains('.') && (url.contains("trycloudflare.com") || url.contains("cfargotunnel.com")) {
+        if url.contains('.')
+            && (url.contains("trycloudflare.com") || url.contains("cfargotunnel.com"))
+        {
             return Some(url.to_string());
         }
     }
@@ -150,7 +148,6 @@ fn parse_log_line(raw: &str) -> (Option<String>, bool, String) {
     (Some(timestamp_str.to_string()), is_error, message)
 }
 
-
 #[tauri::command]
 pub async fn start_tunnel(
     window: tauri::Window,
@@ -181,12 +178,14 @@ pub async fn start_tunnel(
 
     fs::create_dir_all(get_log_dir()).ok();
     write_log(session_id, "=== Tunnel started ===", false);
-    write_log(session_id, &format!("Local URL: {}", request.local_url), false);
+    write_log(
+        session_id,
+        &format!("Local URL: {}", request.local_url),
+        false,
+    );
 
     let mut cmd = Command::new(&cloudflared_cmd);
-    cmd.arg("tunnel")
-        .arg("--url")
-        .arg(&request.local_url);
+    cmd.arg("tunnel").arg("--url").arg(&request.local_url);
 
     let full_command = format!("{} tunnel --url {}", cloudflared_cmd, request.local_url);
     println!("[TUNNEL] Executing: {}", full_command);
@@ -206,7 +205,10 @@ pub async fn start_tunnel(
     }
 
     let mut child = cmd.spawn().map_err(|e| {
-        let msg = format!("Failed to start cloudflared: {}\nCommand: {}", e, full_command);
+        let msg = format!(
+            "Failed to start cloudflared: {}\nCommand: {}",
+            e, full_command
+        );
         println!("[TUNNEL ERROR] {}", msg);
         write_log(session_id, &msg, true);
         msg
@@ -299,8 +301,8 @@ pub async fn start_tunnel(
         );
     });
 
-    let session = tunnel_session_get(session_id)
-        .ok_or_else(|| "Failed to retrieve session".to_string())?;
+    let session =
+        tunnel_session_get(session_id).ok_or_else(|| "Failed to retrieve session".to_string())?;
 
     Ok(session)
 }
@@ -341,7 +343,10 @@ pub fn get_tunnel_status(project_path: String) -> TunnelStatus {
         .as_ref()
         .map(|s| s.status == "active" || s.status == "connecting")
         .unwrap_or(false);
-    TunnelStatus { session, is_running }
+    TunnelStatus {
+        session,
+        is_running,
+    }
 }
 
 #[tauri::command]
@@ -362,8 +367,7 @@ pub fn get_tunnel_session(session_id: i64) -> Option<TunnelSession> {
 #[tauri::command]
 pub fn get_tunnel_logs(session_id: i64, limit: Option<usize>) -> Result<Vec<TunnelLog>, String> {
     // Verify session exists
-    tunnel_session_get(session_id)
-        .ok_or_else(|| format!("Session {} not found", session_id))?;
+    tunnel_session_get(session_id).ok_or_else(|| format!("Session {} not found", session_id))?;
 
     let log_file = get_log_file(session_id);
 
@@ -371,14 +375,11 @@ pub fn get_tunnel_logs(session_id: i64, limit: Option<usize>) -> Result<Vec<Tunn
         return Ok(vec![]);
     }
 
-    let content = fs::read_to_string(&log_file)
-        .map_err(|e| format!("Failed to read log file: {}", e))?;
+    let content =
+        fs::read_to_string(&log_file).map_err(|e| format!("Failed to read log file: {}", e))?;
 
     // Collect non-empty lines
-    let all_lines: Vec<&str> = content
-        .lines()
-        .filter(|l| !l.trim().is_empty())
-        .collect();
+    let all_lines: Vec<&str> = content.lines().filter(|l| !l.trim().is_empty()).collect();
 
     let limit = limit.unwrap_or(200);
     let start = all_lines.len().saturating_sub(limit);

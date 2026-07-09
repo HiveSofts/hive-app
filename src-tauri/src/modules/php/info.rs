@@ -1,5 +1,5 @@
-use std::process::Command;
 use serde::{Deserialize, Serialize};
+use std::process::Command;
 use tauri::command;
 
 use crate::modules::common::utils::setup_path;

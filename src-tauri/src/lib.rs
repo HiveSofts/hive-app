@@ -92,7 +92,7 @@ pub fn run() {
             restart_php_project,
             get_php_server_status,
             // PHP Info
-            get_php_info,            // Laravel Commands
+            get_php_info, // Laravel Commands
             run_artisan_command,
             get_artisan_commands,
             get_artisan_commands_with_details,
