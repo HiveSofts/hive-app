@@ -13,7 +13,7 @@ interface EnvVarPanelProps {
     colors: AccentColors;
 }
 
-export function EnvVarPanel({ vars, colors }: EnvVarPanelProps) {
+export function EnvVarPanel({ vars }: EnvVarPanelProps) {
     const [envVars, setEnvVars] = useState(vars);
 
     return (

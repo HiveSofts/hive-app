@@ -8,6 +8,9 @@
         "build": "tsc && vite build",
         "preview": "vite preview",
         "tauri": "tauri",
+        "tauri:linux": "tauri build",
+        "tauri:windows": "tauri build -- --runner cargo-xwin --target x86_64-pc-windows-msvc",
+        "tauri:all": "npm run tauri:linux && npm run tauri:windows",
         "format": "prettier --write .",
         "format-check": "prettier --check ."
     },
