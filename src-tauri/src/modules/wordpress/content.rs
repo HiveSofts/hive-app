@@ -43,7 +43,8 @@ fn parse_header(file_path: &PathBuf) -> (Option<String>, Option<String>) {
         .lines()
         .find_map(|line| {
             let line = line.trim_start_matches([' ', '*', '\t']);
-            line.strip_prefix("Plugin Name:").or_else(|| line.strip_prefix("Theme Name:"))
+            line.strip_prefix("Plugin Name:")
+                .or_else(|| line.strip_prefix("Theme Name:"))
         })
         .map(|s| s.trim().to_string());
 
@@ -70,7 +71,11 @@ fn list_extensions(base: &PathBuf, header_kind: &str) -> Vec<WordPressExtension>
             if !path.is_dir() {
                 continue;
             }
-            let slug = path.file_name().unwrap_or_default().to_string_lossy().to_string();
+            let slug = path
+                .file_name()
+                .unwrap_or_default()
+                .to_string_lossy()
+                .to_string();
 
             // Locate the metadata file.
             let meta_file = if header_kind == "theme" {
@@ -135,9 +140,7 @@ pub fn get_wordpress_logs(project_path: String) -> Result<WordPressLogResult, St
     let project_path = PathBuf::from(expand_home(&project_path));
 
     // Prefer WordPress' own debug log.
-    let debug_log = project_path
-        .join("wp-content")
-        .join("debug.log");
+    let debug_log = project_path.join("wp-content").join("debug.log");
     if debug_log.exists() {
         if let Ok(content) = fs::read_to_string(&debug_log) {
             return Ok(WordPressLogResult {

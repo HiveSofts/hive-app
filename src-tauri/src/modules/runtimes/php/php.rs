@@ -1,7 +1,7 @@
-use std::process::Command;
+use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::PathBuf;
-use serde::{Deserialize, Serialize};
+use std::process::Command;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PhpIniInfo {
@@ -24,10 +24,7 @@ fn get_home_dir() -> PathBuf {
 }
 
 fn get_php_ini_path_from_php() -> Option<String> {
-    let output = Command::new("php")
-        .arg("-i")
-        .output()
-        .ok()?;
+    let output = Command::new("php").arg("-i").output().ok()?;
 
     if !output.status.success() {
         return None;
@@ -51,7 +48,8 @@ fn get_php_ini_path_platform() -> PathBuf {
     #[cfg(target_os = "windows")]
     {
         // Windows
-        let program_files = std::env::var("ProgramFiles").unwrap_or_else(|_| "C:\\Program Files".to_string());
+        let program_files =
+            std::env::var("ProgramFiles").unwrap_or_else(|_| "C:\\Program Files".to_string());
         let paths = vec![
             PathBuf::from(&program_files).join("PHP").join("php.ini"),
             PathBuf::from("C:\\").join("php").join("php.ini"),

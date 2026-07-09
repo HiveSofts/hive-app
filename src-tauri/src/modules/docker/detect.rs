@@ -127,7 +127,10 @@ fn detect_linux_distro() -> String {
     if let Ok(content) = std::fs::read_to_string("/etc/os-release") {
         for line in content.lines() {
             if line.starts_with("ID=") {
-                return line.trim_start_matches("ID=").trim_matches('"').to_lowercase();
+                return line
+                    .trim_start_matches("ID=")
+                    .trim_matches('"')
+                    .to_lowercase();
             }
         }
     }
@@ -160,7 +163,8 @@ fn install_script_fedora() -> String {
     systemctl enable docker
     systemctl start docker
     usermod -aG docker $USER
-    "#.to_string()
+    "#
+    .to_string()
 }
 
 fn install_script_rhel() -> String {
@@ -172,7 +176,8 @@ fn install_script_rhel() -> String {
     systemctl enable docker
     systemctl start docker
     usermod -aG docker $USER
-    "#.to_string()
+    "#
+    .to_string()
 }
 
 fn install_script_arch() -> String {
@@ -182,5 +187,6 @@ fn install_script_arch() -> String {
     systemctl enable docker
     systemctl start docker
     usermod -aG docker $USER
-    "#.to_string()
+    "#
+    .to_string()
 }

@@ -7,7 +7,6 @@ mod v4_error_count;
 mod v5_metadata;
 mod v6_tunnel;
 
-
 pub trait Migration {
     fn version(&self) -> &str;
     fn up(&self, conn: &Connection) -> Result<()>;

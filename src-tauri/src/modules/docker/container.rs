@@ -179,9 +179,10 @@ pub async fn create_database_container(
         run_args.push(cpu.to_string());
     }
 
-    let volume_name = req.data_volume.clone().unwrap_or_else(|| {
-        format!("hive_{}_data", req.container_name)
-    });
+    let volume_name = req
+        .data_volume
+        .clone()
+        .unwrap_or_else(|| format!("hive_{}_data", req.container_name));
 
     run_args.push("-v".to_string());
     run_args.push(format!("{}:{}", volume_name, data_path(&req.db_type)));
@@ -450,10 +451,7 @@ pub async fn execute_sql_in_container(
             "mysql -u{} -p{} {} -e '{}'",
             username, password, database, query
         ),
-        "postgres" | "postgresql" => format!(
-            "psql -U {} -d {} -c '{}'",
-            username, database, query
-        ),
+        "postgres" | "postgresql" => format!("psql -U {} -d {} -c '{}'", username, database, query),
         _ => return Err("Unsupported database type for SQL execution".to_string()),
     };
 

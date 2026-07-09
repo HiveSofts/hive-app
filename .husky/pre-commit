@@ -1,3 +1,4 @@
 #!/usr/bin/env sh
 
-bunx lint-staged
+bun run format
+cargo fmt --manifest-path src-tauri/Cargo.toml

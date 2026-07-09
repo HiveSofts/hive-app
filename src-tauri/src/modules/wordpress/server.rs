@@ -113,7 +113,9 @@ fn pipe_to_log(stdout: std::process::ChildStdout, stderr: std::process::ChildStd
 }
 
 #[command]
-pub async fn start_wordpress_project(project_path: String) -> Result<WordPressServerStatus, String> {
+pub async fn start_wordpress_project(
+    project_path: String,
+) -> Result<WordPressServerStatus, String> {
     let project_path = expand_home(&project_path);
     let existing = models::get_server(&project_path).map_err(|e| e.to_string())?;
 
