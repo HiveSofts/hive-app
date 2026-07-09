@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { SiNodeDotJs } from "@react-icons/all-files/si/SiNodeDotJs";
 import { SiPhp } from "@react-icons/all-files/si/SiPhp";
 import {
+    IconCpu2,
     IconDashboard,
     IconDatabase,
     IconFolder,
@@ -34,8 +35,7 @@ const navMainItems = [
     { title: "Dashboard", url: "/", icon: IconDashboard },
     { title: "Projects", url: "/projects", icon: IconFolder },
     { title: "Docker", url: "/docker", icon: SiDocker },
-    { title: "PHP", url: "/php", icon: SiPhp },
-    { title: "Node.js", url: "/nodejs", icon: SiNodeDotJs },
+    { title: "Runtimes", url: "/runtimes", icon: IconCpu2 },
     { title: "Databases", url: "/databases", icon: IconDatabase },
     { title: "Tunnel", url: "/tunnel", icon: IconShare },
 ];

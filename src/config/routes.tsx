@@ -8,13 +8,11 @@ import { AppLayout } from "@/components/layouts/app-layout";
 import { LoadingSpinner } from "@/components/loading-spinner";
 import DockerDatabaseManagerPage from "@/features/docker/DockerDatabaseManagerPage";
 import DockerManagerPage from "@/features/docker/DockerManagerPage";
-
+import RuntimeManagerPage from "@/features/runtimes/RuntimeManagerPage";
 const Dashboard = lazy(() => import("@/features/dashboard/Dashboard"));
 const ProjectsListPage = lazy(() => import("@/features/projects/pages/ProjectsListPage"));
 const CreateProjectPage = lazy(() => import("@/features/projects/pages/CreateProjectPage"));
 const ProjectDetailPage = lazy(() => import("@/features/projects/pages/ProjectDetailPage"));
-const PhpManagerPage = lazy(() => import("@/features/modules/php/PhpManagerPage"));
-const NodeManagerPage = lazy(() => import("@/features/modules/nodejs/NodeManagerPage"));
 const TunnelManagerPage = lazy(() => import("@/features/tunnel/TunnelManagerPage"));
 const SettingsPage = lazy(() => import("@/features/settings/SettingsPage"));
 
@@ -59,19 +57,11 @@ export const router = createBrowserRouter([
                     </LazyPage>
                 ),
             },
-            {
-                path: "php",
+              {
+                path: "runtimes",
                 element: (
                     <LazyPage>
-                        <PhpManagerPage />
-                    </LazyPage>
-                ),
-            },
-            {
-                path: "nodejs",
-                element: (
-                    <LazyPage>
-                        <NodeManagerPage />
+                        <RuntimeManagerPage />
                     </LazyPage>
                 ),
             },
