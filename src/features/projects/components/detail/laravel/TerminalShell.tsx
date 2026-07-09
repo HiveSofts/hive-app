@@ -20,6 +20,8 @@ interface TerminalShellProps {
     projectName: string;
     projectType?: string;
     version?: string;
+    quickGroups?: { label: string; items: string[] }[];
+    shellLabel?: string;
 }
 
 function parseInteractivePrompt(lines: string[]): InteractivePrompt | null {
@@ -58,6 +60,8 @@ export function TerminalShell({
     projectName,
     projectType = "Laravel",
     version = "11",
+    quickGroups,
+    shellLabel = "bash",
 }: TerminalShellProps) {
     const [lines, setLines] = useState<Line[]>([
         {
@@ -198,7 +202,7 @@ export function TerminalShell({
     const filteredChoices =
         prompt?.choices?.filter((c) => c.toLowerCase().includes(choiceSearch.toLowerCase())) ?? [];
 
-    const quickGroups = [
+    const quickGroupsResolved = quickGroups ?? [
         {
             label: "Cache",
             items: [
@@ -227,7 +231,7 @@ export function TerminalShell({
     return (
         <div className="space-y-3">
             <div className="flex gap-2 flex-wrap">
-                {quickGroups.map((group) =>
+                {quickGroupsResolved.map((group) =>
                     group.items.map((c) => (
                         <button
                             key={c}
@@ -250,7 +254,7 @@ export function TerminalShell({
                     <span className="w-3 h-3 rounded-full bg-yellow-500/80" />
                     <span className="w-3 h-3 rounded-full bg-emerald-500/80" />
                     <span className="ml-3 text-[11px] text-zinc-500 font-mono">
-                        hive — {projectName} — bash
+                        hive — {projectName} — {shellLabel}
                     </span>
                     {running && (
                         <span className="ml-auto text-[10px] text-amber-400 font-mono animate-pulse">

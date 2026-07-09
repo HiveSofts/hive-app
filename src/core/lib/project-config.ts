@@ -7,11 +7,22 @@ import { QueuesPanel } from "@/features/projects/components/detail/laravel/Queue
 import { ReadmePanel } from "@/features/projects/components/detail/laravel/ReadmePanel";
 import { SchedulesPanel } from "@/features/projects/components/detail/laravel/SchedulesPanel";
 import { TerminalShell } from "@/features/projects/components/detail/laravel/TerminalShell";
+import { NextjsBuildPanel } from "@/features/projects/components/detail/nextjs/NextjsBuildPanel";
+import { NextjsDependenciesPanel } from "@/features/projects/components/detail/nextjs/NextjsDependenciesPanel";
+import { NextjsDeployPanel } from "@/features/projects/components/detail/nextjs/NextjsDeployPanel";
+import { NextjsLogsPanel } from "@/features/projects/components/detail/nextjs/NextjsLogsPanel";
+import { NextjsOverviewPanel } from "@/features/projects/components/detail/nextjs/NextjsOverviewPanel";
+import { NextjsShellPanel } from "@/features/projects/components/detail/nextjs/NextjsShellPanel";
 import { PhpComposerPanel } from "@/features/projects/components/detail/php/PhpComposerPanel";
 import { PhpExtensionsPanel } from "@/features/projects/components/detail/php/PhpExtensionsPanel";
 import { PhpLogsPanel } from "@/features/projects/components/detail/php/PhpLogsPanel";
 import { PhpOverviewPanel } from "@/features/projects/components/detail/php/PhpOverviewPanel";
 import { PhpShellPanel } from "@/features/projects/components/detail/php/PhpShellPanel";
+import { WordPressOverviewPanel } from "@/features/projects/components/detail/wordpress/WordPressOverviewPanel";
+import { WordPressPluginsPanel } from "@/features/projects/components/detail/wordpress/WordPressPluginsPanel";
+import { WordPressThemesPanel } from "@/features/projects/components/detail/wordpress/WordPressThemesPanel";
+import { WordPressDatabasePanel } from "@/features/projects/components/detail/wordpress/WordPressDatabasePanel";
+import { WordPressLogsPanel } from "@/features/projects/components/detail/wordpress/WordPressLogsPanel";
 import type { PanelConfig, ProjectType, TabConfig } from "@/features/projects/types";
 
 interface ProjectConfig {
@@ -63,7 +74,50 @@ export const PROJECT_DETAIL_CONFIG: Record<ProjectType, ProjectConfig> = {
             { id: "logs", label: "Logs", icon: "📄" },
             { id: "deploy", label: "Deploy", icon: "🚀" },
         ],
-        panels: [],
+        panels: [
+            {
+                id: "overview",
+                component: NextjsOverviewPanel,
+                props: {
+                    packageManager: (p: any) => p.package_manager,
+                    nodeVersion: (p: any) => p.nodeVersion,
+                    host: (p: any) => p.host,
+                    port: (p: any) => p.port,
+                    description: (p: any) => p.description,
+                    github_repo: (p: any) => p.github_repo,
+                    created_at: (p: any) => p.created_at,
+                },
+            },
+            {
+                id: "shell",
+                component: NextjsShellPanel,
+                props: {
+                    packageManager: (p: any) => p.package_manager,
+                },
+            },
+            {
+                id: "dependencies",
+                component: NextjsDependenciesPanel,
+                props: {
+                    packageManager: (p: any) => p.package_manager,
+                },
+            },
+            {
+                id: "build",
+                component: NextjsBuildPanel,
+                props: {
+                    packageManager: (p: any) => p.package_manager,
+                },
+            },
+            { id: "logs", component: NextjsLogsPanel },
+            {
+                id: "deploy",
+                component: NextjsDeployPanel,
+                props: {
+                    packageManager: (p: any) => p.package_manager,
+                },
+            },
+        ],
     },
     vue: {
         tabs: [
@@ -138,13 +192,49 @@ export const PROJECT_DETAIL_CONFIG: Record<ProjectType, ProjectConfig> = {
     wordpress: {
         tabs: [
             { id: "overview", label: "Overview", icon: "📊" },
-            { id: "shell", label: "Shell", icon: "💻" },
             { id: "plugins", label: "Plugins", icon: "🧩" },
             { id: "themes", label: "Themes", icon: "🎨" },
             { id: "database", label: "Database", icon: "🗄️" },
             { id: "logs", label: "Logs", icon: "📄" },
         ],
-        panels: [],
+        panels: [
+            {
+                id: "overview",
+                component: WordPressOverviewPanel,
+                props: {
+                    version: (p: any) => p.version,
+                    host: (p: any) => p.host,
+                    port: (p: any) => p.port,
+                    description: (p: any) => p.description,
+                    sourceType: (p: any) => p.source_type,
+                    githubRepo: (p: any) => p.github_repo,
+                    created_at: (p: any) => p.created_at,
+                    dbDriver: (p: any) => p.dbDriver,
+                    dbName: (p: any) => p.dbName,
+                    dbUser: (p: any) => p.dbUser,
+                    dbHost: (p: any) => p.dbHost,
+                    dbPort: (p: any) => p.dbPort,
+                    siteTitle: (p: any) => p.siteTitle,
+                    siteUrl: (p: any) => p.siteUrl,
+                    adminUser: (p: any) => p.adminUser,
+                    adminEmail: (p: any) => p.adminEmail,
+                },
+            },
+            { id: "plugins", component: WordPressPluginsPanel },
+            { id: "themes", component: WordPressThemesPanel },
+            {
+                id: "database",
+                component: WordPressDatabasePanel,
+                props: {
+                    dbDriver: (p: any) => p.dbDriver,
+                    dbName: (p: any) => p.dbName,
+                    dbUser: (p: any) => p.dbUser,
+                    dbHost: (p: any) => p.dbHost,
+                    dbPort: (p: any) => p.dbPort,
+                },
+            },
+            { id: "logs", component: WordPressLogsPanel },
+        ],
     },
     go: {
         tabs: [

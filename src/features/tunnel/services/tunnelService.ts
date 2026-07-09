@@ -112,3 +112,10 @@ export const onInstallProgress = (cb: (progress: InstallProgress) => void): Prom
     listen<InstallProgress>("cloudflared-install-progress", (e) => cb(e.payload));
 
 export const buildLocalUrl = (port: number, host = "localhost"): string => `http://${host}:${port}`;
+
+export const getStatusColor = (statusCode: number): string => {
+    if (statusCode >= 200 && statusCode < 300) return "text-emerald-500";
+    if (statusCode >= 400 && statusCode < 500) return "text-yellow-500";
+    if (statusCode >= 500) return "text-red-500";
+    return "text-muted-foreground";
+};

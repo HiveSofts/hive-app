@@ -29,7 +29,6 @@ import {
     X,
     Zap,
 } from "lucide-react";
-import { Label } from "radix-ui";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -589,7 +588,7 @@ function LogsPanel({
                 <div className="flex gap-1 ml-auto flex-wrap">
                     {(
                         [
-                            { k: "all", label: `All (${logs.length})` },
+                            { k: "all", label: `All (${logs.length})`, cls: undefined },
                             { k: "error", label: `Error (${counts.error})`, cls: "text-red-400" },
                             { k: "warn", label: `Warn (${counts.warn})`, cls: "text-amber-300" },
                             { k: "url", label: `URL (${counts.url})`, cls: "text-emerald-300" },
