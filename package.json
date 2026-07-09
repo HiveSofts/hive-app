@@ -10,7 +10,7 @@
         "tauri": "tauri",
         "tauri:linux": "tauri build",
         "tauri:windows": "tauri build -- --runner cargo-xwin --target x86_64-pc-windows-msvc",
-        "tauri:all": "npm run tauri:linux && npm run tauri:windows",
+        "build:all": "tauri build && tauri build --runner cargo-xwin --target x86_64-pc-windows-msvc",
         "format": "prettier --write .",
         "format-check": "prettier --check ."
     },
