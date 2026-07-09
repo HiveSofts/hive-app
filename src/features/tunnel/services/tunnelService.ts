@@ -1,65 +1,117 @@
-import { Project, RequestLog } from "../types";
+import { invoke } from "@tauri-apps/api/core";
+import { UnlistenFn, listen } from "@tauri-apps/api/event";
 
-export const MOCK_PROJECTS: Project[] = [
-    { id: 1, name: "my-blog", url: "my-blog.test", port: 8000, status: "running" },
-    { id: 2, name: "dashboard-app", url: "dashboard-app.test", port: 3000, status: "running" },
-    { id: 3, name: "api-gateway", url: "api-gateway.test", port: 3001, status: "stopped" },
-];
+export interface CloudflaredInfo {
+    installed: boolean;
+    version?: string;
+    path?: string;
+}
 
-export const MOCK_REQUESTS: RequestLog[] = [
-    {
-        id: "1",
-        method: "GET",
-        path: "/api/posts",
-        statusCode: 200,
-        ip: "185.123.45.67",
-        timestamp: "2 min ago",
-        duration: "12ms",
-    },
-    {
-        id: "2",
-        method: "POST",
-        path: "/webhook/github",
-        statusCode: 201,
-        ip: "140.82.112.3",
-        timestamp: "5 min ago",
-        duration: "45ms",
-        body: '{"ref":"refs/heads/main","commits":[{"id":"abc123","message":"Update"}]}',
-    },
-    {
-        id: "3",
-        method: "GET",
-        path: "/api/users/42",
-        statusCode: 404,
-        ip: "192.168.1.1",
-        timestamp: "12 min ago",
-        duration: "8ms",
-    },
-    {
-        id: "4",
-        method: "POST",
-        path: "/webhook/stripe",
-        statusCode: 200,
-        ip: "54.187.25.1",
-        timestamp: "18 min ago",
-        duration: "234ms",
-        body: '{"id":"evt_123","type":"payment_intent.succeeded"}',
-    },
-    {
-        id: "5",
-        method: "PUT",
-        path: "/api/posts/15",
-        statusCode: 200,
-        ip: "185.123.45.67",
-        timestamp: "25 min ago",
-        duration: "23ms",
-    },
-];
+export interface TunnelConfig {
+    cloudflared_installed: boolean;
+    cloudflared_version?: string;
+    has_auth: boolean;
+    auth_token?: string;
+}
 
-export const generateSessionUrl = (projectName: string): string => {
-    const random = Math.random().toString(36).substring(2, 8);
-    return `https://${projectName}-${random}.expose.dev`;
-};
+export interface TunnelSession {
+    id: number;
+    project_path: string;
+    project_name: string;
+    local_url: string;
+    public_url?: string;
+    pid?: number;
+    status: "connecting" | "active" | "stopped" | "error";
+    started_at: string;
+    stopped_at?: string;
+    error?: string;
+}
+
+export interface TunnelStatus {
+    session?: TunnelSession;
+    is_running: boolean;
+}
+
+export interface StartTunnelRequest {
+    project_path: string;
+    project_name: string;
+    local_url: string;
+}
+
+export interface TunnelEvent {
+    sessionId: number;
+    type: "url" | "stopped" | "error";
+    url?: string;
+    error?: string;
+}
+
+export interface TunnelLog {
+    sessionId: number;
+    line: string;
+    isError: boolean;
+    timestamp?: string;
+}
+
+export interface InstallProgress {
+    step: string;
+    progress: number;
+}
+
+export const detectCloudflared = (): Promise<CloudflaredInfo> => invoke("detect_cloudflared");
+
+export const checkCloudflaredInstalled = (): Promise<boolean> =>
+    invoke("check_cloudflared_installed");
+
+export const installCloudflared = (): Promise<CloudflaredInfo> => invoke("install_cloudflared");
+
+export const getTunnelConfig = (): Promise<TunnelConfig> => invoke("get_tunnel_config");
+
+export const saveTunnelAuthToken = (token: string): Promise<void> =>
+    invoke("save_tunnel_auth_token", { token });
+
+export const deleteTunnelAuthToken = (): Promise<void> => invoke("delete_tunnel_auth_token");
+
+export const startTunnel = (request: StartTunnelRequest): Promise<TunnelSession> =>
+    invoke("start_tunnel", { request });
+
+export const startQuickTunnel = (
+    localUrl: string,
+    projectName: string,
+    projectPath: string
+): Promise<TunnelSession> => invoke("start_quick_tunnel", { localUrl, projectName, projectPath });
+
+export const stopTunnel = (sessionId: number): Promise<void> =>
+    invoke("stop_tunnel", { sessionId });
+
+export const stopAllTunnels = (): Promise<void> => invoke("stop_all_tunnels");
+
+export const getTunnelStatus = (projectPath: string): Promise<TunnelStatus> =>
+    invoke("get_tunnel_status", { projectPath });
+
+export const getAllActiveTunnels = (): Promise<TunnelSession[]> => invoke("get_all_active_tunnels");
+
+export const getTunnelHistory = (limit?: number): Promise<TunnelSession[]> =>
+    invoke("get_tunnel_history", { limit });
+
+export const getTunnelSession = (sessionId: number): Promise<TunnelSession | null> =>
+    invoke("get_tunnel_session", { sessionId });
+
+export const getTunnelLogs = (sessionId: number, limit?: number): Promise<TunnelLog[]> =>
+    invoke("get_tunnel_logs", { sessionId, limit });
+
+export const clearTunnelLogs = (sessionId: number): Promise<void> =>
+    invoke("clear_tunnel_logs", { sessionId });
+
+export const onTunnelEvent = (cb: (event: TunnelEvent) => void): Promise<UnlistenFn> =>
+    listen<TunnelEvent>("tunnel-event", (e) => cb(e.payload));
+
+export const onTunnelLog = (cb: (log: TunnelLog) => void): Promise<UnlistenFn> =>
+    listen<TunnelLog>("tunnel-log", (e) => cb(e.payload));
+
+export const onInstallProgress = (cb: (progress: InstallProgress) => void): Promise<UnlistenFn> =>
+    listen<InstallProgress>("cloudflared-install-progress", (e) => cb(e.payload));
+
+export const buildLocalUrl = (port: number, host = "localhost"): string => `http://${host}:${port}`;
 
 export const getStatusColor = (statusCode: number): string => {
     if (statusCode >= 200 && statusCode < 300) return "text-emerald-500";
@@ -67,6 +119,3 @@ export const getStatusColor = (statusCode: number): string => {
     if (statusCode >= 500) return "text-red-500";
     return "text-muted-foreground";
 };
-
-export const getProjects = () => MOCK_PROJECTS;
-export const getRequests = () => MOCK_REQUESTS;

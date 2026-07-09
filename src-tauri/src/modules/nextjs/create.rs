@@ -194,6 +194,10 @@ pub async fn create_nextjs_project(
     name: String,
     package_manager: String,
     args: Vec<String>,
+    description: Option<String>,
+    port: Option<u16>,
+    host: Option<String>,
+    node_version: Option<String>,
     run_id: Option<String>,
 ) -> Result<(), String> {
     tauri::async_runtime::spawn_blocking(move || {
@@ -383,6 +387,10 @@ pub async fn create_nextjs_project(
             "type": "nextjs",
             "path": full_path.to_string_lossy().to_string(),
             "package_manager": package_manager,
+            "description": description,
+            "port": port,
+            "host": host,
+            "nodeVersion": node_version,
             "created_at": chrono::Local::now().to_rfc3339(),
         });
 

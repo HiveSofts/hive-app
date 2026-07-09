@@ -3,6 +3,7 @@ import { memo } from "react";
 import { ExternalLink, FileCode2, FolderOpen, Globe, Hash, Tag } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
+
 import { MetricsPanel } from "../laravel/MetricsPanel";
 import { ReadmePanel } from "../laravel/ReadmePanel";
 

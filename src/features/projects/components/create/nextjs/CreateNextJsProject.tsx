@@ -236,6 +236,10 @@ function TerminalPanel({
                     name: data.name,
                     packageManager: data.packageManager,
                     args,
+                    description: data.description || null,
+                    port: data.port,
+                    host: data.host,
+                    nodeVersion: null,
                     runId,
                 });
             } catch (err: any) {

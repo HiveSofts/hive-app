@@ -8,6 +8,7 @@ pub mod static_project;
 pub mod vite;
 pub mod vue;
 pub mod wordpress;
+pub mod tunnel;
 
 pub use common::*;
 pub use laravel::*;
@@ -19,3 +20,4 @@ pub use static_project::*;
 pub use vite::*;
 pub use vue::*;
 pub use wordpress::*;
+pub use tunnel::*;
