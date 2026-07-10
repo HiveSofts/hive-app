@@ -16,6 +16,7 @@ import {
     Monitor,
     MoreVertical,
     Play,
+    Plus,
     RefreshCw,
     RotateCcw,
     Square,
@@ -25,6 +26,7 @@ import {
     Wifi,
     WifiOff,
 } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -86,6 +88,7 @@ function ContainerRow({
     onLogs,
     onShell,
 }: ContainerCardProps) {
+    const navigate = useNavigate();
     const [busy, setBusy] = useState<string | null>(null);
     const [showMenu, setShowMenu] = useState(false);
     const [confirmRemove, setConfirmRemove] = useState(false);
@@ -121,18 +124,25 @@ function ContainerRow({
 
     const imgName = container.image.split(":")[0].split("/").pop() ?? container.image;
 
+    const handleNavigate = () => {
+        navigate(`/docker/${container.name}`);
+    };
+
     return (
         <div
             className={cn(
-                "group flex items-center gap-3 px-4 py-3 border-b border-border/50 hover:bg-muted/30 transition-colors",
+                "group flex items-center gap-3 px-4 py-3 border-b border-border/50 hover:bg-muted/30 transition-colors cursor-pointer",
                 confirmRemove && "bg-red-500/5"
             )}
         >
-            <div className="w-8 h-8 rounded-lg bg-muted/60 border flex items-center justify-center text-base shrink-0 font-mono text-muted-foreground select-none">
+            <div
+                className="w-8 h-8 rounded-lg bg-muted/60 border flex items-center justify-center text-base shrink-0 font-mono text-muted-foreground select-none hover:bg-muted/80 transition-colors"
+                onClick={handleNavigate}
+            >
                 {imgName.slice(0, 2).toUpperCase()}
             </div>
 
-            <div className="flex-1 min-w-0">
+            <div className="flex-1 min-w-0" onClick={handleNavigate}>
                 <div className="flex items-center gap-2">
                     <span className="text-sm font-medium truncate">{container.name}</span>
                     <ContainerStateTag state={container.state} />
@@ -160,7 +170,10 @@ function ContainerRow({
                 </div>
             )}
 
-            <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+            <div
+                className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                onClick={(e) => e.stopPropagation()}
+            >
                 {isRunning ? (
                     <button
                         onClick={() => act("stop", () => onStop(container.name))}
@@ -533,6 +546,7 @@ function ShellModal({ container, onClose }: ShellModalProps) {
 }
 
 export default function DockerManagerPage() {
+    const navigate = useNavigate();
     const {
         dockerInfo,
         allContainers,
@@ -602,6 +616,14 @@ export default function DockerManagerPage() {
                     </div>
                 </div>
                 <div className="flex items-center gap-2">
+                    <Button
+                        size="sm"
+                        className="gap-1.5 text-xs h-8 bg-blue-500 hover:bg-blue-600 text-white"
+                        onClick={() => navigate("/projects/new")}
+                    >
+                        <Plus className="w-3.5 h-3.5" />
+                        Create Container
+                    </Button>
                     <div className="flex items-center gap-1 p-0.5 bg-muted/50 rounded-lg border">
                         {(["all", "running", "stopped"] as const).map((f) => (
                             <button

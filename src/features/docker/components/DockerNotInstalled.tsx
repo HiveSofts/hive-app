@@ -1,6 +1,6 @@
 import { useState } from "react";
 
-import { openPath, openUrl } from "@tauri-apps/plugin-opener";
+import { openUrl } from "@tauri-apps/plugin-opener";
 import { AlertTriangle, ArrowRight, Box, Download, ExternalLink, Terminal } from "lucide-react";
 
 import { Button } from "@/components/ui/button";

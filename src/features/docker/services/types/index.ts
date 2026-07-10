@@ -22,6 +22,83 @@ export interface ContainerInfo {
     created: string;
 }
 
+export interface ContainerDetails {
+    id: string;
+    name: string;
+    image: string;
+    image_id: string;
+    status: string;
+    state: string;
+    created: string;
+    started_at: string;
+    finished_at: string;
+    restart_count: number;
+    restart_policy: string;
+    platform: string;
+    ports: PortMapping[];
+    env_vars: string[];
+    labels: LabelEntry[];
+    mounts: MountInfo[];
+    networks: NetworkInfo[];
+    cpu_shares: number;
+    memory_limit: number;
+    hostname: string;
+    ip_address: string;
+    cmd: string[];
+    entrypoint: string[];
+    working_dir: string;
+    user: string;
+    privileged: boolean;
+    pid: number;
+}
+
+export interface LabelEntry {
+    key: string;
+    value: string;
+}
+
+export interface MountInfo {
+    mount_type: string;
+    source: string;
+    destination: string;
+    mode: string;
+    rw: boolean;
+}
+
+export interface NetworkInfo {
+    name: string;
+    ip_address: string;
+    mac_address: string;
+    gateway: string;
+}
+
+export interface ContainerStats {
+    cpu: string;
+    memory: string;
+    memperc: string;
+    net: string;
+    block: string;
+    pids: string;
+    cpu_raw: number;
+    mem_used_mb: number;
+    mem_limit_mb: number;
+}
+
+export interface ContainerProcess {
+    pid: string;
+    ppid: string;
+    user: string;
+    cpu: string;
+    mem: string;
+    vsz: string;
+    rss: string;
+    tty: string;
+    stat: string;
+    start: string;
+    time: string;
+    cmd: string;
+}
+
 export interface CreateDatabaseContainerRequest {
     db_type: string;
     container_name: string;
@@ -49,12 +126,52 @@ export interface CreateContainerResult {
     error: string | null;
 }
 
-export interface ContainerStats {
-    cpu: string;
-    memory: string;
-    memperc: string;
-    net: string;
-    block: string;
+export interface ImageInfo {
+    id: string;
+    repository: string;
+    tag: string;
+    created: string;
+    size: string;
+    digest: string;
+}
+
+export interface NetworkDetail {
+    id: string;
+    name: string;
+    driver: string;
+    scope: string;
+    ipam_subnet: string;
+    ipam_gateway: string;
+    containers_count: number;
+    internal: boolean;
+    attachable: boolean;
+}
+
+export interface VolumeInfo {
+    name: string;
+    driver: string;
+    mountpoint: string;
+    created: string;
+    size: string;
+    containers: string[];
+}
+
+export interface SystemInfo {
+    containers_total: number;
+    containers_running: number;
+    containers_paused: number;
+    containers_stopped: number;
+    images: number;
+    server_version: string;
+    storage_driver: string;
+    memory_total: number;
+    cpus: number;
+    os: string;
+    kernel_version: string;
+    architecture: string;
+    disk_usage_images: string;
+    disk_usage_containers: string;
+    disk_usage_volumes: string;
 }
 
 export type DBType =
@@ -67,7 +184,67 @@ export type DBType =
     | "cassandra"
     | "elasticsearch"
     | "neo4j"
-    | "influxdb";
+    | "influxdb"
+    | "oracle"
+    | "sqlite"
+    | "tidb"
+    | "cockroachdb"
+    | "yugabyte"
+    | "singlestore"
+    | "couchdb"
+    | "couchbase"
+    | "rethinkdb"
+    | "ravendb"
+    | "scylladb"
+    | "hbase"
+    | "keydb"
+    | "memcached"
+    | "dragonfly"
+    | "opensearch"
+    | "meilisearch"
+    | "typesense"
+    | "solr"
+    | "manticore"
+    | "arangodb"
+    | "janusgraph"
+    | "dgraph"
+    | "timescaledb"
+    | "questdb"
+    | "victoriametrics"
+    | "prometheus"
+    | "m3db"
+    | "weaviate"
+    | "qdrant"
+    | "milvus"
+    | "chroma"
+    | "pgvector"
+    | "kafka"
+    | "rabbitmq"
+    | "nats"
+    | "pulsar"
+    | "clickhouse"
+    | "druid"
+    | "starrocks"
+    | "duckdb"
+    | "surrealdb"
+    | "fauna"
+    | "edgedb"
+    | "loki"
+    | "opensearch-dashboard";
+
+export type DBCategory =
+    | "relational"
+    | "nosql"
+    | "wide-column"
+    | "cache"
+    | "search"
+    | "timeseries"
+    | "graph"
+    | "vector"
+    | "stream"
+    | "olap"
+    | "multi-model"
+    | "logs";
 
 export interface DBPreset {
     id: DBType;
@@ -81,7 +258,7 @@ export interface DBPreset {
     hasDatabase: boolean;
     hasUser: boolean;
     hasPassword: boolean;
-    category: "relational" | "nosql" | "cache" | "search" | "timeseries" | "graph";
+    category: DBCategory;
     description: string;
 }
 
@@ -112,4 +289,22 @@ export interface ShellSession {
     containerId: string;
     containerName: string;
     active: boolean;
+}
+
+export interface RenameRequest {
+    old_name: string;
+    new_name: string;
+}
+
+export interface UpdateContainerRequest {
+    container_name: string;
+    memory_limit: string | null;
+    cpu_shares: number | null;
+    restart_policy: string | null;
+}
+
+export interface ComposeProject {
+    name: string;
+    status: string;
+    services: number;
 }

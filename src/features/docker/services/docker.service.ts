@@ -2,6 +2,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 
 import {
+    ContainerDetails,
     ContainerInfo,
     ContainerStats,
     CreateContainerResult,
@@ -42,7 +43,8 @@ export const getContainerLogs = (name: string, tail = 200): Promise<string[]> =>
 
 export const getContainerStats = (name: string): Promise<ContainerStats> =>
     invoke("get_container_stats", { containerName: name });
-
+export const inspectContainer = (containerName: string): Promise<ContainerDetails> =>
+    invoke("inspect_container", { containerName });
 export const pullDockerImage = (
     image: string,
     tag: string,

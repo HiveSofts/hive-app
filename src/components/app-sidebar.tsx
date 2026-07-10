@@ -2,8 +2,6 @@ import { UserConfig } from "@/features/onboarding/types";
 
 import { useEffect, useState } from "react";
 
-import { SiNodeDotJs } from "@react-icons/all-files/si/SiNodeDotJs";
-import { SiPhp } from "@react-icons/all-files/si/SiPhp";
 import {
     IconCpu2,
     IconDashboard,

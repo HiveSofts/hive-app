@@ -5,6 +5,7 @@ import { useNavigate } from "react-router-dom";
 
 import { Button } from "@/components/ui/button";
 
+import { CreateDockerContainer } from "../components/create/docker/CreateDockerContainer";
 import { CreateLaravelProject } from "../components/create/laravel/CreateLaravelProject";
 import { CreateNextJsProject } from "../components/create/nextjs/CreateNextJsProject";
 import { CreateNodejsProject } from "../components/create/nodejs/CreateNodejsProject";
@@ -50,6 +51,8 @@ export default function CreateProjectPage() {
                 return <CreateWordPressProject onSuccess={handleProjectCreated} />;
             case "html5":
                 return <CreateStaticProject onSuccess={handleProjectCreated} />;
+            case "docker":
+                return <CreateDockerContainer onSuccess={handleProjectCreated} />;
             default:
                 return null;
         }

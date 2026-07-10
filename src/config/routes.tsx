@@ -1,8 +1,3 @@
-import NotFoundPage from "@/features/NotFoundPage";
-import DockerDatabaseManagerPage from "@/features/docker/DockerDatabaseManagerPage";
-import DockerManagerPage from "@/features/docker/DockerManagerPage";
-import RuntimeManagerPage from "@/features/runtimes/RuntimeManagerPage";
-
 import { Suspense, lazy } from "react";
 
 import { createBrowserRouter } from "react-router-dom";
@@ -16,6 +11,12 @@ const CreateProjectPage = lazy(() => import("@/features/projects/pages/CreatePro
 const ProjectDetailPage = lazy(() => import("@/features/projects/pages/ProjectDetailPage"));
 const TunnelManagerPage = lazy(() => import("@/features/tunnel/TunnelManagerPage"));
 const SettingsPage = lazy(() => import("@/features/settings/SettingsPage"));
+const DockerManagerPage = lazy(() => import("@/features/docker/DockerManagerPage"));
+const DockerDatabaseManagerPage = lazy(() => import("@/features/docker/DockerDatabaseManagerPage"));
+const ContainerDetailPage = lazy(() => import("@/features/docker/ContainerDetailPage"));
+const DatabaseDetailPage = lazy(() => import("@/features/docker/DatabaseDetailPage"));
+const RuntimeManagerPage = lazy(() => import("@/features/runtimes/RuntimeManagerPage"));
+const NotFoundPage = lazy(() => import("@/features/NotFoundPage"));
 
 function LazyPage({ children }: { children: React.ReactNode }) {
     return <Suspense fallback={<LoadingSpinner />}>{children}</Suspense>;
@@ -75,6 +76,14 @@ export const router = createBrowserRouter([
                 ),
             },
             {
+                path: "databases/:containerName",
+                element: (
+                    <LazyPage>
+                        <DatabaseDetailPage />
+                    </LazyPage>
+                ),
+            },
+            {
                 path: "tunnel",
                 element: (
                     <LazyPage>
@@ -98,10 +107,22 @@ export const router = createBrowserRouter([
                     </LazyPage>
                 ),
             },
+            {
+                path: "docker/:containerName",
+                element: (
+                    <LazyPage>
+                        <ContainerDetailPage />
+                    </LazyPage>
+                ),
+            },
         ],
     },
     {
         path: "*",
-        element: <NotFoundPage />,
+        element: (
+            <LazyPage>
+                <NotFoundPage />
+            </LazyPage>
+        ),
     },
 ]);

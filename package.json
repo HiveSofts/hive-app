@@ -8,6 +8,9 @@
         "build": "tsc && vite build",
         "preview": "vite preview",
         "tauri": "tauri",
+        "tauri:linux": "tauri build",
+        "tauri:windows": "tauri build -- --runner cargo-xwin --target x86_64-pc-windows-msvc",
+        "build:all": "tauri build && tauri build --runner cargo-xwin --target x86_64-pc-windows-msvc",
         "format": "prettier --write .",
         "format-check": "prettier --check ."
     },
@@ -30,6 +33,7 @@
         "@tauri-apps/api": "^2.11.0",
         "@tauri-apps/plugin-autostart": "^2.5.1",
         "@tauri-apps/plugin-dialog": "^2.7.1",
+        "@tauri-apps/plugin-fs": "^2.5.1",
         "@tauri-apps/plugin-opener": "~2",
         "@tauri-apps/plugin-sql": "^2.4.0",
         "@tauri-apps/plugin-updater": "^2.10.1",
