@@ -113,6 +113,7 @@ function TerminalPanel({
     const [error, setError] = useState<string | null>(null);
     const [isInstalling, setIsInstalling] = useState(true);
     const [isKilling, setIsKilling] = useState(false);
+    const [checkingPM, setCheckingPM] = useState(false);
     const bottomRef = useRef<HTMLDivElement>(null);
     const addedLines = useRef<Set<string>>(new Set());
     const childProcessRef = useRef<any>(null);
@@ -200,6 +201,7 @@ function TerminalPanel({
                 if (isMounted) {
                     setDone(true);
                     setIsInstalling(false);
+                    setCheckingPM(false);
                 }
 
                 activeInstallation = null;
@@ -208,6 +210,7 @@ function TerminalPanel({
                 setError(payload.data);
                 addLine(`Error: ${payload.data}`, "error");
                 setIsInstalling(false);
+                setCheckingPM(false);
                 activeInstallation = null;
                 startedInstalls.delete(`${projectsPath}/${data.name}`);
             }
@@ -231,7 +234,25 @@ function TerminalPanel({
             activeInstallation = { name: data.name, status: "installing" };
 
             try {
-                addLine(`> Creating Node.js project: ${data.name}`, "info");
+                setCheckingPM(true);
+                addLine(`🔍 Checking for ${data.packageManager}...`, "info");
+
+                const pmCheck = await invoke<any>("check_package_manager", {
+                    manager: data.packageManager,
+                });
+
+                if (!pmCheck.installed) {
+                    addLine(
+                        `⚠️ ${data.packageManager} not found. Installing ${data.packageManager} globally...`,
+                        "info"
+                    );
+                    await invoke("install_package_manager", {
+                        manager: data.packageManager,
+                    });
+                    addLine(`✅ ${data.packageManager} installed successfully!`, "success");
+                } else {
+                    addLine(`✅ ${data.packageManager} found (${pmCheck.version})`, "success");
+                }
 
                 await invoke("create_nodejs_project", {
                     projectPath: projectsPath,
@@ -240,6 +261,14 @@ function TerminalPanel({
                     framework: data.framework,
                     entryPoint: data.entryPoint,
                     installDeps: data.installDeps,
+                    description: data.description || null,
+                    host: data.host,
+                    port: data.port,
+                    nodeVersion: null,
+                    gitInit: data.gitInit,
+                    authorName: data.authorName || null,
+                    authorEmail: data.authorEmail || null,
+                    license: data.license,
                     runId,
                 });
             } catch (err: any) {
@@ -255,6 +284,7 @@ function TerminalPanel({
                     setError(message);
                 }
                 setIsInstalling(false);
+                setCheckingPM(false);
                 activeInstallation = null;
                 startedInstalls.delete(installKey);
             }
@@ -314,7 +344,11 @@ function TerminalPanel({
                     {isInstalling && !error && !done && (
                         <div className="flex items-center gap-2 mt-2 text-zinc-400">
                             <Loader2 className="w-3 h-3 animate-spin text-amber-400" />
-                            <span>Setting up Node.js project...</span>
+                            <span>
+                                {checkingPM
+                                    ? `Checking ${data.packageManager}...`
+                                    : "Setting up Node.js project..."}
+                            </span>
                         </div>
                     )}
                     <div ref={bottomRef} />
@@ -400,32 +434,6 @@ export function CreateNodejsProject({ onSuccess }: { onSuccess: (project: any) =
     const goNext = () => setStep((s) => s + 1);
     const goBack = () => setStep((s) => s - 1);
 
-    const getPackageJson = () => {
-        return `{
-  "name": "${formData.name}",
-  "version": "1.0.0",
-  "description": "${formData.description || "A Node.js project"}",
-  "main": "${formData.entryPoint}",
-  "scripts": {
-    "start": "node ${formData.entryPoint}",
-    "dev": "nodemon ${formData.entryPoint}"
-  },
-  "keywords": [],
-  "author": "${formData.authorName} <${formData.authorEmail}>",
-  "license": "${formData.license}",
-  "dependencies": {
-    ${formData.framework !== "plain" ? `"${formData.framework}": "^latest"` : ""}
-  },
-  "devDependencies": {
-    "nodemon": "^3.0.0"
-  }
-}`;
-    };
-
-    const handleDone = (project: any) => {
-        onSuccess(project);
-    };
-
     const visualStep = step === 3 ? 3 : step;
 
     const handleNameChange = (value: string) => {
@@ -444,6 +452,10 @@ export function CreateNodejsProject({ onSuccess }: { onSuccess: (project: any) =
             const folderName = parts[parts.length - 1];
             update({ entryPoint: folderName + "/index.js" });
         }
+    };
+
+    const handleDone = (project: any) => {
+        onSuccess(project);
     };
 
     return (
@@ -718,15 +730,6 @@ export function CreateNodejsProject({ onSuccess }: { onSuccess: (project: any) =
                                 <CheckCircle2 className="w-3 h-3 text-white" />
                             )}
                         </div>
-                    </div>
-
-                    <div className="rounded-lg bg-zinc-950 border border-zinc-800 p-3">
-                        <p className="text-[10px] text-zinc-500 mb-1.5 font-mono uppercase tracking-wider">
-                            package.json preview
-                        </p>
-                        <pre className="text-[10px] font-mono text-emerald-400 break-all whitespace-pre-wrap">
-                            {getPackageJson()}
-                        </pre>
                     </div>
 
                     <div className="flex gap-2">
