@@ -22,11 +22,11 @@ import { PhpExtensionsPanel } from "@/features/projects/components/detail/php/Ph
 import { PhpLogsPanel } from "@/features/projects/components/detail/php/PhpLogsPanel";
 import { PhpOverviewPanel } from "@/features/projects/components/detail/php/PhpOverviewPanel";
 import { PhpShellPanel } from "@/features/projects/components/detail/php/PhpShellPanel";
+import { WordPressDatabasePanel } from "@/features/projects/components/detail/wordpress/WordPressDatabasePanel";
+import { WordPressLogsPanel } from "@/features/projects/components/detail/wordpress/WordPressLogsPanel";
 import { WordPressOverviewPanel } from "@/features/projects/components/detail/wordpress/WordPressOverviewPanel";
 import { WordPressPluginsPanel } from "@/features/projects/components/detail/wordpress/WordPressPluginsPanel";
 import { WordPressThemesPanel } from "@/features/projects/components/detail/wordpress/WordPressThemesPanel";
-import { WordPressDatabasePanel } from "@/features/projects/components/detail/wordpress/WordPressDatabasePanel";
-import { WordPressLogsPanel } from "@/features/projects/components/detail/wordpress/WordPressLogsPanel";
 import type { PanelConfig, ProjectType, TabConfig } from "@/features/projects/types";
 
 interface ProjectConfig {

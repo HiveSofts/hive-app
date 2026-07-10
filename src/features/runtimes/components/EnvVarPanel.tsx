@@ -1,9 +1,12 @@
 import { useState } from "react";
+
 import { Plus, X } from "lucide-react";
+
+import { CopyButton } from "@/components/ui/CopyButton";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+
 import { AccentColors, EnvVar } from "../types/runtime.types";
-import { CopyButton } from "@/components/ui/CopyButton";
 
 interface EnvVarPanelProps {
     vars: EnvVar[];
@@ -31,12 +34,17 @@ export function EnvVarPanel({ vars, colors }: EnvVarPanelProps) {
             </div>
             <div className="rounded-xl border border-white/10 overflow-hidden divide-y divide-white/5">
                 {envVars.map((ev, i) => (
-                    <div key={i} className="flex items-center gap-2 px-3 py-2 hover:bg-white/5 transition-colors group">
+                    <div
+                        key={i}
+                        className="flex items-center gap-2 px-3 py-2 hover:bg-white/5 transition-colors group"
+                    >
                         <Input
                             value={ev.key}
                             onChange={(e) =>
                                 setEnvVars((prev) =>
-                                    prev.map((v, j) => (j === i ? { ...v, key: e.target.value } : v))
+                                    prev.map((v, j) =>
+                                        j === i ? { ...v, key: e.target.value } : v
+                                    )
                                 )
                             }
                             className="h-7 text-xs font-mono bg-white/5 border-white/10 w-48 shrink-0"
@@ -47,7 +55,9 @@ export function EnvVarPanel({ vars, colors }: EnvVarPanelProps) {
                             value={ev.value}
                             onChange={(e) =>
                                 setEnvVars((prev) =>
-                                    prev.map((v, j) => (j === i ? { ...v, value: e.target.value } : v))
+                                    prev.map((v, j) =>
+                                        j === i ? { ...v, value: e.target.value } : v
+                                    )
                                 )
                             }
                             className="h-7 text-xs font-mono bg-white/5 border-white/10 flex-1"

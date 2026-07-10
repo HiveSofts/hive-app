@@ -1,12 +1,13 @@
 import { invoke } from "@tauri-apps/api/core";
-import { 
-    PhpInfo, 
-    ComposerPackage, 
-    PhpIniSetting, 
-    PhpIniFileInfo,
+
+import {
+    ComposerPackage,
+    Extension,
     PhpExtensionToggleResult,
+    PhpInfo,
+    PhpIniFileInfo,
+    PhpIniSetting,
     PhpVersionInfo,
-    Extension
 } from "../types/runtime.types";
 
 export class RuntimeService {
@@ -47,15 +48,21 @@ export class RuntimeService {
         }
     }
 
-    async togglePhpExtension(extensionName: string, enable: boolean): Promise<PhpExtensionToggleResult> {
+    async togglePhpExtension(
+        extensionName: string,
+        enable: boolean
+    ): Promise<PhpExtensionToggleResult> {
         try {
-            return await invoke<PhpExtensionToggleResult>("toggle_php_extension", { extensionName, enable });
+            return await invoke<PhpExtensionToggleResult>("toggle_php_extension", {
+                extensionName,
+                enable,
+            });
         } catch (error) {
             console.error("togglePhpExtension error:", error);
             return {
                 success: false,
-                message: `Failed to ${enable ? 'enable' : 'disable'} ${extensionName}`,
-                requiresRestart: false
+                message: `Failed to ${enable ? "enable" : "disable"} ${extensionName}`,
+                requiresRestart: false,
             };
         }
     }
@@ -109,11 +116,11 @@ export class RuntimeService {
         try {
             return await this.executeCommand(
                 "sudo systemctl restart php8.5-fpm || " +
-                "sudo service php8.5-fpm restart || " +
-                "sudo systemctl restart php-fpm || " +
-                "sudo systemctl restart php8.5-fpm || " +
-                "sudo systemctl restart php8.5-fpm.service || " +
-                "echo 'Please restart PHP manually'"
+                    "sudo service php8.5-fpm restart || " +
+                    "sudo systemctl restart php-fpm || " +
+                    "sudo systemctl restart php8.5-fpm || " +
+                    "sudo systemctl restart php8.5-fpm.service || " +
+                    "echo 'Please restart PHP manually'"
             );
         } catch (error) {
             console.error("restartPhp error:", error);
@@ -142,7 +149,10 @@ export class RuntimeService {
     async composerInstall(projectPath: string, packages?: string[]): Promise<string> {
         try {
             const args = packages ? `require ${packages.join(" ")}` : "install";
-            return await this.executeCommand(`composer ${args} --no-interaction --no-progress`, projectPath);
+            return await this.executeCommand(
+                `composer ${args} --no-interaction --no-progress`,
+                projectPath
+            );
         } catch (error) {
             console.error("composerInstall error:", error);
             throw new Error("Failed to install packages");
@@ -151,7 +161,10 @@ export class RuntimeService {
 
     async composerRemove(projectPath: string, packageName: string): Promise<string> {
         try {
-            return await this.executeCommand(`composer remove ${packageName} --no-interaction --no-progress`, projectPath);
+            return await this.executeCommand(
+                `composer remove ${packageName} --no-interaction --no-progress`,
+                projectPath
+            );
         } catch (error) {
             console.error("composerRemove error:", error);
             throw new Error(`Failed to remove ${packageName}`);
@@ -161,7 +174,10 @@ export class RuntimeService {
     async composerUpdate(projectPath: string, packageName?: string): Promise<string> {
         try {
             const args = packageName ? `update ${packageName}` : "update";
-            return await this.executeCommand(`composer ${args} --no-interaction --no-progress`, projectPath);
+            return await this.executeCommand(
+                `composer ${args} --no-interaction --no-progress`,
+                projectPath
+            );
         } catch (error) {
             console.error("composerUpdate error:", error);
             throw new Error("Failed to update packages");
@@ -176,14 +192,16 @@ export class RuntimeService {
             return {
                 path: "/etc/php/php.ini",
                 content: "",
-                isWritable: false
+                isWritable: false,
             };
         }
     }
 
     async validatePhpIniContent(content: string): Promise<{ valid: boolean; errors: string[] }> {
         try {
-            return await invoke<{ valid: boolean; errors: string[] }>("validate_php_ini_content", { content });
+            return await invoke<{ valid: boolean; errors: string[] }>("validate_php_ini_content", {
+                content,
+            });
         } catch (error) {
             console.error("validatePhpIniContent error:", error);
             return { valid: false, errors: ["Failed to validate php.ini"] };

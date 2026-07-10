@@ -1,38 +1,50 @@
-import { useState, useEffect } from "react";
+import { cn } from "@/core/lib/utils";
+
+import { useEffect, useState } from "react";
+
 import {
-    Layers,
-    Settings,
-    Info,
-    Terminal,
-    Search,
-    FileText,
-    Play,
-    RefreshCw,
-    Package,
-    Code2,
-    XCircle,
-    CheckCircle2,
-    Download,
     AlertCircle,
-    Save,
-    RotateCcw,
+    CheckCircle2,
     ChevronDown,
     ChevronUp,
-    Filter,
-    Zap,
     Clock,
-    HardDrive,
-    Globe,
-    Shield,
+    Code2,
     Database,
+    Download,
     Eye,
     EyeOff,
+    FileText,
+    Filter,
+    Globe,
+    HardDrive,
+    Info,
+    Layers,
+    Package,
+    Play,
+    RefreshCw,
+    RotateCcw,
+    Save,
+    Search,
+    Settings,
+    Shield,
+    Terminal,
+    XCircle,
+    Zap,
 } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { Switch } from "@/components/ui/switch";
+import { toast } from "sonner";
+
+import { CopyButton } from "@/components/ui/CopyButton";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
 import {
     Select,
     SelectContent,
@@ -40,21 +52,13 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import {
-    Dialog,
-    DialogContent,
-    DialogHeader,
-    DialogTitle,
-    DialogDescription,
-    DialogFooter,
-} from "@/components/ui/dialog";
-import { cn } from "@/core/lib/utils";
+import { Textarea } from "@/components/ui/textarea";
+
+import { runtimeService } from "../../services/runtime.service";
 import { Extension, IniSetting, LangMeta } from "../../types/runtime.types";
 import { accentMap } from "../../utils/accent.utils";
-import { runtimeService } from "../../services/runtime.service";
-import { CopyButton } from "@/components/ui/CopyButton";
-import { toast } from "sonner";
 
 interface PhpPanelProps {
     lang: LangMeta;
@@ -188,7 +192,10 @@ function groupIniSettings(
     return result;
 }
 
-function buildDiff(original: string, current: string): {
+function buildDiff(
+    original: string,
+    current: string
+): {
     added: number;
     removed: number;
     changed: number;
@@ -730,7 +737,7 @@ export function PhpPanel({ lang }: PhpPanelProps) {
                         )}
                         {rawMode &&
                             rawDiff &&
-                            (rawDiff.added + rawDiff.changed + rawDiff.removed > 0) && (
+                            rawDiff.added + rawDiff.changed + rawDiff.removed > 0 && (
                                 <div className="flex items-center gap-1.5 text-[10px] font-mono flex-1">
                                     {rawDiff.added > 0 && (
                                         <span className="text-green-400">+{rawDiff.added}</span>
@@ -882,8 +889,7 @@ export function PhpPanel({ lang }: PhpPanelProps) {
                                                             key={setting.key}
                                                             className={cn(
                                                                 "flex items-center gap-3 px-4 py-3 hover:bg-white/[0.03] transition-colors",
-                                                                isChanged &&
-                                                                    "bg-yellow-500/[0.04]"
+                                                                isChanged && "bg-yellow-500/[0.04]"
                                                             )}
                                                         >
                                                             <div className="flex-1 min-w-0">
@@ -1108,8 +1114,8 @@ export function PhpPanel({ lang }: PhpPanelProps) {
                                             ?.value ?? "2M"
                                     }`,
                                     `post_max_size => ${
-                                        iniSettings.find((s) => s.key === "post_max_size")
-                                            ?.value ?? "8M"
+                                        iniSettings.find((s) => s.key === "post_max_size")?.value ??
+                                        "8M"
                                     }`,
                                 ].join("\n")}
                             />

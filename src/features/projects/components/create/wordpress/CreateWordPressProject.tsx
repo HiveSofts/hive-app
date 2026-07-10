@@ -1,6 +1,6 @@
 import { cn } from "@/core/lib/utils";
 
-import { useEffect, useState, type ReactNode } from "react";
+import { type ReactNode, useEffect, useState } from "react";
 
 import { invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
@@ -131,24 +131,22 @@ export function CreateWordPressProject({ onSuccess }: { onSuccess: (project: any
             return;
         }
 
-        if (!formData.siteTitle || !formData.siteUrl || !formData.adminUser || !formData.adminEmail) {
+        if (
+            !formData.siteTitle ||
+            !formData.siteUrl ||
+            !formData.adminUser ||
+            !formData.adminEmail
+        ) {
             setError("Site title, URL, admin user and admin email are required");
             return;
         }
 
-        if (
-            formData.sourceType === "github_clone" &&
-            !formData.githubRepo
-        ) {
+        if (formData.sourceType === "github_clone" && !formData.githubRepo) {
             setError("A GitHub repository URL is required for clone source");
             return;
         }
 
-        if (
-            formData.sourceType === "wordpress_org" &&
-            !formData.version &&
-            tags.length === 0
-        ) {
+        if (formData.sourceType === "wordpress_org" && !formData.version && tags.length === 0) {
             setError("Please select a WordPress version");
             return;
         }
@@ -749,9 +747,7 @@ function SourceOption({
         <div
             className={cn(
                 "flex items-start justify-between p-3 rounded-lg border cursor-pointer transition-all",
-                active
-                    ? "border-amber-500 bg-amber-500/10"
-                    : "border-border hover:bg-muted/30"
+                active ? "border-amber-500 bg-amber-500/10" : "border-border hover:bg-muted/30"
             )}
             onClick={onClick}
         >

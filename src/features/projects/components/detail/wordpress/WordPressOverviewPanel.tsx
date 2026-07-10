@@ -1,15 +1,6 @@
 import { memo } from "react";
 
-import {
-    Database,
-    ExternalLink,
-    FolderOpen,
-    Globe,
-    Mail,
-    Server,
-    Tag,
-    User,
-} from "lucide-react";
+import { Database, ExternalLink, FolderOpen, Globe, Mail, Server, Tag, User } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 
@@ -72,9 +63,7 @@ export const WordPressOverviewPanel = memo(function WordPressOverviewPanel({
           })
         : null;
 
-    const sourceLabel = sourceType
-        ? SOURCE_LABELS[sourceType] || sourceType
-        : "—";
+    const sourceLabel = sourceType ? SOURCE_LABELS[sourceType] || sourceType : "—";
 
     return (
         <div className="space-y-4">
@@ -105,9 +94,7 @@ export const WordPressOverviewPanel = memo(function WordPressOverviewPanel({
 
                         <div className="flex flex-col gap-0.5">
                             <span className="text-[11px] text-muted-foreground">Site Title</span>
-                            <span className="font-medium truncate">
-                                {siteTitle || "—"}
-                            </span>
+                            <span className="font-medium truncate">{siteTitle || "—"}</span>
                         </div>
 
                         <div className="flex flex-col gap-0.5">
@@ -118,11 +105,7 @@ export const WordPressOverviewPanel = memo(function WordPressOverviewPanel({
                         <div className="flex flex-col gap-0.5">
                             <span className="text-[11px] text-muted-foreground">Database</span>
                             <span className="font-mono font-medium truncate">
-                                {dbDriver ? (
-                                    <span className="capitalize">{dbDriver}</span>
-                                ) : (
-                                    "—"
-                                )}
+                                {dbDriver ? <span className="capitalize">{dbDriver}</span> : "—"}
                                 {dbName ? ` · ${dbName}` : ""}
                             </span>
                         </div>
@@ -136,9 +119,7 @@ export const WordPressOverviewPanel = memo(function WordPressOverviewPanel({
 
                         <div className="flex flex-col gap-0.5">
                             <span className="text-[11px] text-muted-foreground">DB User</span>
-                            <span className="font-mono font-medium truncate">
-                                {dbUser || "—"}
-                            </span>
+                            <span className="font-mono font-medium truncate">{dbUser || "—"}</span>
                         </div>
 
                         <div className="flex flex-col gap-0.5">
@@ -150,16 +131,12 @@ export const WordPressOverviewPanel = memo(function WordPressOverviewPanel({
 
                         <div className="flex flex-col gap-0.5">
                             <span className="text-[11px] text-muted-foreground">Admin Email</span>
-                            <span className="font-medium truncate">
-                                {adminEmail || "—"}
-                            </span>
+                            <span className="font-medium truncate">{adminEmail || "—"}</span>
                         </div>
 
                         <div className="flex flex-col gap-0.5">
                             <span className="text-[11px] text-muted-foreground">Project Path</span>
-                            <span className="font-mono font-medium truncate">
-                                {projectPath}
-                            </span>
+                            <span className="font-mono font-medium truncate">{projectPath}</span>
                         </div>
 
                         {serverUrl && (

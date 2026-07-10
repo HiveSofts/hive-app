@@ -15,6 +15,7 @@ import {
 } from "@tabler/icons-react";
 import { invoke } from "@tauri-apps/api/core";
 import { motion } from "framer-motion";
+import { SiDocker } from "react-icons/si";
 
 import { NavMain } from "@/components/nav-main";
 import { NavSecondary } from "@/components/nav-secondary";
@@ -29,7 +30,6 @@ import {
 } from "@/components/ui/sidebar";
 
 import { NavUser } from "./nav-user";
-import { SiDocker } from "react-icons/si";
 
 const navMainItems = [
     { title: "Dashboard", url: "/", icon: IconDashboard },

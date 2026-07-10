@@ -1,12 +1,16 @@
+import { cn } from "@/core/lib/utils";
+
 import { useState } from "react";
-import { Globe, Sliders, Settings, Plus, RefreshCw, Trash2 } from "lucide-react";
+
+import { Globe, Plus, RefreshCw, Settings, Sliders, Trash2 } from "lucide-react";
+
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { cn } from "@/core/lib/utils";
+
+import { NODE_ENV_VARS } from "../../data/node.data";
 import { LangMeta } from "../../types/runtime.types";
 import { accentMap } from "../../utils/accent.utils";
-import { NODE_ENV_VARS } from "../../data/node.data";
 import { EnvVarPanel } from "../EnvVarPanel";
 
 interface NodePanelProps {
@@ -34,9 +38,21 @@ export function NodePanel({ lang }: NodePanelProps) {
             <Tabs value={activeTab} onValueChange={setActiveTab}>
                 <TabsList className="bg-white/5 border border-white/10 p-1 rounded-xl h-auto gap-1">
                     {[
-                        { id: "tools", label: "Global Tools", icon: <Globe className="w-3.5 h-3.5" /> },
-                        { id: "env", label: "Environment", icon: <Sliders className="w-3.5 h-3.5" /> },
-                        { id: "npm", label: "npm Config", icon: <Settings className="w-3.5 h-3.5" /> },
+                        {
+                            id: "tools",
+                            label: "Global Tools",
+                            icon: <Globe className="w-3.5 h-3.5" />,
+                        },
+                        {
+                            id: "env",
+                            label: "Environment",
+                            icon: <Sliders className="w-3.5 h-3.5" />,
+                        },
+                        {
+                            id: "npm",
+                            label: "npm Config",
+                            icon: <Settings className="w-3.5 h-3.5" />,
+                        },
                     ].map((t) => (
                         <TabsTrigger
                             key={t.id}
@@ -51,8 +67,19 @@ export function NodePanel({ lang }: NodePanelProps) {
 
                 <TabsContent value="tools" className="mt-4 space-y-3">
                     <div className="flex items-center justify-between">
-                        <p className="text-xs text-muted-foreground">Globally installed npm packages</p>
-                        <Button size="sm" className={cn("h-8 text-xs gap-1.5", colors.bg, colors.text, "border", colors.border)}>
+                        <p className="text-xs text-muted-foreground">
+                            Globally installed npm packages
+                        </p>
+                        <Button
+                            size="sm"
+                            className={cn(
+                                "h-8 text-xs gap-1.5",
+                                colors.bg,
+                                colors.text,
+                                "border",
+                                colors.border
+                            )}
+                        >
                             <Plus className="w-3.5 h-3.5" />
                             Install global
                         </Button>
@@ -63,19 +90,32 @@ export function NodePanel({ lang }: NodePanelProps) {
                                 key={pkg.name}
                                 className="flex items-center gap-3 px-4 py-2.5 hover:bg-white/5 transition-colors group"
                             >
-                                <div className={cn("w-2 h-2 rounded-full", colors.text.replace("text-", "bg-"))} />
+                                <div
+                                    className={cn(
+                                        "w-2 h-2 rounded-full",
+                                        colors.text.replace("text-", "bg-")
+                                    )}
+                                />
                                 <div className="flex-1">
                                     <div className="flex items-center gap-2">
                                         <span className="text-sm font-mono">{pkg.name}</span>
-                                        <span className="text-[10px] font-mono text-muted-foreground">v{pkg.version}</span>
+                                        <span className="text-[10px] font-mono text-muted-foreground">
+                                            v{pkg.version}
+                                        </span>
                                     </div>
-                                    <p className="text-[11px] text-muted-foreground">{pkg.description}</p>
+                                    <p className="text-[11px] text-muted-foreground">
+                                        {pkg.description}
+                                    </p>
                                 </div>
                                 <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                                     <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
                                         <RefreshCw className="w-3 h-3" />
                                     </Button>
-                                    <Button variant="ghost" size="sm" className="h-6 w-6 p-0 hover:text-red-400">
+                                    <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        className="h-6 w-6 p-0 hover:text-red-400"
+                                    >
                                         <Trash2 className="w-3 h-3" />
                                     </Button>
                                 </div>
@@ -90,18 +130,31 @@ export function NodePanel({ lang }: NodePanelProps) {
 
                 <TabsContent value="npm" className="mt-4 space-y-3">
                     {[
-                        { key: "registry", value: "https://registry.npmjs.org/", description: "Package registry URL" },
+                        {
+                            key: "registry",
+                            value: "https://registry.npmjs.org/",
+                            description: "Package registry URL",
+                        },
                         { key: "cache", value: "~/.npm", description: "Cache location" },
                         { key: "prefix", value: "/usr/local", description: "Install prefix" },
                         { key: "fund", value: "true", description: "Show funding messages" },
                         { key: "audit", value: "true", description: "Run security audits" },
                         { key: "save-exact", value: "false", description: "Save exact versions" },
-                        { key: "legacy-peer-deps", value: "false", description: "Legacy peer deps mode" },
+                        {
+                            key: "legacy-peer-deps",
+                            value: "false",
+                            description: "Legacy peer deps mode",
+                        },
                     ].map((item) => (
-                        <div key={item.key} className="flex items-center gap-3 px-4 py-2.5 rounded-xl border border-white/10 hover:bg-white/5 transition-colors">
+                        <div
+                            key={item.key}
+                            className="flex items-center gap-3 px-4 py-2.5 rounded-xl border border-white/10 hover:bg-white/5 transition-colors"
+                        >
                             <div className="flex-1">
                                 <p className="text-xs font-mono text-white/80">{item.key}</p>
-                                <p className="text-[11px] text-muted-foreground">{item.description}</p>
+                                <p className="text-[11px] text-muted-foreground">
+                                    {item.description}
+                                </p>
                             </div>
                             <Input
                                 defaultValue={item.value}

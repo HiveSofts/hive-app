@@ -57,7 +57,17 @@ export interface ContainerStats {
     block: string;
 }
 
-export type DBType = "mysql" | "mariadb" | "postgresql" | "mongodb" | "redis" | "mssql" | "cassandra" | "elasticsearch" | "neo4j" | "influxdb";
+export type DBType =
+    | "mysql"
+    | "mariadb"
+    | "postgresql"
+    | "mongodb"
+    | "redis"
+    | "mssql"
+    | "cassandra"
+    | "elasticsearch"
+    | "neo4j"
+    | "influxdb";
 
 export interface DBPreset {
     id: DBType;
