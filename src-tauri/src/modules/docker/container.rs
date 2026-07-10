@@ -290,8 +290,16 @@ pub async fn inspect_container(container_name: String) -> Result<ContainerDetail
 
     let parts: Vec<&str> = output.splitn(20, "|||").collect();
 
-    let id = parts.get(0).unwrap_or(&"").trim_start_matches('/').to_string();
-    let name = parts.get(1).unwrap_or(&"").trim_start_matches('/').to_string();
+    let id = parts
+        .get(0)
+        .unwrap_or(&"")
+        .trim_start_matches('/')
+        .to_string();
+    let name = parts
+        .get(1)
+        .unwrap_or(&"")
+        .trim_start_matches('/')
+        .to_string();
 
     let ip_address = docker_cmd(&[
         "inspect",

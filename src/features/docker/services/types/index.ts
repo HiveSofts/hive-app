@@ -175,17 +175,61 @@ export interface SystemInfo {
 }
 
 export type DBType =
-    | "mysql" | "mariadb" | "postgresql" | "mongodb" | "redis"
-    | "mssql" | "cassandra" | "elasticsearch" | "neo4j" | "influxdb"
-    | "oracle" | "sqlite" | "tidb" | "cockroachdb" | "yugabyte"
-    | "singlestore" | "couchdb" | "couchbase" | "rethinkdb" | "ravendb"
-    | "scylladb" | "hbase" | "keydb" | "memcached" | "dragonfly"
-    | "opensearch" | "meilisearch" | "typesense" | "solr" | "manticore"
-    | "arangodb" | "janusgraph" | "dgraph" | "timescaledb" | "questdb"
-    | "victoriametrics" | "prometheus" | "m3db" | "weaviate" | "qdrant"
-    | "milvus" | "chroma" | "pgvector" | "kafka" | "rabbitmq"
-    | "nats" | "pulsar" | "clickhouse" | "druid" | "starrocks"
-    | "duckdb" | "surrealdb" | "fauna" | "edgedb" | "loki"
+    | "mysql"
+    | "mariadb"
+    | "postgresql"
+    | "mongodb"
+    | "redis"
+    | "mssql"
+    | "cassandra"
+    | "elasticsearch"
+    | "neo4j"
+    | "influxdb"
+    | "oracle"
+    | "sqlite"
+    | "tidb"
+    | "cockroachdb"
+    | "yugabyte"
+    | "singlestore"
+    | "couchdb"
+    | "couchbase"
+    | "rethinkdb"
+    | "ravendb"
+    | "scylladb"
+    | "hbase"
+    | "keydb"
+    | "memcached"
+    | "dragonfly"
+    | "opensearch"
+    | "meilisearch"
+    | "typesense"
+    | "solr"
+    | "manticore"
+    | "arangodb"
+    | "janusgraph"
+    | "dgraph"
+    | "timescaledb"
+    | "questdb"
+    | "victoriametrics"
+    | "prometheus"
+    | "m3db"
+    | "weaviate"
+    | "qdrant"
+    | "milvus"
+    | "chroma"
+    | "pgvector"
+    | "kafka"
+    | "rabbitmq"
+    | "nats"
+    | "pulsar"
+    | "clickhouse"
+    | "druid"
+    | "starrocks"
+    | "duckdb"
+    | "surrealdb"
+    | "fauna"
+    | "edgedb"
+    | "loki"
     | "opensearch-dashboard";
 
 export type DBCategory =
@@ -202,7 +246,6 @@ export type DBCategory =
     | "multi-model"
     | "logs";
 
-
 export interface DBPreset {
     id: DBType;
     label: string;
@@ -218,7 +261,6 @@ export interface DBPreset {
     category: DBCategory;
     description: string;
 }
-
 
 export interface AppTemplate {
     id: string;

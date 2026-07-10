@@ -1,19 +1,48 @@
 import { cn } from "@/core/lib/utils";
+
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+
 import {
-    Activity, AlertCircle, ArrowLeft, Check, ChevronRight,
-    Copy, Cpu, Database, Download, ExternalLink, HardDrive,
-    Info, Loader2, Network, Play, RefreshCw, RotateCcw, Save,
-    Server, Settings, Shield, Square, Terminal, Trash2,
-    Wifi, X, Zap, FolderOpen, Clock, Box, Tag,
+    Activity,
+    AlertCircle,
+    ArrowLeft,
+    Box,
+    Check,
+    ChevronRight,
+    Clock,
+    Copy,
+    Cpu,
+    Database,
+    Download,
+    ExternalLink,
+    FolderOpen,
+    HardDrive,
+    Info,
+    Loader2,
+    Network,
+    Play,
+    RefreshCw,
+    RotateCcw,
+    Save,
+    Server,
+    Settings,
+    Shield,
+    Square,
+    Tag,
+    Terminal,
+    Trash2,
+    Wifi,
+    X,
+    Zap,
 } from "lucide-react";
+import { useNavigate, useParams } from "react-router-dom";
+
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ContainerDetails, ContainerInfo, ContainerStats } from "./services/types";
-import * as dockerService from "./services/docker.service";
-import { DB_PRESETS } from "./services/config/dbPresets";
 
+import { DB_PRESETS } from "./services/config/dbPresets";
+import * as dockerService from "./services/docker.service";
+import { ContainerDetails, ContainerInfo, ContainerStats } from "./services/types";
 
 function formatBytes(bytes: number): string {
     if (bytes >= 1073741824) return `${(bytes / 1073741824).toFixed(2)} GB`;
@@ -24,8 +53,17 @@ function formatBytes(bytes: number): string {
 
 function formatDate(d: string) {
     if (!d || d === "0001-01-01T00:00:00Z") return "—";
-    try { return new Intl.DateTimeFormat("en", { month: "short", day: "numeric", year: "numeric", hour: "2-digit", minute: "2-digit" }).format(new Date(d)); }
-    catch { return d; }
+    try {
+        return new Intl.DateTimeFormat("en", {
+            month: "short",
+            day: "numeric",
+            year: "numeric",
+            hour: "2-digit",
+            minute: "2-digit",
+        }).format(new Date(d));
+    } catch {
+        return d;
+    }
 }
 
 function formatUptime(s: string) {
@@ -37,11 +75,10 @@ function formatUptime(s: string) {
     return `${Math.floor(sec / 86400)}d ${Math.floor((sec % 86400) / 3600)}h`;
 }
 
-// ─── Detect DB type from container image/env ───────────────────────────────
-
-function detectDbType(image: string, envVars?: string[]): string {
+function detectDbType(image: string): string {
     const img = image.toLowerCase();
-    if (img.includes("postgres") || img.includes("pgvector") || img.includes("timescale")) return "postgresql";
+    if (img.includes("postgres") || img.includes("pgvector") || img.includes("timescale"))
+        return "postgresql";
     if (img.includes("mysql")) return "mysql";
     if (img.includes("mariadb")) return "mariadb";
     if (img.includes("mongo")) return "mongodb";
@@ -60,19 +97,49 @@ function detectDbType(image: string, envVars?: string[]): string {
 // Db types that the SQL runner and backup tool actually know how to talk to.
 // Keeping this list in sync with the switch statements below avoids the
 // "not supported" crash when a detected type has no matching case.
-const SQL_SUPPORTED_TYPES = ["postgresql", "mysql", "mariadb", "mongodb", "redis", "mssql", "cassandra", "clickhouse", "influxdb", "couchdb", "neo4j", "elasticsearch", "memcached"];
-const BACKUP_SUPPORTED_TYPES = ["postgresql", "mysql", "mariadb", "mongodb", "redis", "mssql", "clickhouse", "influxdb", "couchdb", "neo4j"];
+const SQL_SUPPORTED_TYPES = [
+    "postgresql",
+    "mysql",
+    "mariadb",
+    "mongodb",
+    "redis",
+    "mssql",
+    "cassandra",
+    "clickhouse",
+    "influxdb",
+    "couchdb",
+    "neo4j",
+    "elasticsearch",
+    "memcached",
+];
+const BACKUP_SUPPORTED_TYPES = [
+    "postgresql",
+    "mysql",
+    "mariadb",
+    "mongodb",
+    "redis",
+    "mssql",
+    "clickhouse",
+    "influxdb",
+    "couchdb",
+    "neo4j",
+];
 
 function parseEnv(envVars: string[]): Record<string, string> {
     return Object.fromEntries(
-        envVars.map(e => { const [k, ...v] = e.split("="); return [k, v.join("=")]; })
+        envVars.map((e) => {
+            const [k, ...v] = e.split("=");
+            return [k, v.join("=")];
+        })
     );
 }
 
 function extractCreds(image: string, envVars: string[]) {
     const env = parseEnv(envVars);
-    const dbType = detectDbType(image, envVars);
-    let user = "postgres", password = "", database = "postgres";
+    const dbType = detectDbType(image);
+    let user = "postgres",
+        password = "",
+        database = "postgres";
 
     if (dbType === "postgresql") {
         user = env.POSTGRES_USER || env.PGUSER || "postgres";
@@ -80,7 +147,12 @@ function extractCreds(image: string, envVars: string[]) {
         database = env.POSTGRES_DB || env.PGDATABASE || "postgres";
     } else if (dbType === "mysql" || dbType === "mariadb") {
         user = env.MYSQL_USER || env.MARIADB_USER || "root";
-        password = env.MYSQL_PASSWORD || env.MARIADB_PASSWORD || env.MYSQL_ROOT_PASSWORD || env.MARIADB_ROOT_PASSWORD || "";
+        password =
+            env.MYSQL_PASSWORD ||
+            env.MARIADB_PASSWORD ||
+            env.MYSQL_ROOT_PASSWORD ||
+            env.MARIADB_ROOT_PASSWORD ||
+            "";
         database = env.MYSQL_DATABASE || env.MARIADB_DATABASE || "mysql";
     } else if (dbType === "mongodb") {
         user = env.MONGO_INITDB_ROOT_USERNAME || "root";
@@ -112,7 +184,10 @@ function extractCreds(image: string, envVars: string[]) {
         database = "";
     } else if (dbType === "neo4j") {
         user = "neo4j";
-        password = (env.NEO4J_AUTH && env.NEO4J_AUTH.includes("/")) ? env.NEO4J_AUTH.split("/")[1] : (env.NEO4J_AUTH || "");
+        password =
+            env.NEO4J_AUTH && env.NEO4J_AUTH.includes("/")
+                ? env.NEO4J_AUTH.split("/")[1]
+                : env.NEO4J_AUTH || "";
         database = "neo4j";
     } else if (dbType === "elasticsearch") {
         user = env.ELASTIC_USERNAME || "elastic";
@@ -230,9 +305,13 @@ async function runBackupInContainer(
             cmd = `docker exec ${containerName} sh -c "neo4j-admin database dump ${database} --to-path=${outputPath} 2>&1 && echo 'Backup complete: ${outputPath}'"`;
             break;
         case "elasticsearch":
-            throw new Error("Elasticsearch needs a registered snapshot repository — use the Snapshot API instead of a plain file dump.");
+            throw new Error(
+                "Elasticsearch needs a registered snapshot repository — use the Snapshot API instead of a plain file dump."
+            );
         case "memcached":
-            throw new Error("Memcached only stores data in memory, so there is nothing on disk to back up.");
+            throw new Error(
+                "Memcached only stores data in memory, so there is nothing on disk to back up."
+            );
         default:
             throw new Error(`Backup not supported for ${dbType}`);
     }
@@ -245,19 +324,56 @@ async function runBackupInContainer(
 function CopyBtn({ text, size = "sm" }: { text: string; size?: "sm" | "xs" }) {
     const [ok, setOk] = useState(false);
     return (
-        <button onClick={() => { navigator.clipboard.writeText(text); setOk(true); setTimeout(() => setOk(false), 1500); }}
-            className={cn("rounded hover:bg-white/10 transition-colors text-zinc-500 hover:text-zinc-300 shrink-0", size === "xs" ? "p-0.5" : "p-1")}>
-            {ok ? <Check className={size === "xs" ? "w-2.5 h-2.5 text-emerald-500" : "w-3 h-3 text-emerald-500"} /> : <Copy className={size === "xs" ? "w-2.5 h-2.5" : "w-3 h-3"} />}
+        <button
+            onClick={() => {
+                navigator.clipboard.writeText(text);
+                setOk(true);
+                setTimeout(() => setOk(false), 1500);
+            }}
+            className={cn(
+                "rounded hover:bg-white/10 transition-colors text-zinc-500 hover:text-zinc-300 shrink-0",
+                size === "xs" ? "p-0.5" : "p-1"
+            )}
+        >
+            {ok ? (
+                <Check
+                    className={
+                        size === "xs" ? "w-2.5 h-2.5 text-emerald-500" : "w-3 h-3 text-emerald-500"
+                    }
+                />
+            ) : (
+                <Copy className={size === "xs" ? "w-2.5 h-2.5" : "w-3 h-3"} />
+            )}
         </button>
     );
 }
 
-function InfoRow({ label, value, mono, copy, color }: { label: string; value: string; mono?: boolean; copy?: boolean; color?: string }) {
+function InfoRow({
+    label,
+    value,
+    mono,
+    copy,
+    color,
+}: {
+    label: string;
+    value: string;
+    mono?: boolean;
+    copy?: boolean;
+    color?: string;
+}) {
     return (
         <div className="flex items-center justify-between py-2 border-b border-white/5 last:border-0 gap-4">
             <span className="text-[11px] text-zinc-500 shrink-0 w-36 font-medium">{label}</span>
             <div className="flex items-center gap-1.5 min-w-0 ml-auto">
-                <span className={cn("text-[11px] text-right truncate", mono && "font-mono", color || "text-zinc-200")}>{value || "—"}</span>
+                <span
+                    className={cn(
+                        "text-[11px] text-right truncate",
+                        mono && "font-mono",
+                        color || "text-zinc-200"
+                    )}
+                >
+                    {value || "—"}
+                </span>
                 {copy && value && <CopyBtn text={value} />}
             </div>
         </div>
@@ -265,15 +381,29 @@ function InfoRow({ label, value, mono, copy, color }: { label: string; value: st
 }
 
 function Panel({ children, className }: { children: React.ReactNode; className?: string }) {
-    return <div className={cn("rounded-2xl border border-white/8 bg-zinc-900/60 p-5", className)}>{children}</div>;
+    return (
+        <div className={cn("rounded-2xl border border-white/8 bg-zinc-900/60 p-5", className)}>
+            {children}
+        </div>
+    );
 }
 
-function SectionHead({ icon: Icon, title, action }: { icon: React.ElementType; title: string; action?: React.ReactNode }) {
+function SectionHead({
+    icon: Icon,
+    title,
+    action,
+}: {
+    icon: React.ElementType;
+    title: string;
+    action?: React.ReactNode;
+}) {
     return (
         <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
                 <Icon className="w-3.5 h-3.5 text-zinc-500" />
-                <span className="text-[10px] font-bold uppercase tracking-widest text-zinc-500">{title}</span>
+                <span className="text-[10px] font-bold uppercase tracking-widest text-zinc-500">
+                    {title}
+                </span>
             </div>
             {action}
         </div>
@@ -283,7 +413,10 @@ function SectionHead({ icon: Icon, title, action }: { icon: React.ElementType; t
 function MiniBar({ pct, color }: { pct: number; color: string }) {
     return (
         <div className="h-1 w-full bg-zinc-800 rounded-full overflow-hidden mt-2">
-            <div className={`h-full rounded-full transition-all duration-700 bg-${color}-500`} style={{ width: `${Math.min(100, pct)}%` }} />
+            <div
+                className={`h-full rounded-full transition-all duration-700 bg-${color}-500`}
+                style={{ width: `${Math.min(100, pct)}%` }}
+            />
         </div>
     );
 }
@@ -291,7 +424,9 @@ function MiniBar({ pct, color }: { pct: number; color: string }) {
 function FieldRow({ label, children }: { label: string; children: React.ReactNode }) {
     return (
         <div className="space-y-1.5">
-            <label className="text-[10px] text-zinc-500 uppercase tracking-widest font-semibold">{label}</label>
+            <label className="text-[10px] text-zinc-500 uppercase tracking-widest font-semibold">
+                {label}
+            </label>
             {children}
         </div>
     );
@@ -304,43 +439,58 @@ function ErrorState({ message, onRetry }: { message: string; onRetry: () => void
         <div className="flex flex-col items-center justify-center py-16 text-center gap-3">
             <AlertCircle className="w-8 h-8 text-red-400/70" />
             <p className="text-xs text-red-400 font-mono max-w-md break-all">{message}</p>
-            <button onClick={onRetry}
-                className="flex items-center gap-1.5 px-3 h-8 rounded-lg border border-white/10 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 text-xs transition-colors">
+            <button
+                onClick={onRetry}
+                className="flex items-center gap-1.5 px-3 h-8 rounded-lg border border-white/10 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 text-xs transition-colors"
+            >
                 <RefreshCw className="w-3.5 h-3.5" /> Retry
             </button>
         </div>
     );
 }
 
-const inputCls = "w-full h-8 px-3 text-xs bg-zinc-900 border border-white/10 rounded-lg text-zinc-200 focus:outline-none focus:border-white/20 font-mono";
-const selectCls = "w-full h-8 px-2 text-xs bg-zinc-900 border border-white/10 rounded-lg text-zinc-200 focus:outline-none";
+const inputCls =
+    "w-full h-8 px-3 text-xs bg-zinc-900 border border-white/10 rounded-lg text-zinc-200 focus:outline-none focus:border-white/20 font-mono";
+const selectCls =
+    "w-full h-8 px-2 text-xs bg-zinc-900 border border-white/10 rounded-lg text-zinc-200 focus:outline-none";
 
 // ─── Tabs content ─────────────────────────────────────────────────────────────
 
-function StatsTab({ stats, details, isRunning, onStart, busy }: {
+function StatsTab({
+    stats,
+    details,
+    isRunning,
+    onStart,
+    busy,
+}: {
     stats: ContainerStats | null;
     details: ContainerDetails | null;
     isRunning: boolean;
     onStart: () => void;
     busy: boolean;
 }) {
-    if (!isRunning) return (
-        <div className="flex flex-col items-center justify-center py-20 text-center">
-            <Square className="w-10 h-10 text-zinc-700 mb-3" />
-            <p className="text-sm text-zinc-400 mb-1">Container is stopped</p>
-            <p className="text-xs text-zinc-600 mb-5">Start it to see live metrics</p>
-            <button onClick={onStart} disabled={busy}
-                className="flex items-center gap-1.5 px-4 h-8 rounded-xl border border-emerald-500/30 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 text-xs font-medium transition-all disabled:opacity-50">
-                <Play className="w-3.5 h-3.5" /> Start Container
-            </button>
-        </div>
-    );
+    if (!isRunning)
+        return (
+            <div className="flex flex-col items-center justify-center py-20 text-center">
+                <Square className="w-10 h-10 text-zinc-700 mb-3" />
+                <p className="text-sm text-zinc-400 mb-1">Container is stopped</p>
+                <p className="text-xs text-zinc-600 mb-5">Start it to see live metrics</p>
+                <button
+                    onClick={onStart}
+                    disabled={busy}
+                    className="flex items-center gap-1.5 px-4 h-8 rounded-xl border border-emerald-500/30 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 text-xs font-medium transition-all disabled:opacity-50"
+                >
+                    <Play className="w-3.5 h-3.5" /> Start Container
+                </button>
+            </div>
+        );
 
-    if (!stats) return (
-        <div className="flex items-center justify-center py-20 text-zinc-600">
-            <Loader2 className="w-5 h-5 animate-spin mr-2" /> Collecting metrics...
-        </div>
-    );
+    if (!stats)
+        return (
+            <div className="flex items-center justify-center py-20 text-zinc-600">
+                <Loader2 className="w-5 h-5 animate-spin mr-2" /> Collecting metrics...
+            </div>
+        );
 
     const memPct = stats.mem_limit_mb > 0 ? (stats.mem_used_mb / stats.mem_limit_mb) * 100 : 0;
     const cpuPct = parseFloat(stats.cpu);
@@ -350,18 +500,51 @@ function StatsTab({ stats, details, isRunning, onStart, busy }: {
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
                 {[
                     { label: "CPU", value: stats.cpu, pct: cpuPct, color: "blue", icon: Cpu },
-                    { label: "Memory", value: stats.memory, pct: memPct, color: "violet", icon: HardDrive },
-                    { label: "Net In", value: stats.net.split(" / ")[0], sub: `↓ ${stats.net.split(" / ")[1]}`, color: "emerald", icon: Network },
-                    { label: "Block I/O", value: stats.block.split(" / ")[0], sub: `write ${stats.block.split(" / ")[1]}`, color: "amber", icon: Activity },
+                    {
+                        label: "Memory",
+                        value: stats.memory,
+                        pct: memPct,
+                        color: "violet",
+                        icon: HardDrive,
+                    },
+                    {
+                        label: "Net In",
+                        value: stats.net.split(" / ")[0],
+                        sub: `↓ ${stats.net.split(" / ")[1]}`,
+                        color: "emerald",
+                        icon: Network,
+                    },
+                    {
+                        label: "Block I/O",
+                        value: stats.block.split(" / ")[0],
+                        sub: `write ${stats.block.split(" / ")[1]}`,
+                        color: "amber",
+                        icon: Activity,
+                    },
                 ].map(({ label, value, pct, sub, color, icon: Icon }) => (
-                    <div key={label} className={`rounded-2xl border border-${color}-500/15 bg-${color}-500/5 p-4 space-y-2`}>
+                    <div
+                        key={label}
+                        className={`rounded-2xl border border-${color}-500/15 bg-${color}-500/5 p-4 space-y-2`}
+                    >
                         <div className="flex items-center justify-between">
-                            <span className={`text-[10px] font-bold uppercase tracking-widest text-${color}-400`}>{label}</span>
+                            <span
+                                className={`text-[10px] font-bold uppercase tracking-widest text-${color}-400`}
+                            >
+                                {label}
+                            </span>
                             <Icon className={`w-3.5 h-3.5 text-${color}-400/50`} />
                         </div>
-                        <span className="text-xl font-bold font-mono text-white block">{value}</span>
-                        {pct !== undefined ? <MiniBar pct={pct} color={color} /> : <span className="text-[10px] text-zinc-500">{sub}</span>}
-                        {sub && pct !== undefined && <span className="text-[10px] text-zinc-500">{sub}</span>}
+                        <span className="text-xl font-bold font-mono text-white block">
+                            {value}
+                        </span>
+                        {pct !== undefined ? (
+                            <MiniBar pct={pct} color={color} />
+                        ) : (
+                            <span className="text-[10px] text-zinc-500">{sub}</span>
+                        )}
+                        {sub && pct !== undefined && (
+                            <span className="text-[10px] text-zinc-500">{sub}</span>
+                        )}
                     </div>
                 ))}
             </div>
@@ -388,15 +571,25 @@ function LogsTab({ containerName }: { containerName: string }) {
 
     const fetch = useCallback(async () => {
         setLoading(true);
-        try { setLogs(await dockerService.getContainerLogs(containerName, tail)); }
-        catch { setLogs(["Failed to fetch logs."]); }
-        finally { setLoading(false); }
+        try {
+            setLogs(await dockerService.getContainerLogs(containerName, tail));
+        } catch {
+            setLogs(["Failed to fetch logs."]);
+        } finally {
+            setLoading(false);
+        }
     }, [containerName, tail]);
 
-    useEffect(() => { fetch(); }, [fetch]);
-    useEffect(() => { if (autoScroll) bottomRef.current?.scrollIntoView({ behavior: "smooth" }); }, [logs, autoScroll]);
+    useEffect(() => {
+        fetch();
+    }, [fetch]);
+    useEffect(() => {
+        if (autoScroll) bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+    }, [logs, autoScroll]);
 
-    const filtered = filter ? logs.filter(l => l.toLowerCase().includes(filter.toLowerCase())) : logs;
+    const filtered = filter
+        ? logs.filter((l) => l.toLowerCase().includes(filter.toLowerCase()))
+        : logs;
 
     const lineColor = (l: string) => {
         if (/error|err|fail|fatal|critical/i.test(l)) return "text-red-400";
@@ -409,47 +602,91 @@ function LogsTab({ containerName }: { containerName: string }) {
     return (
         <div className="space-y-3">
             <div className="flex items-center gap-2">
-                <input type="text" placeholder="Filter logs..." value={filter} onChange={e => setFilter(e.target.value)}
-                    className="flex-1 h-8 px-3 text-xs bg-zinc-900 border border-white/10 rounded-lg text-zinc-200 placeholder:text-zinc-600 focus:outline-none font-mono" />
-                <select value={tail} onChange={e => setTail(Number(e.target.value))}
-                    className="h-8 px-2 text-xs bg-zinc-900 border border-white/10 rounded-lg text-zinc-400 focus:outline-none">
-                    {[50, 100, 200, 500, 1000].map(n => <option key={n} value={n}>Last {n}</option>)}
+                <input
+                    type="text"
+                    placeholder="Filter logs..."
+                    value={filter}
+                    onChange={(e) => setFilter(e.target.value)}
+                    className="flex-1 h-8 px-3 text-xs bg-zinc-900 border border-white/10 rounded-lg text-zinc-200 placeholder:text-zinc-600 focus:outline-none font-mono"
+                />
+                <select
+                    value={tail}
+                    onChange={(e) => setTail(Number(e.target.value))}
+                    className="h-8 px-2 text-xs bg-zinc-900 border border-white/10 rounded-lg text-zinc-400 focus:outline-none"
+                >
+                    {[50, 100, 200, 500, 1000].map((n) => (
+                        <option key={n} value={n}>
+                            Last {n}
+                        </option>
+                    ))}
                 </select>
-                <button onClick={() => setAutoScroll(a => !a)}
-                    className={cn("h-8 px-3 text-[10px] font-medium rounded-lg border transition-colors", autoScroll ? "bg-blue-500/15 border-blue-500/30 text-blue-400" : "bg-zinc-900 border-white/10 text-zinc-500")}>
+                <button
+                    onClick={() => setAutoScroll((a) => !a)}
+                    className={cn(
+                        "h-8 px-3 text-[10px] font-medium rounded-lg border transition-colors",
+                        autoScroll
+                            ? "bg-blue-500/15 border-blue-500/30 text-blue-400"
+                            : "bg-zinc-900 border-white/10 text-zinc-500"
+                    )}
+                >
                     Auto
                 </button>
-                <button onClick={fetch} disabled={loading}
-                    className="w-8 h-8 rounded-lg border border-white/10 bg-zinc-900 hover:bg-zinc-800 text-zinc-400 flex items-center justify-center transition-colors">
-                    {loading ? <Loader2 className="w-3 h-3 animate-spin" /> : <RefreshCw className="w-3 h-3" />}
+                <button
+                    onClick={fetch}
+                    disabled={loading}
+                    className="w-8 h-8 rounded-lg border border-white/10 bg-zinc-900 hover:bg-zinc-800 text-zinc-400 flex items-center justify-center transition-colors"
+                >
+                    {loading ? (
+                        <Loader2 className="w-3 h-3 animate-spin" />
+                    ) : (
+                        <RefreshCw className="w-3 h-3" />
+                    )}
                 </button>
-                <button onClick={() => navigator.clipboard.writeText(filtered.join("\n"))}
-                    className="w-8 h-8 rounded-lg border border-white/10 bg-zinc-900 hover:bg-zinc-800 text-zinc-400 flex items-center justify-center transition-colors">
+                <button
+                    onClick={() => navigator.clipboard.writeText(filtered.join("\n"))}
+                    className="w-8 h-8 rounded-lg border border-white/10 bg-zinc-900 hover:bg-zinc-800 text-zinc-400 flex items-center justify-center transition-colors"
+                >
                     <Copy className="w-3 h-3" />
                 </button>
             </div>
             <div className="rounded-xl border border-white/8 bg-black/70 font-mono text-[11px] h-[420px] overflow-y-auto p-4 space-y-px">
                 {loading && logs.length === 0 ? (
-                    <div className="flex items-center gap-2 text-zinc-600"><Loader2 className="w-3.5 h-3.5 animate-spin" /> Loading...</div>
+                    <div className="flex items-center gap-2 text-zinc-600">
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" /> Loading...
+                    </div>
                 ) : filtered.length === 0 ? (
                     <span className="text-zinc-600">No logs found.</span>
-                ) : filtered.map((line, i) => (
-                    <div key={i} className="flex gap-2 hover:bg-white/3 rounded px-1 py-0.5">
-                        <span className="text-zinc-700 select-none shrink-0 w-8 text-right">{i + 1}</span>
-                        <span className={lineColor(line)}>{line}</span>
-                    </div>
-                ))}
+                ) : (
+                    filtered.map((line, i) => (
+                        <div key={i} className="flex gap-2 hover:bg-white/3 rounded px-1 py-0.5">
+                            <span className="text-zinc-700 select-none shrink-0 w-8 text-right">
+                                {i + 1}
+                            </span>
+                            <span className={lineColor(line)}>{line}</span>
+                        </div>
+                    ))
+                )}
                 <div ref={bottomRef} />
             </div>
             <div className="flex justify-between text-[10px] text-zinc-600">
-                <span>{filtered.length} lines{filter && ` (filtered from ${logs.length})`}</span>
+                <span>
+                    {filtered.length} lines{filter && ` (filtered from ${logs.length})`}
+                </span>
                 <span>{filter && `Matching: "${filter}"`}</span>
             </div>
         </div>
     );
 }
 
-function SqlTab({ containerName, image, envVars }: { containerName: string; image: string; envVars: string[] }) {
+function SqlTab({
+    containerName,
+    image,
+    envVars,
+}: {
+    containerName: string;
+    image: string;
+    envVars: string[];
+}) {
     const creds = extractCreds(image, envVars);
     const [dbType, setDbType] = useState(creds.dbType);
     const [user, setUser] = useState(creds.user);
@@ -466,7 +703,10 @@ function SqlTab({ containerName, image, envVars }: { containerName: string; imag
         { label: "Tables", q: "SELECT tablename FROM pg_tables WHERE schemaname='public';" },
         { label: "Connections", q: "SELECT count(*) FROM pg_stat_activity;" },
         { label: "DB Size", q: "SELECT pg_database_size(current_database());" },
-        { label: "Running queries", q: "SELECT pid, query, state FROM pg_stat_activity WHERE state='active';" },
+        {
+            label: "Running queries",
+            q: "SELECT pid, query, state FROM pg_stat_activity WHERE state='active';",
+        },
     ];
 
     const run = async () => {
@@ -475,51 +715,95 @@ function SqlTab({ containerName, image, envVars }: { containerName: string; imag
         setError("");
         setResult("");
         try {
-            const res = await runSqlInContainer(containerName, dbType, user, password, database, query);
+            const res = await runSqlInContainer(
+                containerName,
+                dbType,
+                user,
+                password,
+                database,
+                query
+            );
             setResult(res);
-        } catch (e) { setError(String(e)); }
-        finally { setRunning(false); }
+        } catch (e) {
+            setError(String(e));
+        } finally {
+            setRunning(false);
+        }
     };
 
     return (
         <div className="space-y-4">
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                 <FieldRow label="DB Type">
-                    <select value={dbType} onChange={e => setDbType(e.target.value)} className={selectCls}>
-                        {SQL_SUPPORTED_TYPES.map(t => (
-                            <option key={t} value={t}>{t}</option>
+                    <select
+                        value={dbType}
+                        onChange={(e) => setDbType(e.target.value)}
+                        className={selectCls}
+                    >
+                        {SQL_SUPPORTED_TYPES.map((t) => (
+                            <option key={t} value={t}>
+                                {t}
+                            </option>
                         ))}
                     </select>
                 </FieldRow>
                 <FieldRow label="User">
-                    <input value={user} onChange={e => setUser(e.target.value)} className={inputCls} />
+                    <input
+                        value={user}
+                        onChange={(e) => setUser(e.target.value)}
+                        className={inputCls}
+                    />
                 </FieldRow>
                 <FieldRow label="Password">
-                    <input type="password" value={password} onChange={e => setPassword(e.target.value)} className={inputCls} />
+                    <input
+                        type="password"
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        className={inputCls}
+                    />
                 </FieldRow>
                 <FieldRow label="Database">
-                    <input value={database} onChange={e => setDatabase(e.target.value)} className={inputCls} />
+                    <input
+                        value={database}
+                        onChange={(e) => setDatabase(e.target.value)}
+                        className={inputCls}
+                    />
                 </FieldRow>
             </div>
 
             <div className="flex flex-wrap gap-1.5">
                 {QUICK.map(({ label, q }) => (
-                    <button key={label} onClick={() => setQuery(q)}
-                        className="px-2.5 py-1 text-[10px] rounded-lg border border-white/10 bg-zinc-800/60 hover:bg-zinc-700/60 text-zinc-400 hover:text-zinc-200 transition-colors font-mono">
+                    <button
+                        key={label}
+                        onClick={() => setQuery(q)}
+                        className="px-2.5 py-1 text-[10px] rounded-lg border border-white/10 bg-zinc-800/60 hover:bg-zinc-700/60 text-zinc-400 hover:text-zinc-200 transition-colors font-mono"
+                    >
                         {label}
                     </button>
                 ))}
             </div>
 
             <div className="relative">
-                <textarea value={query} onChange={e => setQuery(e.target.value)}
-                    onKeyDown={e => { if ((e.ctrlKey || e.metaKey) && e.key === "Enter") run(); }}
+                <textarea
+                    value={query}
+                    onChange={(e) => setQuery(e.target.value)}
+                    onKeyDown={(e) => {
+                        if ((e.ctrlKey || e.metaKey) && e.key === "Enter") run();
+                    }}
                     rows={5}
                     className="w-full px-4 py-3 text-[12px] bg-black/60 border border-white/10 rounded-xl text-emerald-300 font-mono focus:outline-none focus:border-white/20 resize-none"
-                    placeholder="-- Write SQL here (Ctrl+Enter to run)" />
-                <button onClick={run} disabled={running || !query.trim()}
-                    className="absolute bottom-3 right-3 flex items-center gap-1.5 h-7 px-3 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-medium disabled:opacity-50 transition-colors">
-                    {running ? <Loader2 className="w-3 h-3 animate-spin" /> : <Play className="w-3 h-3" />}
+                    placeholder="-- Write SQL here (Ctrl+Enter to run)"
+                />
+                <button
+                    onClick={run}
+                    disabled={running || !query.trim()}
+                    className="absolute bottom-3 right-3 flex items-center gap-1.5 h-7 px-3 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-medium disabled:opacity-50 transition-colors"
+                >
+                    {running ? (
+                        <Loader2 className="w-3 h-3 animate-spin" />
+                    ) : (
+                        <Play className="w-3 h-3" />
+                    )}
                     Run
                 </button>
             </div>
@@ -534,40 +818,71 @@ function SqlTab({ containerName, image, envVars }: { containerName: string; imag
             {result && !error && (
                 <div className="rounded-xl border border-white/8 bg-black/60 p-4">
                     <div className="flex items-center justify-between mb-3">
-                        <span className="text-[10px] text-zinc-500 uppercase tracking-widest font-bold">Result</span>
+                        <span className="text-[10px] text-zinc-500 uppercase tracking-widest font-bold">
+                            Result
+                        </span>
                         <CopyBtn text={result} />
                     </div>
-                    <pre className="font-mono text-[11px] text-zinc-300 whitespace-pre-wrap break-all max-h-72 overflow-auto">{result}</pre>
+                    <pre className="font-mono text-[11px] text-zinc-300 whitespace-pre-wrap break-all max-h-72 overflow-auto">
+                        {result}
+                    </pre>
                 </div>
             )}
         </div>
     );
 }
 
-function BackupTab({ containerName, image, envVars }: { containerName: string; image: string; envVars: string[] }) {
+function BackupTab({
+    containerName,
+    image,
+    envVars,
+}: {
+    containerName: string;
+    image: string;
+    envVars: string[];
+}) {
     const creds = extractCreds(image, envVars);
     const [dbType, setDbType] = useState(creds.dbType);
     const [user, setUser] = useState(creds.user);
     const [password, setPassword] = useState(creds.password);
     const [database, setDatabase] = useState(creds.database);
-    const [outputPath, setOutputPath] = useState(`/tmp/${creds.database || "backup"}_${new Date().toISOString().slice(0, 10)}.dump`);
+    const [outputPath, setOutputPath] = useState(
+        `/tmp/${creds.database || "backup"}_${new Date().toISOString().slice(0, 10)}.dump`
+    );
     const [running, setRunning] = useState(false);
     const [result, setResult] = useState("");
     const [error, setError] = useState("");
-    const [history, setHistory] = useState<Array<{ path: string; db: string; date: string; ok: boolean }>>([]);
+    const [history, setHistory] = useState<
+        Array<{ path: string; db: string; date: string; ok: boolean }>
+    >([]);
 
     const run = async () => {
         setRunning(true);
         setResult("");
         setError("");
         try {
-            const out = await runBackupInContainer(containerName, dbType, user, password, database, outputPath);
+            const out = await runBackupInContainer(
+                containerName,
+                dbType,
+                user,
+                password,
+                database,
+                outputPath
+            );
             setResult(out);
-            setHistory(h => [{ path: outputPath, db: database, date: new Date().toLocaleString(), ok: true }, ...h]);
+            setHistory((h) => [
+                { path: outputPath, db: database, date: new Date().toLocaleString(), ok: true },
+                ...h,
+            ]);
         } catch (e) {
             setError(String(e));
-            setHistory(h => [{ path: outputPath, db: database, date: new Date().toLocaleString(), ok: false }, ...h]);
-        } finally { setRunning(false); }
+            setHistory((h) => [
+                { path: outputPath, db: database, date: new Date().toLocaleString(), ok: false },
+                ...h,
+            ]);
+        } finally {
+            setRunning(false);
+        }
     };
 
     const RESTORE_HINTS: Record<string, string> = {
@@ -592,31 +907,64 @@ function BackupTab({ containerName, image, envVars }: { containerName: string; i
                 <SectionHead icon={Download} title="Create Backup" />
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
                     <FieldRow label="DB Type">
-                        <select value={dbType} onChange={e => setDbType(e.target.value)} className={selectCls}>
-                            {SQL_SUPPORTED_TYPES.map(t => (
-                                <option key={t} value={t}>{t}{!BACKUP_SUPPORTED_TYPES.includes(t) ? " (unsupported)" : ""}</option>
+                        <select
+                            value={dbType}
+                            onChange={(e) => setDbType(e.target.value)}
+                            className={selectCls}
+                        >
+                            {SQL_SUPPORTED_TYPES.map((t) => (
+                                <option key={t} value={t}>
+                                    {t}
+                                    {!BACKUP_SUPPORTED_TYPES.includes(t) ? " (unsupported)" : ""}
+                                </option>
                             ))}
                         </select>
                     </FieldRow>
                     <FieldRow label="User">
-                        <input value={user} onChange={e => setUser(e.target.value)} className={inputCls} />
+                        <input
+                            value={user}
+                            onChange={(e) => setUser(e.target.value)}
+                            className={inputCls}
+                        />
                     </FieldRow>
                     <FieldRow label="Password">
-                        <input type="password" value={password} onChange={e => setPassword(e.target.value)} className={inputCls} />
+                        <input
+                            type="password"
+                            value={password}
+                            onChange={(e) => setPassword(e.target.value)}
+                            className={inputCls}
+                        />
                     </FieldRow>
                     <FieldRow label="Database">
-                        <input value={database} onChange={e => setDatabase(e.target.value)} className={inputCls} />
+                        <input
+                            value={database}
+                            onChange={(e) => setDatabase(e.target.value)}
+                            className={inputCls}
+                        />
                     </FieldRow>
                 </div>
                 <div className="flex gap-2 mb-4">
                     <FieldRow label="Output Path (inside container)">
-                        <input value={outputPath} onChange={e => setOutputPath(e.target.value)} className={cn(inputCls, "w-full")} />
+                        <input
+                            value={outputPath}
+                            onChange={(e) => setOutputPath(e.target.value)}
+                            className={cn(inputCls, "w-full")}
+                        />
                     </FieldRow>
                     <div className="flex items-end shrink-0">
-                        <button onClick={run} disabled={running || isUnsupported}
-                            title={isUnsupported ? `Backups aren't supported for ${dbType}` : undefined}
-                            className="flex items-center gap-1.5 h-8 px-4 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium disabled:opacity-50 transition-colors">
-                            {running ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5" />}
+                        <button
+                            onClick={run}
+                            disabled={running || isUnsupported}
+                            title={
+                                isUnsupported ? `Backups aren't supported for ${dbType}` : undefined
+                            }
+                            className="flex items-center gap-1.5 h-8 px-4 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium disabled:opacity-50 transition-colors"
+                        >
+                            {running ? (
+                                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                            ) : (
+                                <Download className="w-3.5 h-3.5" />
+                            )}
                             {running ? "Running..." : "Backup Now"}
                         </button>
                     </div>
@@ -629,8 +977,8 @@ function BackupTab({ containerName, image, envVars }: { containerName: string; i
                             {dbType === "memcached"
                                 ? "Memcached only keeps data in memory, so there's nothing to back up."
                                 : dbType === "elasticsearch"
-                                    ? "Elasticsearch backups need a snapshot repository configured first — the Snapshot API can't be driven from a plain file dump."
-                                    : `Backups aren't implemented for ${dbType} yet.`}
+                                  ? "Elasticsearch backups need a snapshot repository configured first — the Snapshot API can't be driven from a plain file dump."
+                                  : `Backups aren't implemented for ${dbType} yet.`}
                         </span>
                     </div>
                 )}
@@ -654,14 +1002,31 @@ function BackupTab({ containerName, image, envVars }: { containerName: string; i
                     <SectionHead icon={FolderOpen} title="Backup History" />
                     <div className="space-y-2">
                         {history.map((b, i) => (
-                            <div key={i} className="flex items-center gap-3 p-3 rounded-xl bg-zinc-800/40 border border-white/6">
-                                <div className={cn("w-8 h-8 rounded-lg border flex items-center justify-center shrink-0",
-                                    b.ok ? "bg-blue-500/10 border-blue-500/20" : "bg-red-500/10 border-red-500/20")}>
-                                    {b.ok ? <Save className="w-3.5 h-3.5 text-blue-400" /> : <X className="w-3.5 h-3.5 text-red-400" />}
+                            <div
+                                key={i}
+                                className="flex items-center gap-3 p-3 rounded-xl bg-zinc-800/40 border border-white/6"
+                            >
+                                <div
+                                    className={cn(
+                                        "w-8 h-8 rounded-lg border flex items-center justify-center shrink-0",
+                                        b.ok
+                                            ? "bg-blue-500/10 border-blue-500/20"
+                                            : "bg-red-500/10 border-red-500/20"
+                                    )}
+                                >
+                                    {b.ok ? (
+                                        <Save className="w-3.5 h-3.5 text-blue-400" />
+                                    ) : (
+                                        <X className="w-3.5 h-3.5 text-red-400" />
+                                    )}
                                 </div>
                                 <div className="flex-1 min-w-0">
-                                    <div className="text-xs font-mono text-zinc-200 truncate">{b.path}</div>
-                                    <div className="text-[10px] text-zinc-500 mt-0.5">{b.db} · {b.date}</div>
+                                    <div className="text-xs font-mono text-zinc-200 truncate">
+                                        {b.path}
+                                    </div>
+                                    <div className="text-[10px] text-zinc-500 mt-0.5">
+                                        {b.db} · {b.date}
+                                    </div>
                                 </div>
                                 <CopyBtn text={b.path} />
                             </div>
@@ -674,7 +1039,9 @@ function BackupTab({ containerName, image, envVars }: { containerName: string; i
                 <Panel>
                     <SectionHead icon={Shield} title="Restore Command" />
                     <div className="p-3 rounded-xl bg-zinc-800/60 border border-white/6 font-mono text-[11px] text-zinc-300 flex items-start gap-2">
-                        <pre className="flex-1 whitespace-pre-wrap break-all">{RESTORE_HINTS[dbType]}</pre>
+                        <pre className="flex-1 whitespace-pre-wrap break-all">
+                            {RESTORE_HINTS[dbType]}
+                        </pre>
                         <CopyBtn text={RESTORE_HINTS[dbType]} />
                     </div>
                 </Panel>
@@ -691,7 +1058,7 @@ function ShellTab({ containerName }: { containerName: string }) {
     const bottomRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLInputElement>(null);
 
-    const cmds = history.map(h => h.cmd).reverse();
+    const cmds = history.map((h) => h.cmd).reverse();
 
     const run = async () => {
         const c = cmd.trim();
@@ -701,13 +1068,18 @@ function ShellTab({ containerName }: { containerName: string }) {
         setHistIdx(-1);
         try {
             const out = await dockerService.execInContainer(containerName, c);
-            setHistory(h => [...h, { cmd: c, out, ok: true }]);
+            setHistory((h) => [...h, { cmd: c, out, ok: true }]);
         } catch (e) {
-            setHistory(h => [...h, { cmd: c, out: String(e), ok: false }]);
-        } finally { setRunning(false); setTimeout(() => inputRef.current?.focus(), 50); }
+            setHistory((h) => [...h, { cmd: c, out: String(e), ok: false }]);
+        } finally {
+            setRunning(false);
+            setTimeout(() => inputRef.current?.focus(), 50);
+        }
     };
 
-    useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: "smooth" }); }, [history]);
+    useEffect(() => {
+        bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+    }, [history]);
 
     const QUICK_CMDS = [
         { label: "df -h", cmd: "df -h" },
@@ -724,34 +1096,68 @@ function ShellTab({ containerName }: { containerName: string }) {
         <div className="space-y-3">
             <div className="flex flex-wrap gap-1.5">
                 {QUICK_CMDS.map(({ label, cmd: c }) => (
-                    <button key={label} onClick={() => { setCmd(c); inputRef.current?.focus(); }}
-                        className="px-2.5 py-1 text-[10px] rounded-lg border border-white/10 bg-zinc-800/60 hover:bg-zinc-700/60 text-zinc-400 hover:text-zinc-200 transition-colors font-mono">
+                    <button
+                        key={label}
+                        onClick={() => {
+                            setCmd(c);
+                            inputRef.current?.focus();
+                        }}
+                        className="px-2.5 py-1 text-[10px] rounded-lg border border-white/10 bg-zinc-800/60 hover:bg-zinc-700/60 text-zinc-400 hover:text-zinc-200 transition-colors font-mono"
+                    >
                         {label}
                     </button>
                 ))}
             </div>
             <div className="rounded-xl border border-white/8 bg-black/70 font-mono text-[11px] h-[380px] overflow-y-auto p-4 space-y-2">
-                {history.length === 0 && <div className="text-zinc-600">Shell ready — type a command below</div>}
+                {history.length === 0 && (
+                    <div className="text-zinc-600">Shell ready — type a command below</div>
+                )}
                 {history.map((h, i) => (
                     <div key={i}>
                         <div className="flex items-center gap-2 text-zinc-300">
                             <span className="text-emerald-500 select-none">$</span>
                             <span>{h.cmd}</span>
                         </div>
-                        <pre className={cn("pl-4 text-[10px] whitespace-pre-wrap break-all mt-0.5", h.ok ? "text-zinc-400" : "text-red-400")}>{h.out}</pre>
+                        <pre
+                            className={cn(
+                                "pl-4 text-[10px] whitespace-pre-wrap break-all mt-0.5",
+                                h.ok ? "text-zinc-400" : "text-red-400"
+                            )}
+                        >
+                            {h.out}
+                        </pre>
                     </div>
                 ))}
-                {running && <div className="flex items-center gap-2 text-zinc-500"><Loader2 className="w-3 h-3 animate-spin" /> Running...</div>}
+                {running && (
+                    <div className="flex items-center gap-2 text-zinc-500">
+                        <Loader2 className="w-3 h-3 animate-spin" /> Running...
+                    </div>
+                )}
                 <div ref={bottomRef} />
             </div>
             <div className="flex gap-2">
                 <div className="flex items-center gap-2 flex-1 px-3 h-9 bg-zinc-900/80 border border-white/10 rounded-lg focus-within:border-white/20 transition-colors">
-                    <span className="text-emerald-500 font-mono text-xs select-none shrink-0">$</span>
-                    <input ref={inputRef} value={cmd} onChange={e => setCmd(e.target.value)}
-                        onKeyDown={e => {
-                            if (e.key === "Enter") { run(); }
-                            if (e.key === "ArrowUp") { const i = Math.min(histIdx + 1, cmds.length - 1); setHistIdx(i); setCmd(cmds[i] || ""); }
-                            if (e.key === "ArrowDown") { const i = Math.max(histIdx - 1, -1); setHistIdx(i); setCmd(i >= 0 ? cmds[i] : ""); }
+                    <span className="text-emerald-500 font-mono text-xs select-none shrink-0">
+                        $
+                    </span>
+                    <input
+                        ref={inputRef}
+                        value={cmd}
+                        onChange={(e) => setCmd(e.target.value)}
+                        onKeyDown={(e) => {
+                            if (e.key === "Enter") {
+                                run();
+                            }
+                            if (e.key === "ArrowUp") {
+                                const i = Math.min(histIdx + 1, cmds.length - 1);
+                                setHistIdx(i);
+                                setCmd(cmds[i] || "");
+                            }
+                            if (e.key === "ArrowDown") {
+                                const i = Math.max(histIdx - 1, -1);
+                                setHistIdx(i);
+                                setCmd(i >= 0 ? cmds[i] : "");
+                            }
                         }}
                         className="flex-1 bg-transparent text-xs text-zinc-200 font-mono focus:outline-none placeholder:text-zinc-600"
                         placeholder="echo hello"
@@ -759,12 +1165,21 @@ function ShellTab({ containerName }: { containerName: string }) {
                         autoFocus
                     />
                 </div>
-                <button onClick={run} disabled={running || !cmd.trim()}
-                    className="h-9 px-3 flex items-center gap-1.5 rounded-lg border border-white/10 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 text-xs disabled:opacity-50 transition-colors">
-                    {running ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Play className="w-3.5 h-3.5" />}
+                <button
+                    onClick={run}
+                    disabled={running || !cmd.trim()}
+                    className="h-9 px-3 flex items-center gap-1.5 rounded-lg border border-white/10 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 text-xs disabled:opacity-50 transition-colors"
+                >
+                    {running ? (
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    ) : (
+                        <Play className="w-3.5 h-3.5" />
+                    )}
                 </button>
-                <button onClick={() => setHistory([])}
-                    className="h-9 px-3 rounded-lg border border-white/10 bg-zinc-900 hover:bg-zinc-800 text-zinc-500 text-xs transition-colors">
+                <button
+                    onClick={() => setHistory([])}
+                    className="h-9 px-3 rounded-lg border border-white/10 bg-zinc-900 hover:bg-zinc-800 text-zinc-500 text-xs transition-colors"
+                >
                     Clear
                 </button>
             </div>
@@ -797,7 +1212,7 @@ export default function DatabaseDetailPage() {
     const fetchContainer = useCallback(async () => {
         try {
             const list = await dockerService.listContainers(true);
-            setContainer(list.find(c => c.name === name) ?? null);
+            setContainer(list.find((c) => c.name === name) ?? null);
             setPageError(null);
         } catch (e) {
             setPageError(String(e));
@@ -814,7 +1229,9 @@ export default function DatabaseDetailPage() {
     }, [name]);
 
     const fetchStats = useCallback(async () => {
-        try { setStats(await dockerService.getContainerStats(name)); } catch { }
+        try {
+            setStats(await dockerService.getContainerStats(name));
+        } catch {}
     }, [name]);
 
     const loadData = useCallback(async () => {
@@ -828,7 +1245,9 @@ export default function DatabaseDetailPage() {
         }
     }, [fetchContainer, fetchDetails]);
 
-    useEffect(() => { loadData(); }, [loadData]);
+    useEffect(() => {
+        loadData();
+    }, [loadData]);
 
     useEffect(() => {
         if (statsRef.current) clearInterval(statsRef.current);
@@ -855,65 +1274,100 @@ export default function DatabaseDetailPage() {
     const act = async (label: string, fn: () => Promise<unknown>) => {
         setBusy(label);
         setError(null);
-        try { await fn(); await loadData(); }
-        catch (e) { setError(String(e)); }
-        finally { setBusy(null); }
+        try {
+            await fn();
+            await loadData();
+        } catch (e) {
+            setError(String(e));
+        } finally {
+            setBusy(null);
+        }
     };
 
     const handleRemove = async () => {
         if (!confirm(`Permanently remove "${name}"?`)) return;
         setBusy("remove");
-        try { await dockerService.removeContainer(name, false); navigate(-1); }
-        catch (e) { setError(String(e)); setBusy(null); }
+        try {
+            await dockerService.removeContainer(name, false);
+            navigate(-1);
+        } catch (e) {
+            setError(String(e));
+            setBusy(null);
+        }
     };
 
     const isRunning = container?.state === "running";
-    const preset = DB_PRESETS.find(p => container?.image.toLowerCase().includes(p.id));
+    const preset = DB_PRESETS.find((p) => container?.image.toLowerCase().includes(p.id));
     const port = container?.ports[0]?.host_port;
 
-    if (loading) return (
-        <div className="flex items-center justify-center min-h-screen">
-            <div className="flex items-center gap-3 text-zinc-500">
-                <Loader2 className="w-4 h-4 animate-spin" />
-                <span className="text-sm">Loading...</span>
+    if (loading)
+        return (
+            <div className="flex items-center justify-center min-h-screen">
+                <div className="flex items-center gap-3 text-zinc-500">
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <span className="text-sm">Loading...</span>
+                </div>
             </div>
-        </div>
-    );
+        );
 
-    if (pageError && !container) return (
-        <div className="flex flex-col items-center justify-center min-h-[60vh] text-center p-8 gap-3">
-            <AlertCircle className="w-10 h-10 text-red-400/70" />
-            <h2 className="text-base font-semibold text-zinc-200">Couldn't load this container</h2>
-            <p className="text-xs text-red-400 font-mono max-w-md break-all">{pageError}</p>
-            <div className="flex gap-2 mt-1">
-                <button onClick={loadData} className="flex items-center gap-1.5 px-3 h-8 rounded-lg border border-white/10 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 text-xs transition-colors">
-                    <RefreshCw className="w-3.5 h-3.5" /> Retry
-                </button>
-                <Button size="sm" variant="outline" onClick={() => navigate(-1)} className="gap-1.5 text-xs border-white/10">
+    if (pageError && !container)
+        return (
+            <div className="flex flex-col items-center justify-center min-h-[60vh] text-center p-8 gap-3">
+                <AlertCircle className="w-10 h-10 text-red-400/70" />
+                <h2 className="text-base font-semibold text-zinc-200">
+                    Couldn't load this container
+                </h2>
+                <p className="text-xs text-red-400 font-mono max-w-md break-all">{pageError}</p>
+                <div className="flex gap-2 mt-1">
+                    <button
+                        onClick={loadData}
+                        className="flex items-center gap-1.5 px-3 h-8 rounded-lg border border-white/10 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 text-xs transition-colors"
+                    >
+                        <RefreshCw className="w-3.5 h-3.5" /> Retry
+                    </button>
+                    <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => navigate(-1)}
+                        className="gap-1.5 text-xs border-white/10"
+                    >
+                        <ArrowLeft className="w-3.5 h-3.5" /> Go back
+                    </Button>
+                </div>
+            </div>
+        );
+
+    if (!container)
+        return (
+            <div className="flex flex-col items-center justify-center min-h-[60vh] text-center p-8">
+                <AlertCircle className="w-10 h-10 text-zinc-700 mb-4" />
+                <h2 className="text-base font-semibold text-zinc-200 mb-1.5">
+                    Container not found
+                </h2>
+                <p className="text-xs text-zinc-500 mb-5">
+                    No container named{" "}
+                    <code className="font-mono bg-zinc-800 px-1.5 py-0.5 rounded">{name}</code>
+                </p>
+                <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => navigate(-1)}
+                    className="gap-1.5 text-xs border-white/10"
+                >
                     <ArrowLeft className="w-3.5 h-3.5" /> Go back
                 </Button>
             </div>
-        </div>
-    );
-
-    if (!container) return (
-        <div className="flex flex-col items-center justify-center min-h-[60vh] text-center p-8">
-            <AlertCircle className="w-10 h-10 text-zinc-700 mb-4" />
-            <h2 className="text-base font-semibold text-zinc-200 mb-1.5">Container not found</h2>
-            <p className="text-xs text-zinc-500 mb-5">No container named <code className="font-mono bg-zinc-800 px-1.5 py-0.5 rounded">{name}</code></p>
-            <Button size="sm" variant="outline" onClick={() => navigate(-1)} className="gap-1.5 text-xs border-white/10">
-                <ArrowLeft className="w-3.5 h-3.5" /> Go back
-            </Button>
-        </div>
-    );
+        );
 
     const envVars = details?.env_vars ?? [];
 
     return (
         <div className="min-h-screen bg-zinc-950 text-zinc-100 p-5 max-w-6xl mx-auto space-y-5">
             <div className="flex items-center gap-3">
-                <button onClick={() => navigate(-1)}
-                    className="w-8 h-8 rounded-xl border border-white/10 bg-zinc-900 flex items-center justify-center hover:bg-zinc-800 transition-colors text-zinc-400 hover:text-zinc-200">
+                <button
+                    onClick={() => navigate(-1)}
+                    className="w-8 h-8 rounded-xl border border-white/10 bg-zinc-900 flex items-center justify-center hover:bg-zinc-800 transition-colors text-zinc-400 hover:text-zinc-200"
+                >
                     <ArrowLeft className="w-3.5 h-3.5" />
                 </button>
                 <div className="flex items-center gap-1.5 text-xs text-zinc-600">
@@ -926,22 +1380,44 @@ export default function DatabaseDetailPage() {
             {/* Hero */}
             <div className="rounded-2xl border border-white/8 bg-zinc-900/60 p-5 relative overflow-hidden">
                 {preset && (
-                    <div className="absolute inset-0 pointer-events-none opacity-[0.04]"
-                        style={{ background: `radial-gradient(circle at 80% 50%, ${preset.color}, transparent 60%)` }} />
+                    <div
+                        className="absolute inset-0 pointer-events-none opacity-[0.04]"
+                        style={{
+                            background: `radial-gradient(circle at 80% 50%, ${preset.color}, transparent 60%)`,
+                        }}
+                    />
                 )}
                 <div className="flex items-start gap-4">
-                    <div className="w-14 h-14 rounded-2xl flex items-center justify-center text-2xl shrink-0 border"
-                        style={preset
-                            ? { backgroundColor: preset.color + "15", borderColor: preset.color + "30" }
-                            : { backgroundColor: "#ffffff08", borderColor: "#ffffff15" }}>
+                    <div
+                        className="w-14 h-14 rounded-2xl flex items-center justify-center text-2xl shrink-0 border"
+                        style={
+                            preset
+                                ? {
+                                      backgroundColor: preset.color + "15",
+                                      borderColor: preset.color + "30",
+                                  }
+                                : { backgroundColor: "#ffffff08", borderColor: "#ffffff15" }
+                        }
+                    >
                         {preset?.icon ?? "🗄️"}
                     </div>
                     <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2.5 flex-wrap">
                             <h1 className="text-lg font-bold tracking-tight">{container.name}</h1>
-                            <div className={cn("flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-[10px] font-semibold",
-                                isRunning ? "bg-emerald-500/10 border-emerald-500/25 text-emerald-400" : "bg-zinc-800 border-white/10 text-zinc-400")}>
-                                <span className={cn("w-1.5 h-1.5 rounded-full", isRunning ? "bg-emerald-500 animate-pulse" : "bg-zinc-500")} />
+                            <div
+                                className={cn(
+                                    "flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-[10px] font-semibold",
+                                    isRunning
+                                        ? "bg-emerald-500/10 border-emerald-500/25 text-emerald-400"
+                                        : "bg-zinc-800 border-white/10 text-zinc-400"
+                                )}
+                            >
+                                <span
+                                    className={cn(
+                                        "w-1.5 h-1.5 rounded-full",
+                                        isRunning ? "bg-emerald-500 animate-pulse" : "bg-zinc-500"
+                                    )}
+                                />
                                 {container.state}
                             </div>
                             {preset && (
@@ -950,60 +1426,104 @@ export default function DatabaseDetailPage() {
                                 </span>
                             )}
                         </div>
-                        <p className="text-[11px] text-zinc-500 mt-1 font-mono">{container.image}</p>
+                        <p className="text-[11px] text-zinc-500 mt-1 font-mono">
+                            {container.image}
+                        </p>
                         <div className="flex items-center gap-4 mt-3 flex-wrap">
                             {port && (
                                 <div className="flex items-center gap-1.5">
                                     <Server className="w-3 h-3 text-zinc-600" />
                                     <span className="text-xs font-mono text-zinc-300">:{port}</span>
-                                    <a href={`http://localhost:${port}`} target="_blank" rel="noreferrer" className="text-zinc-600 hover:text-zinc-400 transition-colors">
+                                    <a
+                                        href={`http://localhost:${port}`}
+                                        target="_blank"
+                                        rel="noreferrer"
+                                        className="text-zinc-600 hover:text-zinc-400 transition-colors"
+                                    >
                                         <ExternalLink className="w-3 h-3" />
                                     </a>
                                 </div>
                             )}
                             <div className="flex items-center gap-1.5">
                                 <Clock className="w-3 h-3 text-zinc-600" />
-                                <span className="text-xs text-zinc-500">Uptime: <span className="text-zinc-300 font-mono">{uptime}</span></span>
+                                <span className="text-xs text-zinc-500">
+                                    Uptime:{" "}
+                                    <span className="text-zinc-300 font-mono">{uptime}</span>
+                                </span>
                             </div>
                             {details?.ip_address && (
                                 <div className="flex items-center gap-1.5">
                                     <Wifi className="w-3 h-3 text-zinc-600" />
-                                    <span className="text-xs font-mono text-zinc-500">{details.ip_address}</span>
+                                    <span className="text-xs font-mono text-zinc-500">
+                                        {details.ip_address}
+                                    </span>
                                     <CopyBtn text={details.ip_address} size="xs" />
                                 </div>
                             )}
                             <div className="flex items-center gap-1.5">
                                 <Box className="w-3 h-3 text-zinc-600" />
-                                <span className="text-xs font-mono text-zinc-500">{container.id.slice(0, 12)}</span>
+                                <span className="text-xs font-mono text-zinc-500">
+                                    {container.id.slice(0, 12)}
+                                </span>
                                 <CopyBtn text={container.id} size="xs" />
                             </div>
                         </div>
                     </div>
                     <div className="flex items-center gap-1.5 shrink-0 flex-wrap justify-end">
                         {isRunning ? (
-                            <button onClick={() => act("stop", () => dockerService.stopContainer(name))} disabled={!!busy}
-                                className="flex items-center gap-1.5 px-3 h-8 rounded-xl border border-white/10 bg-zinc-800/80 hover:bg-red-500/15 hover:border-red-500/30 hover:text-red-400 text-zinc-300 text-xs font-medium transition-all disabled:opacity-50">
-                                {busy === "stop" ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Square className="w-3.5 h-3.5" />}
+                            <button
+                                onClick={() => act("stop", () => dockerService.stopContainer(name))}
+                                disabled={!!busy}
+                                className="flex items-center gap-1.5 px-3 h-8 rounded-xl border border-white/10 bg-zinc-800/80 hover:bg-red-500/15 hover:border-red-500/30 hover:text-red-400 text-zinc-300 text-xs font-medium transition-all disabled:opacity-50"
+                            >
+                                {busy === "stop" ? (
+                                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                ) : (
+                                    <Square className="w-3.5 h-3.5" />
+                                )}
                                 Stop
                             </button>
                         ) : (
-                            <button onClick={() => act("start", () => dockerService.startContainer(name))} disabled={!!busy}
-                                className="flex items-center gap-1.5 px-3 h-8 rounded-xl border border-emerald-500/30 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 text-xs font-medium transition-all disabled:opacity-50">
-                                {busy === "start" ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Play className="w-3.5 h-3.5" />}
+                            <button
+                                onClick={() =>
+                                    act("start", () => dockerService.startContainer(name))
+                                }
+                                disabled={!!busy}
+                                className="flex items-center gap-1.5 px-3 h-8 rounded-xl border border-emerald-500/30 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 text-xs font-medium transition-all disabled:opacity-50"
+                            >
+                                {busy === "start" ? (
+                                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                ) : (
+                                    <Play className="w-3.5 h-3.5" />
+                                )}
                                 Start
                             </button>
                         )}
-                        <button onClick={() => act("restart", () => dockerService.restartContainer(name))} disabled={!!busy}
-                            className="flex items-center gap-1.5 px-3 h-8 rounded-xl border border-white/10 bg-zinc-800/80 hover:bg-amber-500/15 hover:border-amber-500/30 hover:text-amber-400 text-zinc-300 text-xs font-medium transition-all disabled:opacity-50">
-                            {busy === "restart" ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RotateCcw className="w-3.5 h-3.5" />}
+                        <button
+                            onClick={() =>
+                                act("restart", () => dockerService.restartContainer(name))
+                            }
+                            disabled={!!busy}
+                            className="flex items-center gap-1.5 px-3 h-8 rounded-xl border border-white/10 bg-zinc-800/80 hover:bg-amber-500/15 hover:border-amber-500/30 hover:text-amber-400 text-zinc-300 text-xs font-medium transition-all disabled:opacity-50"
+                        >
+                            {busy === "restart" ? (
+                                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                            ) : (
+                                <RotateCcw className="w-3.5 h-3.5" />
+                            )}
                             Restart
                         </button>
-                        <button onClick={loadData} disabled={!!busy}
-                            className="w-8 h-8 rounded-xl border border-white/10 bg-zinc-800/80 hover:bg-zinc-700 text-zinc-400 flex items-center justify-center transition-all">
+                        <button
+                            onClick={loadData}
+                            disabled={!!busy}
+                            className="w-8 h-8 rounded-xl border border-white/10 bg-zinc-800/80 hover:bg-zinc-700 text-zinc-400 flex items-center justify-center transition-all"
+                        >
                             <RefreshCw className={cn("w-3.5 h-3.5", !!busy && "animate-spin")} />
                         </button>
-                        <button onClick={handleRemove}
-                            className="w-8 h-8 rounded-xl border border-white/10 bg-zinc-800/80 hover:bg-red-500/15 hover:border-red-500/30 hover:text-red-400 text-zinc-500 flex items-center justify-center transition-all">
+                        <button
+                            onClick={handleRemove}
+                            className="w-8 h-8 rounded-xl border border-white/10 bg-zinc-800/80 hover:bg-red-500/15 hover:border-red-500/30 hover:text-red-400 text-zinc-500 flex items-center justify-center transition-all"
+                        >
                             <Trash2 className="w-3.5 h-3.5" />
                         </button>
                     </div>
@@ -1014,7 +1534,9 @@ export default function DatabaseDetailPage() {
                 <div className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-red-500/10 border border-red-500/20 text-xs text-red-400">
                     <AlertCircle className="w-3.5 h-3.5 shrink-0" />
                     <span className="font-mono flex-1">{error}</span>
-                    <button onClick={() => setError(null)}><X className="w-3.5 h-3.5" /></button>
+                    <button onClick={() => setError(null)}>
+                        <X className="w-3.5 h-3.5" />
+                    </button>
                 </div>
             )}
 
@@ -1023,14 +1545,29 @@ export default function DatabaseDetailPage() {
                     {[
                         { icon: Cpu, label: "CPU", value: stats.cpu, color: "blue" },
                         { icon: HardDrive, label: "Memory", value: stats.memory, color: "violet" },
-                        { icon: Network, label: "Network", value: stats.net.split(" / ")[0], color: "emerald" },
-                        { icon: Activity, label: "Block I/O", value: stats.block.split(" / ")[0], color: "amber" },
+                        {
+                            icon: Network,
+                            label: "Network",
+                            value: stats.net.split(" / ")[0],
+                            color: "emerald",
+                        },
+                        {
+                            icon: Activity,
+                            label: "Block I/O",
+                            value: stats.block.split(" / ")[0],
+                            color: "amber",
+                        },
                     ].map(({ icon: Icon, label, value, color }) => (
-                        <div key={label} className={`rounded-xl border border-${color}-500/15 bg-${color}-500/5 px-4 py-3 flex items-center gap-3`}>
+                        <div
+                            key={label}
+                            className={`rounded-xl border border-${color}-500/15 bg-${color}-500/5 px-4 py-3 flex items-center gap-3`}
+                        >
                             <Icon className={`w-4 h-4 text-${color}-400 shrink-0`} />
                             <div>
                                 <div className="text-[10px] text-zinc-500">{label}</div>
-                                <div className={`text-sm font-bold font-mono text-${color}-300`}>{value}</div>
+                                <div className={`text-sm font-bold font-mono text-${color}-300`}>
+                                    {value}
+                                </div>
                             </div>
                         </div>
                     ))}
@@ -1048,9 +1585,13 @@ export default function DatabaseDetailPage() {
                         { value: "backup", icon: Download, label: "Backup" },
                         { value: "shell", icon: Zap, label: "Shell" },
                     ].map(({ value, icon: Icon, label }) => (
-                        <TabsTrigger key={value} value={value}
-                            className="flex items-center gap-1.5 text-[11px] font-medium px-3 py-1.5 rounded-lg data-[state=active]:bg-zinc-800 data-[state=active]:text-zinc-100 text-zinc-500 hover:text-zinc-300 transition-all">
-                            <Icon className="w-3 h-3" />{label}
+                        <TabsTrigger
+                            key={value}
+                            value={value}
+                            className="flex items-center gap-1.5 text-[11px] font-medium px-3 py-1.5 rounded-lg data-[state=active]:bg-zinc-800 data-[state=active]:text-zinc-100 text-zinc-500 hover:text-zinc-300 transition-all"
+                        >
+                            <Icon className="w-3 h-3" />
+                            {label}
                         </TabsTrigger>
                     ))}
                 </TabsList>
@@ -1065,45 +1606,112 @@ export default function DatabaseDetailPage() {
                                 <InfoRow label="ID" value={details.id} mono copy />
                                 <InfoRow label="Name" value={details.name} mono />
                                 <InfoRow label="Image" value={details.image} mono copy />
-                                <InfoRow label="State" value={details.state} color={isRunning ? "text-emerald-400" : "text-zinc-400"} />
+                                <InfoRow
+                                    label="State"
+                                    value={details.state}
+                                    color={isRunning ? "text-emerald-400" : "text-zinc-400"}
+                                />
                                 <InfoRow label="Status" value={details.status} />
-                                <InfoRow label="Restart Count" value={String(details.restart_count)} />
-                                <InfoRow label="Restart Policy" value={details.restart_policy || "—"} />
+                                <InfoRow
+                                    label="Restart Count"
+                                    value={String(details.restart_count)}
+                                />
+                                <InfoRow
+                                    label="Restart Policy"
+                                    value={details.restart_policy || "—"}
+                                />
                                 <InfoRow label="Platform" value={details.platform || "—"} />
                             </Panel>
                             <Panel>
                                 <SectionHead icon={Clock} title="Timing" />
                                 <InfoRow label="Created" value={formatDate(details.created)} />
-                                <InfoRow label="Started At" value={formatDate(details.started_at)} />
-                                <InfoRow label="Finished At" value={formatDate(details.finished_at)} />
+                                <InfoRow
+                                    label="Started At"
+                                    value={formatDate(details.started_at)}
+                                />
+                                <InfoRow
+                                    label="Finished At"
+                                    value={formatDate(details.finished_at)}
+                                />
                                 <div className="mt-4" />
                                 <SectionHead icon={Server} title="Resources" />
-                                <InfoRow label="Memory Limit" value={details.memory_limit > 0 ? formatBytes(details.memory_limit) : "Unlimited"} />
-                                <InfoRow label="CPU Shares" value={String(details.cpu_shares || "Default")} />
-                                <InfoRow label="IP Address" value={details.ip_address || "—"} mono copy />
+                                <InfoRow
+                                    label="Memory Limit"
+                                    value={
+                                        details.memory_limit > 0
+                                            ? formatBytes(details.memory_limit)
+                                            : "Unlimited"
+                                    }
+                                />
+                                <InfoRow
+                                    label="CPU Shares"
+                                    value={String(details.cpu_shares || "Default")}
+                                />
+                                <InfoRow
+                                    label="IP Address"
+                                    value={details.ip_address || "—"}
+                                    mono
+                                    copy
+                                />
                                 <InfoRow label="Hostname" value={details.hostname || "—"} mono />
                             </Panel>
                             <Panel>
                                 <SectionHead icon={Terminal} title="Runtime" />
                                 <InfoRow label="User" value={details.user || "root"} mono />
-                                <InfoRow label="Working Dir" value={details.working_dir || "/"} mono />
-                                <InfoRow label="Entrypoint" value={details.entrypoint?.join(" ") || "—"} mono />
-                                <InfoRow label="Command" value={details.cmd?.join(" ") || "—"} mono />
-                                <InfoRow label="Privileged" value={details.privileged ? "Yes" : "No"} />
-                                <InfoRow label="PID" value={details.pid > 0 ? String(details.pid) : "—"} mono />
+                                <InfoRow
+                                    label="Working Dir"
+                                    value={details.working_dir || "/"}
+                                    mono
+                                />
+                                <InfoRow
+                                    label="Entrypoint"
+                                    value={details.entrypoint?.join(" ") || "—"}
+                                    mono
+                                />
+                                <InfoRow
+                                    label="Command"
+                                    value={details.cmd?.join(" ") || "—"}
+                                    mono
+                                />
+                                <InfoRow
+                                    label="Privileged"
+                                    value={details.privileged ? "Yes" : "No"}
+                                />
+                                <InfoRow
+                                    label="PID"
+                                    value={details.pid > 0 ? String(details.pid) : "—"}
+                                    mono
+                                />
                             </Panel>
                             {details.ports && details.ports.length > 0 && (
                                 <Panel>
                                     <SectionHead icon={Network} title="Port Bindings" />
                                     <div className="space-y-2">
                                         {details.ports.map((p, i) => (
-                                            <div key={i} className="flex items-center justify-between p-3 rounded-xl bg-zinc-800/60 border border-white/6">
+                                            <div
+                                                key={i}
+                                                className="flex items-center justify-between p-3 rounded-xl bg-zinc-800/60 border border-white/6"
+                                            >
                                                 <div className="flex items-center gap-2">
-                                                    <span className="text-sm font-bold font-mono" style={{ color: preset?.color || "#60a5fa" }}>{p.host_port}</span>
+                                                    <span
+                                                        className="text-sm font-bold font-mono"
+                                                        style={{
+                                                            color: preset?.color || "#60a5fa",
+                                                        }}
+                                                    >
+                                                        {p.host_port}
+                                                    </span>
                                                     <span className="text-zinc-600 text-xs">→</span>
-                                                    <span className="text-xs font-mono text-zinc-400">{p.container_port}/{p.protocol}</span>
+                                                    <span className="text-xs font-mono text-zinc-400">
+                                                        {p.container_port}/{p.protocol}
+                                                    </span>
                                                 </div>
-                                                <a href={`http://localhost:${p.host_port}`} target="_blank" rel="noreferrer" className="text-zinc-600 hover:text-zinc-400 transition-colors">
+                                                <a
+                                                    href={`http://localhost:${p.host_port}`}
+                                                    target="_blank"
+                                                    rel="noreferrer"
+                                                    className="text-zinc-600 hover:text-zinc-400 transition-colors"
+                                                >
                                                     <ExternalLink className="w-3.5 h-3.5" />
                                                 </a>
                                             </div>
@@ -1133,13 +1741,26 @@ export default function DatabaseDetailPage() {
                                             const val = vp.join("=");
                                             const secret = /password|secret|key|token/i.test(key);
                                             return (
-                                                <div key={i} className="flex items-center gap-2 px-3 py-2 rounded-lg bg-zinc-800/40 border border-white/5 text-[11px] font-mono">
-                                                    <span className="text-blue-400 shrink-0">{key}</span>
+                                                <div
+                                                    key={i}
+                                                    className="flex items-center gap-2 px-3 py-2 rounded-lg bg-zinc-800/40 border border-white/5 text-[11px] font-mono"
+                                                >
+                                                    <span className="text-blue-400 shrink-0">
+                                                        {key}
+                                                    </span>
                                                     <span className="text-zinc-600">=</span>
                                                     <span className="flex-1 truncate text-zinc-300">
-                                                        {secret ? <span className="text-zinc-600">{"•".repeat(8)}</span> : val}
+                                                        {secret ? (
+                                                            <span className="text-zinc-600">
+                                                                {"•".repeat(8)}
+                                                            </span>
+                                                        ) : (
+                                                            val
+                                                        )}
                                                     </span>
-                                                    {!secret && val && <CopyBtn text={val} size="xs" />}
+                                                    {!secret && val && (
+                                                        <CopyBtn text={val} size="xs" />
+                                                    )}
                                                 </div>
                                             );
                                         })}
@@ -1151,21 +1772,46 @@ export default function DatabaseDetailPage() {
                                     <SectionHead icon={HardDrive} title="Volumes & Mounts" />
                                     <div className="space-y-2">
                                         {details.mounts.map((m, i) => (
-                                            <div key={i} className="p-3 rounded-xl bg-zinc-800/40 border border-white/6 space-y-2">
+                                            <div
+                                                key={i}
+                                                className="p-3 rounded-xl bg-zinc-800/40 border border-white/6 space-y-2"
+                                            >
                                                 <div className="flex gap-2">
-                                                    <span className={cn("px-2 py-0.5 rounded text-[9px] font-bold uppercase",
-                                                        m.mount_type === "volume" ? "bg-blue-500/15 text-blue-400" : "bg-zinc-700 text-zinc-400")}>
+                                                    <span
+                                                        className={cn(
+                                                            "px-2 py-0.5 rounded text-[9px] font-bold uppercase",
+                                                            m.mount_type === "volume"
+                                                                ? "bg-blue-500/15 text-blue-400"
+                                                                : "bg-zinc-700 text-zinc-400"
+                                                        )}
+                                                    >
                                                         {m.mount_type}
                                                     </span>
-                                                    <span className={cn("px-2 py-0.5 rounded text-[9px] font-bold uppercase",
-                                                        m.rw ? "bg-emerald-500/15 text-emerald-400" : "bg-zinc-700 text-zinc-500")}>
+                                                    <span
+                                                        className={cn(
+                                                            "px-2 py-0.5 rounded text-[9px] font-bold uppercase",
+                                                            m.rw
+                                                                ? "bg-emerald-500/15 text-emerald-400"
+                                                                : "bg-zinc-700 text-zinc-500"
+                                                        )}
+                                                    >
                                                         {m.rw ? "rw" : "ro"}
                                                     </span>
                                                 </div>
-                                                {[["source", m.source], ["target", m.destination]].map(([lbl, val]) => (
-                                                    <div key={lbl} className="flex items-center gap-2 text-[11px] font-mono">
-                                                        <span className="text-zinc-600 w-12 shrink-0">{lbl}</span>
-                                                        <span className="truncate text-zinc-300 flex-1">{val}</span>
+                                                {[
+                                                    ["source", m.source],
+                                                    ["target", m.destination],
+                                                ].map(([lbl, val]) => (
+                                                    <div
+                                                        key={lbl}
+                                                        className="flex items-center gap-2 text-[11px] font-mono"
+                                                    >
+                                                        <span className="text-zinc-600 w-12 shrink-0">
+                                                            {lbl}
+                                                        </span>
+                                                        <span className="truncate text-zinc-300 flex-1">
+                                                            {val}
+                                                        </span>
                                                         <CopyBtn text={val} size="xs" />
                                                     </div>
                                                 ))}
@@ -1179,7 +1825,10 @@ export default function DatabaseDetailPage() {
                                     <SectionHead icon={Tag} title="Labels" />
                                     <div className="flex flex-wrap gap-2">
                                         {details.labels.map((l, i) => (
-                                            <div key={i} className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-white/8 bg-zinc-800/40 text-[10px] font-mono">
+                                            <div
+                                                key={i}
+                                                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-white/8 bg-zinc-800/40 text-[10px] font-mono"
+                                            >
                                                 <span className="text-zinc-500">{l.key}</span>
                                                 <span className="text-zinc-700">=</span>
                                                 <span className="text-zinc-300">{l.value}</span>
@@ -1188,11 +1837,13 @@ export default function DatabaseDetailPage() {
                                     </div>
                                 </Panel>
                             )}
-                            {envVars.length === 0 && (!details.mounts || details.mounts.length === 0) && (!details.labels || details.labels.length === 0) && (
-                                <div className="flex items-center justify-center py-16 text-zinc-600 text-xs">
-                                    No env vars, mounts, or labels found for this container.
-                                </div>
-                            )}
+                            {envVars.length === 0 &&
+                                (!details.mounts || details.mounts.length === 0) &&
+                                (!details.labels || details.labels.length === 0) && (
+                                    <div className="flex items-center justify-center py-16 text-zinc-600 text-xs">
+                                        No env vars, mounts, or labels found for this container.
+                                    </div>
+                                )}
                         </>
                     ) : (
                         <div className="flex items-center justify-center py-16 text-zinc-600">
@@ -1203,9 +1854,13 @@ export default function DatabaseDetailPage() {
 
                 <TabsContent value="stats" className="mt-0">
                     <Panel>
-                        <StatsTab stats={stats} details={details} isRunning={isRunning}
+                        <StatsTab
+                            stats={stats}
+                            details={details}
+                            isRunning={isRunning}
                             onStart={() => act("start", () => dockerService.startContainer(name))}
-                            busy={!!busy} />
+                            busy={!!busy}
+                        />
                     </Panel>
                 </TabsContent>
 

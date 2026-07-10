@@ -5,6 +5,7 @@ import { useNavigate } from "react-router-dom";
 
 import { Button } from "@/components/ui/button";
 
+import { CreateDockerContainer } from "../components/create/docker/CreateDockerContainer";
 import { CreateLaravelProject } from "../components/create/laravel/CreateLaravelProject";
 import { CreateNextJsProject } from "../components/create/nextjs/CreateNextJsProject";
 import { CreateNodejsProject } from "../components/create/nodejs/CreateNodejsProject";
@@ -16,7 +17,6 @@ import { CreateVueProject } from "../components/create/vue/CreateVueProject";
 import { CreateWordPressProject } from "../components/create/wordpress/CreateWordPressProject";
 import { TECHNOLOGIES } from "../config";
 import { ProjectType } from "../types";
-import { CreateDockerContainer } from "../components/create/docker/CreateDockerContainer";
 
 export default function CreateProjectPage() {
     const navigate = useNavigate();
@@ -52,7 +52,7 @@ export default function CreateProjectPage() {
             case "html5":
                 return <CreateStaticProject onSuccess={handleProjectCreated} />;
             case "docker":
-               return <CreateDockerContainer onSuccess={handleProjectCreated} />;
+                return <CreateDockerContainer onSuccess={handleProjectCreated} />;
             default:
                 return null;
         }
@@ -96,11 +96,12 @@ export default function CreateProjectPage() {
                                     className={`
                                         relative flex flex-col items-center gap-2 p-3 rounded-xl border
                                         transition-all duration-150 text-center
-                                        ${!tech.available
-                                            ? "opacity-40 cursor-not-allowed border-border"
-                                            : isSelected
-                                                ? tech.selectedColor
-                                                : `cursor-pointer ${tech.color} border-border`
+                                        ${
+                                            !tech.available
+                                                ? "opacity-40 cursor-not-allowed border-border"
+                                                : isSelected
+                                                  ? tech.selectedColor
+                                                  : `cursor-pointer ${tech.color} border-border`
                                         }
                                     `}
                                 >

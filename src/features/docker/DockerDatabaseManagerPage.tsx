@@ -1,9 +1,8 @@
 import { cn } from "@/core/lib/utils";
 
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
-import axios from "axios";
 
+import axios from "axios";
 import {
     Activity,
     AlertCircle,
@@ -32,6 +31,7 @@ import {
     X,
     Zap,
 } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -47,7 +47,8 @@ import {
     DBPreset,
 } from "./services/types";
 
-const GITHUB_API_URL = "https://api.github.com/repos/HiveSofts/hive-docker-containers/contents/databases-container";
+const GITHUB_API_URL =
+    "https://api.github.com/repos/HiveSofts/hive-docker-containers/contents/databases-container";
 
 async function loadPresetsFromGitHub(): Promise<DBPreset[]> {
     try {
@@ -59,7 +60,7 @@ async function loadPresetsFromGitHub(): Promise<DBPreset[]> {
         });
 
         const files: Array<{ name: string; download_url: string }> = response.data;
-        const jsonFiles = files.filter(f => f.name.endsWith('.json') && f.download_url);
+        const jsonFiles = files.filter((f) => f.name.endsWith(".json") && f.download_url);
         const presets: DBPreset[] = [];
 
         for (const file of jsonFiles) {
@@ -132,12 +133,16 @@ function usePresets() {
 
 function getPresetForImage(image: string, presets: DBPreset[]): DBPreset | null {
     const lower = image.toLowerCase();
-    return presets.find((p) => lower.includes(p.id) || lower.includes(p.label.toLowerCase())) ?? null;
+    return (
+        presets.find((p) => lower.includes(p.id) || lower.includes(p.label.toLowerCase())) ?? null
+    );
 }
 
 function generatePassword(len = 18) {
     const chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789!@#$%^";
-    return Array.from({ length: len }, () => chars[Math.floor(Math.random() * chars.length)]).join("");
+    return Array.from({ length: len }, () => chars[Math.floor(Math.random() * chars.length)]).join(
+        ""
+    );
 }
 
 function stateColors(state: string) {
@@ -306,9 +311,7 @@ function CreateDatabaseWizard({ onClose, onCreate, presets }: WizardProps) {
 
     const categories = ["all", ...Array.from(new Set(presets.map((p) => p.category)))];
     const filteredPresets =
-        categoryFilter === "all"
-            ? presets
-            : presets.filter((p) => p.category === categoryFilter);
+        categoryFilter === "all" ? presets : presets.filter((p) => p.category === categoryFilter);
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
@@ -907,7 +910,15 @@ function LogsModal({ containerName, onClose }: { containerName: string; onClose:
     );
 }
 
-function ShellModal({ container, presets, onClose }: { container: ContainerInfo; presets: DBPreset[]; onClose: () => void }) {
+function ShellModal({
+    container,
+    presets,
+    onClose,
+}: {
+    container: ContainerInfo;
+    presets: DBPreset[];
+    onClose: () => void;
+}) {
     const [history, setHistory] = useState<Array<{ cmd: string; out: string; err: boolean }>>([]);
     const [input, setInput] = useState("");
     const [running, setRunning] = useState(false);
@@ -1268,7 +1279,7 @@ export default function DockerDatabaseManagerPage() {
         removeContainer,
     } = useDocker();
 
-    const { presets, loading: presetsLoading, error: presetsError, refresh: refreshPresets } = usePresets();
+    const { presets, refresh: refreshPresets } = usePresets();
 
     const [showWizard, setShowWizard] = useState(false);
     const [logsName, setLogsName] = useState<string | null>(null);
@@ -1303,7 +1314,9 @@ export default function DockerDatabaseManagerPage() {
     }
 
     const dbCategories = Array.from(
-        new Set(containers.map((c) => getPresetForImage(c.image, presets)?.category).filter(Boolean))
+        new Set(
+            containers.map((c) => getPresetForImage(c.image, presets)?.category).filter(Boolean)
+        )
     );
 
     const filtered = containers.filter((c) => {
@@ -1490,7 +1503,11 @@ export default function DockerDatabaseManagerPage() {
             )}
             {logsName && <LogsModal containerName={logsName} onClose={() => setLogsName(null)} />}
             {shellContainer && (
-                <ShellModal container={shellContainer} presets={presets} onClose={() => setShellContainer(null)} />
+                <ShellModal
+                    container={shellContainer}
+                    presets={presets}
+                    onClose={() => setShellContainer(null)}
+                />
             )}
         </div>
     );

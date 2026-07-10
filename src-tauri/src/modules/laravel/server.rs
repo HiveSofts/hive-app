@@ -159,21 +159,20 @@ pub async fn start_laravel_project(project_path: String) -> Result<ServerStatus,
 
     let composer_path = {
         let home = std::env::var("HOME").unwrap_or_else(|_| ".".to_string());
-        PathBuf::from(home).join(".hive").join("bin").join("composer")
+        PathBuf::from(home)
+            .join(".hive")
+            .join("bin")
+            .join("composer")
     };
 
     let composer_json_path = PathBuf::from(&project_path).join("composer.json");
     if composer_json_path.exists() {
         let content = fs::read_to_string(&composer_json_path).map_err(|e| e.to_string())?;
-        let mut json: serde_json::Value = serde_json::from_str(&content).map_err(|e| e.to_string())?;
-        let has_dev = json
-            .get("scripts")
-            .and_then(|s| s.get("dev"))
-            .is_some();
+        let mut json: serde_json::Value =
+            serde_json::from_str(&content).map_err(|e| e.to_string())?;
+        let has_dev = json.get("scripts").and_then(|s| s.get("dev")).is_some();
         if !has_dev {
-            let scripts = json
-                .get_mut("scripts")
-                .and_then(|s| s.as_object_mut());
+            let scripts = json.get_mut("scripts").and_then(|s| s.as_object_mut());
             if let Some(scripts_map) = scripts {
                 scripts_map.insert(
                     "dev".to_string(),
@@ -182,7 +181,11 @@ pub async fn start_laravel_project(project_path: String) -> Result<ServerStatus,
                         "npx concurrently -c \"#93c5fd,#c4b5fd,#fb7185,#fdba74\" \"php artisan serve\" \"php artisan queue:listen --tries=1 --timeout=0\" \"php artisan pail --timeout=0\" \"npm run dev\" --names=server,queue,logs,vite --kill-others"
                     ]),
                 );
-                fs::write(&composer_json_path, serde_json::to_string_pretty(&json).map_err(|e| e.to_string())?).map_err(|e| e.to_string())?;
+                fs::write(
+                    &composer_json_path,
+                    serde_json::to_string_pretty(&json).map_err(|e| e.to_string())?,
+                )
+                .map_err(|e| e.to_string())?;
             }
         }
     }

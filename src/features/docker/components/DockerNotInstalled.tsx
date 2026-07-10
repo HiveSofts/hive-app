@@ -1,8 +1,10 @@
-import { openPath, openUrl } from '@tauri-apps/plugin-opener';
-
-import { AlertTriangle, ArrowRight, Box, Download, ExternalLink, Terminal } from "lucide-react";
 import { useState } from "react";
+
+import { openUrl } from "@tauri-apps/plugin-opener";
+import { AlertTriangle, ArrowRight, Box, Download, ExternalLink, Terminal } from "lucide-react";
+
 import { Button } from "@/components/ui/button";
+
 import { getDockerInstallUrl, installDockerLinux } from "../services/docker.service";
 
 interface Props {
@@ -23,9 +25,7 @@ export function DockerNotInstalled({ onRefresh }: Props) {
         setInstalling(true);
         setLogs([]);
         try {
-            const result = await installDockerLinux((line) =>
-                setLogs((prev) => [...prev, line])
-            );
+            const result = await installDockerLinux((line) => setLogs((prev) => [...prev, line]));
             setLogs((prev) => [...prev, "✓ " + result]);
             setTimeout(onRefresh, 2000);
         } catch (e: any) {
@@ -43,7 +43,8 @@ export function DockerNotInstalled({ onRefresh }: Props) {
 
             <h2 className="text-2xl font-bold mb-2">Docker not detected</h2>
             <p className="text-sm text-muted-foreground text-center mb-8 max-w-md">
-                Docker is required to run database containers. Install Docker Desktop (Windows/macOS) or Docker Engine (Linux) to continue.
+                Docker is required to run database containers. Install Docker Desktop
+                (Windows/macOS) or Docker Engine (Linux) to continue.
             </p>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full mb-8">
@@ -106,8 +107,8 @@ export function DockerNotInstalled({ onRefresh }: Props) {
                                 line.startsWith("✗")
                                     ? "text-red-400"
                                     : line.startsWith("✓")
-                                    ? "text-emerald-400"
-                                    : "text-muted-foreground"
+                                      ? "text-emerald-400"
+                                      : "text-muted-foreground"
                             }
                         >
                             {line}
@@ -121,12 +122,7 @@ export function DockerNotInstalled({ onRefresh }: Props) {
                 After installing Docker, make sure the Docker daemon is running, then click Refresh.
             </div>
 
-            <Button
-                variant="ghost"
-                size="sm"
-                className="mt-4 gap-1.5 text-xs"
-                onClick={onRefresh}
-            >
+            <Button variant="ghost" size="sm" className="mt-4 gap-1.5 text-xs" onClick={onRefresh}>
                 <ArrowRight className="w-3.5 h-3.5" />
                 I've installed Docker, Refresh
             </Button>

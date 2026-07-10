@@ -1,5 +1,7 @@
 import { cn } from "@/core/lib/utils";
+
 import { useCallback, useEffect, useRef, useState } from "react";
+
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import axios from "axios";
@@ -31,12 +33,13 @@ import {
     Zap,
 } from "lucide-react";
 
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
 
-const GITHUB_API_URL = "https://api.github.com/repos/HiveSofts/hive-docker-containers/contents/container-definitions";
+const GITHUB_API_URL =
+    "https://api.github.com/repos/HiveSofts/hive-docker-containers/contents/container-definitions";
 
 interface EnvVarTemplate {
     key: string;
@@ -119,11 +122,11 @@ async function fetchTemplatesFromGitHub(): Promise<DockerTemplate[]> {
         });
 
         const files: Array<{ name: string; download_url: string }> = response.data;
-        const jsonFiles = files.filter(f => f.name.endsWith('.json') && f.download_url);
+        const jsonFiles = files.filter((f) => f.name.endsWith(".json") && f.download_url);
 
         const results = await Promise.allSettled(
             jsonFiles.map((file) =>
-                axios.get(file.download_url, { timeout: 8000 }).then(res => res.data)
+                axios.get(file.download_url, { timeout: 8000 }).then((res) => res.data)
             )
         );
 
@@ -265,7 +268,10 @@ function CodeEditor({
                 <div className="flex items-center gap-2">
                     <Code2 className="w-3.5 h-3.5 text-zinc-500" />
                     <span className="text-[11px] text-zinc-400 font-mono">{label}</span>
-                    <Badge variant="outline" className="text-[9px] px-1.5 py-0 border-zinc-700 text-zinc-500">
+                    <Badge
+                        variant="outline"
+                        className="text-[9px] px-1.5 py-0 border-zinc-700 text-zinc-500"
+                    >
                         {language}
                     </Badge>
                 </div>
@@ -273,7 +279,11 @@ function CodeEditor({
                     onClick={copy}
                     className="flex items-center gap-1 text-[10px] text-zinc-500 hover:text-zinc-300 transition-colors"
                 >
-                    {copied ? <CheckCircle2 className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
+                    {copied ? (
+                        <CheckCircle2 className="w-3 h-3 text-emerald-400" />
+                    ) : (
+                        <Copy className="w-3 h-3" />
+                    )}
                     {copied ? "Copied" : "Copy"}
                 </button>
             </div>
@@ -308,7 +318,12 @@ function TemplateLoadingGrid() {
 }
 
 export function CreateDockerContainer({ onSuccess }: { onSuccess: (result: any) => void }) {
-    const { templates, loading: templatesLoading, error: templatesError, refresh: refreshTemplates } = useTemplates();
+    const {
+        templates,
+        loading: templatesLoading,
+        error: templatesError,
+        refresh: refreshTemplates,
+    } = useTemplates();
 
     const [step, setStep] = useState(0);
     const [search, setSearch] = useState("");
@@ -363,7 +378,15 @@ export function CreateDockerContainer({ onSuccess }: { onSuccess: (result: any) 
         }));
         setEnvEntries(envs);
         setVolumes(tpl.volumes.map((v) => ({ host: v.host, container: v.container })));
-        setComposeContent(buildCompose(tpl, tpl.id !== "custom" ? `${tpl.id}-1` : "my-container", tpl.defaultPort, tpl.defaultTag, envs));
+        setComposeContent(
+            buildCompose(
+                tpl,
+                tpl.id !== "custom" ? `${tpl.id}-1` : "my-container",
+                tpl.defaultPort,
+                tpl.defaultTag,
+                envs
+            )
+        );
         setDockerfileContent(tpl.dockerfile);
         setStep(1);
     };
@@ -405,10 +428,7 @@ export function CreateDockerContainer({ onSuccess }: { onSuccess: (result: any) 
     };
 
     const addEnv = () => {
-        setEnvEntries((prev) => [
-            ...prev,
-            { key: "", value: "", secret: false, showValue: true },
-        ]);
+        setEnvEntries((prev) => [...prev, { key: "", value: "", secret: false, showValue: true }]);
     };
 
     const removeEnv = (i: number) => {
@@ -453,10 +473,27 @@ export function CreateDockerContainer({ onSuccess }: { onSuccess: (result: any) 
                         container_name: containerName,
                         version: selectedTag,
                         host_port: hostPort,
-                        root_password: envMap["MYSQL_ROOT_PASSWORD"] || envMap["MONGO_INITDB_ROOT_PASSWORD"] || envMap["POSTGRES_PASSWORD"] || "",
-                        database_name: envMap["MYSQL_DATABASE"] || envMap["MONGO_INITDB_DATABASE"] || envMap["POSTGRES_DB"] || "app_db",
-                        username: envMap["MYSQL_USER"] || envMap["MONGO_INITDB_ROOT_USERNAME"] || envMap["POSTGRES_USER"] || "admin",
-                        password: envMap["MYSQL_PASSWORD"] || envMap["MONGO_INITDB_ROOT_PASSWORD"] || envMap["POSTGRES_PASSWORD"] || envMap["REDIS_PASSWORD"] || "",
+                        root_password:
+                            envMap["MYSQL_ROOT_PASSWORD"] ||
+                            envMap["MONGO_INITDB_ROOT_PASSWORD"] ||
+                            envMap["POSTGRES_PASSWORD"] ||
+                            "",
+                        database_name:
+                            envMap["MYSQL_DATABASE"] ||
+                            envMap["MONGO_INITDB_DATABASE"] ||
+                            envMap["POSTGRES_DB"] ||
+                            "app_db",
+                        username:
+                            envMap["MYSQL_USER"] ||
+                            envMap["MONGO_INITDB_ROOT_USERNAME"] ||
+                            envMap["POSTGRES_USER"] ||
+                            "admin",
+                        password:
+                            envMap["MYSQL_PASSWORD"] ||
+                            envMap["MONGO_INITDB_ROOT_PASSWORD"] ||
+                            envMap["POSTGRES_PASSWORD"] ||
+                            envMap["REDIS_PASSWORD"] ||
+                            "",
                         data_volume: volumes[0]?.host || null,
                         memory_limit: memoryLimit || null,
                         cpu_limit: null,
@@ -477,17 +514,22 @@ export function CreateDockerContainer({ onSuccess }: { onSuccess: (result: any) 
             } else {
                 addLine("⚙️ Building run command...", "info");
                 let runArgs = [
-                    "run", "-d",
-                    "--name", containerName,
-                    "--restart", restartPolicy,
-                    "-p", `${hostPort}:${selectedTemplate.containerPort}`,
+                    "run",
+                    "-d",
+                    "--name",
+                    containerName,
+                    "--restart",
+                    restartPolicy,
+                    "-p",
+                    `${hostPort}:${selectedTemplate.containerPort}`,
                 ];
                 if (memoryLimit) runArgs = [...runArgs, "--memory", memoryLimit];
                 for (const e of envEntries) {
                     if (e.key && e.value) runArgs = [...runArgs, "-e", `${e.key}=${e.value}`];
                 }
                 for (const v of volumes) {
-                    if (v.host && v.container) runArgs = [...runArgs, "-v", `${v.host}:${v.container}`];
+                    if (v.host && v.container)
+                        runArgs = [...runArgs, "-v", `${v.host}:${v.container}`];
                 }
                 runArgs.push(`${customImage || selectedTemplate.image}:${selectedTag}`);
 
@@ -500,7 +542,11 @@ export function CreateDockerContainer({ onSuccess }: { onSuccess: (result: any) 
                 const containerId = (res || "").trim().slice(0, 12);
                 addLine(`✅ Container started! ID: ${containerId}`, "success");
                 addLine(`🌐 Access: http://localhost:${hostPort}`, "success");
-                setResult({ container_id: containerId, container_name: containerName, port: hostPort });
+                setResult({
+                    container_id: containerId,
+                    container_name: containerName,
+                    port: hostPort,
+                });
                 setIsDone(true);
             }
         } catch (err: any) {
@@ -568,7 +614,10 @@ export function CreateDockerContainer({ onSuccess }: { onSuccess: (result: any) 
             }
 
             addLine(`✅ Image built: ${containerName}:local`, "success");
-            addLine(`> docker run -d --name ${containerName} -p ${hostPort}:${selectedTemplate?.containerPort ?? 8080} ${containerName}:local`, "info");
+            addLine(
+                `> docker run -d --name ${containerName} -p ${hostPort}:${selectedTemplate?.containerPort ?? 8080} ${containerName}:local`,
+                "info"
+            );
 
             const runRes = await invoke<string>("execute_shell_command", {
                 command: `docker run -d --name ${containerName} -p ${hostPort}:${selectedTemplate?.containerPort ?? 8080} ${containerName}:local`,
@@ -622,7 +671,12 @@ export function CreateDockerContainer({ onSuccess }: { onSuccess: (result: any) 
                                 {label}
                             </span>
                             {i < 3 && (
-                                <div className={cn("flex-1 h-px", done ? "bg-emerald-500/50" : "bg-border")} />
+                                <div
+                                    className={cn(
+                                        "flex-1 h-px",
+                                        done ? "bg-emerald-500/50" : "bg-border"
+                                    )}
+                                />
                             )}
                         </div>
                     );
@@ -649,7 +703,9 @@ export function CreateDockerContainer({ onSuccess }: { onSuccess: (result: any) 
                             className="flex-shrink-0"
                             title="Refresh templates from GitHub"
                         >
-                            <RefreshCw className={cn("w-4 h-4", templatesLoading && "animate-spin")} />
+                            <RefreshCw
+                                className={cn("w-4 h-4", templatesLoading && "animate-spin")}
+                            />
                         </Button>
                     </div>
 
@@ -683,10 +739,19 @@ export function CreateDockerContainer({ onSuccess }: { onSuccess: (result: any) 
                         <div className="flex flex-col items-center gap-3 py-10 text-center">
                             <XCircle className="w-8 h-8 text-red-400" />
                             <div>
-                                <p className="text-sm font-medium text-foreground">Failed to load templates</p>
-                                <p className="text-[11px] text-muted-foreground mt-1">{templatesError}</p>
+                                <p className="text-sm font-medium text-foreground">
+                                    Failed to load templates
+                                </p>
+                                <p className="text-[11px] text-muted-foreground mt-1">
+                                    {templatesError}
+                                </p>
                             </div>
-                            <Button size="sm" variant="outline" onClick={refreshTemplates} className="gap-2">
+                            <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={refreshTemplates}
+                                className="gap-2"
+                            >
                                 <RefreshCw className="w-3.5 h-3.5" />
                                 Try Again
                             </Button>
@@ -695,7 +760,8 @@ export function CreateDockerContainer({ onSuccess }: { onSuccess: (result: any) 
                         <>
                             <div className="flex items-center justify-between">
                                 <span className="text-[11px] text-muted-foreground">
-                                    {filteredTemplates.length} template{filteredTemplates.length !== 1 ? "s" : ""}
+                                    {filteredTemplates.length} template
+                                    {filteredTemplates.length !== 1 ? "s" : ""}
                                     {category !== "all" || search ? " found" : " available"}
                                 </span>
                                 <span className="text-[10px] text-muted-foreground/60">
@@ -711,13 +777,18 @@ export function CreateDockerContainer({ onSuccess }: { onSuccess: (result: any) 
                                     >
                                         <div
                                             className="w-9 h-9 rounded-lg flex items-center justify-center text-lg flex-shrink-0 transition-transform group-hover:scale-110"
-                                            style={{ background: `${tpl.color}18`, border: `1px solid ${tpl.color}30` }}
+                                            style={{
+                                                background: `${tpl.color}18`,
+                                                border: `1px solid ${tpl.color}30`,
+                                            }}
                                         >
                                             {tpl.icon}
                                         </div>
                                         <div className="min-w-0">
                                             <div className="flex items-center gap-1.5 mb-0.5">
-                                                <span className="text-sm font-semibold text-foreground">{tpl.name}</span>
+                                                <span className="text-sm font-semibold text-foreground">
+                                                    {tpl.name}
+                                                </span>
                                                 <Badge
                                                     variant="outline"
                                                     className="text-[9px] px-1 py-0 border-zinc-700 text-zinc-500"
@@ -757,7 +828,10 @@ export function CreateDockerContainer({ onSuccess }: { onSuccess: (result: any) 
                 <div className="space-y-4">
                     <div
                         className="flex items-center gap-3 p-3 rounded-xl border"
-                        style={{ borderColor: `${selectedTemplate.color}40`, background: `${selectedTemplate.color}08` }}
+                        style={{
+                            borderColor: `${selectedTemplate.color}40`,
+                            background: `${selectedTemplate.color}08`,
+                        }}
                     >
                         <div
                             className="w-10 h-10 rounded-lg flex items-center justify-center text-xl"
@@ -767,16 +841,33 @@ export function CreateDockerContainer({ onSuccess }: { onSuccess: (result: any) 
                         </div>
                         <div>
                             <div className="font-semibold text-sm">{selectedTemplate.name}</div>
-                            <div className="text-[11px] text-muted-foreground">{selectedTemplate.description}</div>
+                            <div className="text-[11px] text-muted-foreground">
+                                {selectedTemplate.description}
+                            </div>
                         </div>
                     </div>
 
                     <div className="grid grid-cols-3 gap-2">
                         {(["quick", "compose", "dockerfile"] as CreationMode[]).map((m) => {
-                            const labels: Record<CreationMode, { label: string; icon: React.ReactNode; desc: string }> = {
-                                quick: { label: "Quick Run", icon: <Play className="w-3.5 h-3.5" />, desc: "docker run" },
-                                compose: { label: "Compose", icon: <Layers className="w-3.5 h-3.5" />, desc: "docker-compose.yml" },
-                                dockerfile: { label: "Dockerfile", icon: <FileCode2 className="w-3.5 h-3.5" />, desc: "Build custom image" },
+                            const labels: Record<
+                                CreationMode,
+                                { label: string; icon: React.ReactNode; desc: string }
+                            > = {
+                                quick: {
+                                    label: "Quick Run",
+                                    icon: <Play className="w-3.5 h-3.5" />,
+                                    desc: "docker run",
+                                },
+                                compose: {
+                                    label: "Compose",
+                                    icon: <Layers className="w-3.5 h-3.5" />,
+                                    desc: "docker-compose.yml",
+                                },
+                                dockerfile: {
+                                    label: "Dockerfile",
+                                    icon: <FileCode2 className="w-3.5 h-3.5" />,
+                                    desc: "Build custom image",
+                                },
                             };
                             const info = labels[m];
                             return (
@@ -790,11 +881,20 @@ export function CreateDockerContainer({ onSuccess }: { onSuccess: (result: any) 
                                             : "border-border hover:bg-muted/40"
                                     )}
                                 >
-                                    <div className={cn("w-7 h-7 rounded-lg flex items-center justify-center", mode === m ? "bg-blue-500 text-white" : "bg-muted text-muted-foreground")}>
+                                    <div
+                                        className={cn(
+                                            "w-7 h-7 rounded-lg flex items-center justify-center",
+                                            mode === m
+                                                ? "bg-blue-500 text-white"
+                                                : "bg-muted text-muted-foreground"
+                                        )}
+                                    >
                                         {info.icon}
                                     </div>
                                     <span className="text-xs font-semibold">{info.label}</span>
-                                    <span className="text-[10px] text-muted-foreground">{info.desc}</span>
+                                    <span className="text-[10px] text-muted-foreground">
+                                        {info.desc}
+                                    </span>
                                 </button>
                             );
                         })}
@@ -912,31 +1012,51 @@ export function CreateDockerContainer({ onSuccess }: { onSuccess: (result: any) 
                             </div>
                             <div className="space-y-2">
                                 {envEntries.map((env, i) => {
-                                    const tplEnv = selectedTemplate.envVars.find((e) => e.key === env.key);
+                                    const tplEnv = selectedTemplate.envVars.find(
+                                        (e) => e.key === env.key
+                                    );
                                     return (
                                         <div key={i} className="flex gap-2 items-start">
                                             <div className="flex-1 grid grid-cols-2 gap-2">
                                                 <Input
                                                     value={env.key}
-                                                    onChange={(e) => updateEnv(i, "key", e.target.value)}
+                                                    onChange={(e) =>
+                                                        updateEnv(i, "key", e.target.value)
+                                                    }
                                                     placeholder="KEY"
                                                     className="font-mono text-xs h-8"
                                                     readOnly={!!tplEnv}
                                                 />
                                                 <div className="relative">
                                                     <Input
-                                                        type={env.secret && !env.showValue ? "password" : "text"}
+                                                        type={
+                                                            env.secret && !env.showValue
+                                                                ? "password"
+                                                                : "text"
+                                                        }
                                                         value={env.value}
-                                                        onChange={(e) => updateEnv(i, "value", e.target.value)}
+                                                        onChange={(e) =>
+                                                            updateEnv(i, "value", e.target.value)
+                                                        }
                                                         placeholder={tplEnv?.label ?? "value"}
                                                         className="font-mono text-xs h-8 pr-8"
                                                     />
                                                     {env.secret && (
                                                         <button
-                                                            onClick={() => updateEnv(i, "showValue", !env.showValue)}
+                                                            onClick={() =>
+                                                                updateEnv(
+                                                                    i,
+                                                                    "showValue",
+                                                                    !env.showValue
+                                                                )
+                                                            }
                                                             className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
                                                         >
-                                                            {env.showValue ? <EyeOff className="w-3 h-3" /> : <Eye className="w-3 h-3" />}
+                                                            {env.showValue ? (
+                                                                <EyeOff className="w-3 h-3" />
+                                                            ) : (
+                                                                <Eye className="w-3 h-3" />
+                                                            )}
                                                         </button>
                                                     )}
                                                 </div>
@@ -983,7 +1103,11 @@ export function CreateDockerContainer({ onSuccess }: { onSuccess: (result: any) 
                                 <Input
                                     value={v.host}
                                     onChange={(e) =>
-                                        setVolumes((prev) => prev.map((vol, idx) => idx === i ? { ...vol, host: e.target.value } : vol))
+                                        setVolumes((prev) =>
+                                            prev.map((vol, idx) =>
+                                                idx === i ? { ...vol, host: e.target.value } : vol
+                                            )
+                                        )
                                     }
                                     placeholder="host path / volume name"
                                     className="font-mono text-xs h-8"
@@ -992,12 +1116,21 @@ export function CreateDockerContainer({ onSuccess }: { onSuccess: (result: any) 
                                 <Input
                                     value={v.container}
                                     onChange={(e) =>
-                                        setVolumes((prev) => prev.map((vol, idx) => idx === i ? { ...vol, container: e.target.value } : vol))
+                                        setVolumes((prev) =>
+                                            prev.map((vol, idx) =>
+                                                idx === i
+                                                    ? { ...vol, container: e.target.value }
+                                                    : vol
+                                            )
+                                        )
                                     }
                                     placeholder="/container/path"
                                     className="font-mono text-xs h-8"
                                 />
-                                <button onClick={() => removeVolume(i)} className="text-red-500 hover:text-red-400">
+                                <button
+                                    onClick={() => removeVolume(i)}
+                                    className="text-red-500 hover:text-red-400"
+                                >
                                     <Trash2 className="w-3.5 h-3.5" />
                                 </button>
                             </div>
@@ -1031,8 +1164,14 @@ export function CreateDockerContainer({ onSuccess }: { onSuccess: (result: any) 
                                 docker run -d --name {containerName} --restart {restartPolicy} -p{" "}
                                 {hostPort}:{selectedTemplate.containerPort}{" "}
                                 {memoryLimit && `--memory ${memoryLimit} `}
-                                {envEntries.filter((e) => e.key && e.value).map((e) => `-e ${e.key}=*** `).join("")}
-                                {volumes.filter((v) => v.host && v.container).map((v) => `-v ${v.host}:${v.container} `).join("")}
+                                {envEntries
+                                    .filter((e) => e.key && e.value)
+                                    .map((e) => `-e ${e.key}=*** `)
+                                    .join("")}
+                                {volumes
+                                    .filter((v) => v.host && v.container)
+                                    .map((v) => `-v ${v.host}:${v.container} `)
+                                    .join("")}
                                 {customImage || selectedTemplate.image}:{selectedTag}
                             </code>
                         </div>

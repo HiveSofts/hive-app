@@ -1,4 +1,9 @@
 import { cn } from "@/core/lib/utils";
+
+import { useEffect, useState } from "react";
+// Fix the hooks issue by properly referencing React
+import React, { useRef } from "react";
+
 import {
     Activity,
     Box,
@@ -11,6 +16,7 @@ import {
     Monitor,
     MoreVertical,
     Play,
+    Plus,
     RefreshCw,
     RotateCcw,
     Square,
@@ -19,15 +25,15 @@ import {
     TrendingUp,
     Wifi,
     WifiOff,
-    Plus,
 } from "lucide-react";
-import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+
 import { useDocker } from "./hooks/useDocker";
-import { ContainerInfo } from "./services/types";
 import * as dockerService from "./services/docker.service";
+import { ContainerInfo } from "./services/types";
 
 interface ContainerCardProps {
     container: ContainerInfo;
@@ -41,21 +47,47 @@ interface ContainerCardProps {
 
 function ContainerStateTag({ state }: { state: string }) {
     const cfg: Record<string, { cls: string; dot: string; label: string }> = {
-        running:  { cls: "bg-emerald-500/10 text-emerald-600 border-emerald-500/20", dot: "bg-emerald-500 animate-pulse", label: "running" },
-        exited:   { cls: "bg-zinc-500/10 text-zinc-500 border-zinc-500/20",          dot: "bg-zinc-400",                  label: "stopped" },
-        paused:   { cls: "bg-amber-500/10 text-amber-600 border-amber-500/20",       dot: "bg-amber-500",                 label: "paused" },
-        created:  { cls: "bg-blue-500/10 text-blue-600 border-blue-500/20",          dot: "bg-blue-500",                  label: "created" },
+        running: {
+            cls: "bg-emerald-500/10 text-emerald-600 border-emerald-500/20",
+            dot: "bg-emerald-500 animate-pulse",
+            label: "running",
+        },
+        exited: {
+            cls: "bg-zinc-500/10 text-zinc-500 border-zinc-500/20",
+            dot: "bg-zinc-400",
+            label: "stopped",
+        },
+        paused: {
+            cls: "bg-amber-500/10 text-amber-600 border-amber-500/20",
+            dot: "bg-amber-500",
+            label: "paused",
+        },
+        created: {
+            cls: "bg-blue-500/10 text-blue-600 border-blue-500/20",
+            dot: "bg-blue-500",
+            label: "created",
+        },
     };
     const { cls, dot, label } = cfg[state] ?? cfg.exited;
     return (
-        <span className={`inline-flex items-center gap-1.5 text-[10px] font-medium px-2 py-0.5 rounded-full border ${cls}`}>
+        <span
+            className={`inline-flex items-center gap-1.5 text-[10px] font-medium px-2 py-0.5 rounded-full border ${cls}`}
+        >
             <span className={`w-1.5 h-1.5 rounded-full ${dot}`} />
             {label}
         </span>
     );
 }
 
-function ContainerRow({ container, onStart, onStop, onRestart, onRemove, onLogs, onShell }: ContainerCardProps) {
+function ContainerRow({
+    container,
+    onStart,
+    onStop,
+    onRestart,
+    onRemove,
+    onLogs,
+    onShell,
+}: ContainerCardProps) {
     const navigate = useNavigate();
     const [busy, setBusy] = useState<string | null>(null);
     const [showMenu, setShowMenu] = useState(false);
@@ -67,7 +99,12 @@ function ContainerRow({ container, onStart, onStop, onRestart, onRemove, onLogs,
 
     const act = async (label: string, fn: () => Promise<unknown>) => {
         setBusy(label);
-        try { await fn(); } finally { setBusy(null); setShowMenu(false); }
+        try {
+            await fn();
+        } finally {
+            setBusy(null);
+            setShowMenu(false);
+        }
     };
 
     useEffect(() => {
@@ -76,7 +113,9 @@ function ContainerRow({ container, onStart, onStop, onRestart, onRemove, onLogs,
             try {
                 const s = await dockerService.getContainerStats(container.name);
                 setStats({ cpu: s.cpu, mem: s.memory });
-            } catch { /* ignore */ }
+            } catch {
+                /* ignore */
+            }
         };
         load();
         const id = setInterval(load, 8000);
@@ -90,27 +129,28 @@ function ContainerRow({ container, onStart, onStop, onRestart, onRemove, onLogs,
     };
 
     return (
-        <div className={cn(
-            "group flex items-center gap-3 px-4 py-3 border-b border-border/50 hover:bg-muted/30 transition-colors cursor-pointer",
-            confirmRemove && "bg-red-500/5"
-        )}>
-            <div 
+        <div
+            className={cn(
+                "group flex items-center gap-3 px-4 py-3 border-b border-border/50 hover:bg-muted/30 transition-colors cursor-pointer",
+                confirmRemove && "bg-red-500/5"
+            )}
+        >
+            <div
                 className="w-8 h-8 rounded-lg bg-muted/60 border flex items-center justify-center text-base shrink-0 font-mono text-muted-foreground select-none hover:bg-muted/80 transition-colors"
                 onClick={handleNavigate}
             >
                 {imgName.slice(0, 2).toUpperCase()}
             </div>
 
-            <div 
-                className="flex-1 min-w-0"
-                onClick={handleNavigate}
-            >
+            <div className="flex-1 min-w-0" onClick={handleNavigate}>
                 <div className="flex items-center gap-2">
                     <span className="text-sm font-medium truncate">{container.name}</span>
                     <ContainerStateTag state={container.state} />
                 </div>
                 <div className="flex items-center gap-3 mt-0.5">
-                    <span className="text-[11px] text-muted-foreground font-mono truncate">{container.image}</span>
+                    <span className="text-[11px] text-muted-foreground font-mono truncate">
+                        {container.image}
+                    </span>
                     {port && (
                         <span className="text-[11px] text-muted-foreground shrink-0">:{port}</span>
                     )}
@@ -130,7 +170,10 @@ function ContainerRow({ container, onStart, onStop, onRestart, onRemove, onLogs,
                 </div>
             )}
 
-            <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity" onClick={(e) => e.stopPropagation()}>
+            <div
+                className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                onClick={(e) => e.stopPropagation()}
+            >
                 {isRunning ? (
                     <button
                         onClick={() => act("stop", () => onStop(container.name))}
@@ -138,7 +181,11 @@ function ContainerRow({ container, onStart, onStop, onRestart, onRemove, onLogs,
                         className="p-1.5 rounded-md hover:bg-red-500/10 text-muted-foreground hover:text-red-500 transition-colors disabled:opacity-40"
                         title="Stop"
                     >
-                        {busy === "stop" ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Square className="w-3.5 h-3.5" />}
+                        {busy === "stop" ? (
+                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        ) : (
+                            <Square className="w-3.5 h-3.5" />
+                        )}
                     </button>
                 ) : (
                     <button
@@ -147,7 +194,11 @@ function ContainerRow({ container, onStart, onStop, onRestart, onRemove, onLogs,
                         className="p-1.5 rounded-md hover:bg-emerald-500/10 text-muted-foreground hover:text-emerald-500 transition-colors disabled:opacity-40"
                         title="Start"
                     >
-                        {busy === "start" ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Play className="w-3.5 h-3.5" />}
+                        {busy === "start" ? (
+                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        ) : (
+                            <Play className="w-3.5 h-3.5" />
+                        )}
                     </button>
                 )}
                 <button
@@ -156,7 +207,11 @@ function ContainerRow({ container, onStart, onStop, onRestart, onRemove, onLogs,
                     className="p-1.5 rounded-md hover:bg-amber-500/10 text-muted-foreground hover:text-amber-500 transition-colors disabled:opacity-40"
                     title="Restart"
                 >
-                    {busy === "restart" ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RotateCcw className="w-3.5 h-3.5" />}
+                    {busy === "restart" ? (
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    ) : (
+                        <RotateCcw className="w-3.5 h-3.5" />
+                    )}
                 </button>
                 <button
                     onClick={() => onLogs(container.name)}
@@ -177,7 +232,10 @@ function ContainerRow({ container, onStart, onStop, onRestart, onRemove, onLogs,
 
                 <div className="relative">
                     <button
-                        onClick={() => { setShowMenu(m => !m); setConfirmRemove(false); }}
+                        onClick={() => {
+                            setShowMenu((m) => !m);
+                            setConfirmRemove(false);
+                        }}
                         className="p-1.5 rounded-md hover:bg-muted text-muted-foreground transition-colors"
                     >
                         <MoreVertical className="w-3.5 h-3.5" />
@@ -194,21 +252,34 @@ function ContainerRow({ container, onStart, onStop, onRestart, onRemove, onLogs,
                                 </button>
                             ) : (
                                 <div className="px-3 py-2 space-y-1.5">
-                                    <p className="text-[11px] text-muted-foreground">Remove container?</p>
+                                    <p className="text-[11px] text-muted-foreground">
+                                        Remove container?
+                                    </p>
                                     <button
-                                        onClick={() => { setShowMenu(false); setConfirmRemove(false); act("remove", () => onRemove(container.name, false)); }}
+                                        onClick={() => {
+                                            setShowMenu(false);
+                                            setConfirmRemove(false);
+                                            act("remove", () => onRemove(container.name, false));
+                                        }}
                                         className="w-full text-[11px] py-1.5 rounded-lg bg-red-500/15 text-red-600 hover:bg-red-500/25 transition-colors"
                                     >
                                         Keep volume data
                                     </button>
                                     <button
-                                        onClick={() => { setShowMenu(false); setConfirmRemove(false); act("remove", () => onRemove(container.name, true)); }}
+                                        onClick={() => {
+                                            setShowMenu(false);
+                                            setConfirmRemove(false);
+                                            act("remove", () => onRemove(container.name, true));
+                                        }}
                                         className="w-full text-[11px] py-1.5 rounded-lg bg-red-500 text-white hover:bg-red-600 transition-colors"
                                     >
                                         Delete everything
                                     </button>
                                     <button
-                                        onClick={() => { setShowMenu(false); setConfirmRemove(false); }}
+                                        onClick={() => {
+                                            setShowMenu(false);
+                                            setConfirmRemove(false);
+                                        }}
                                         className="w-full text-[11px] py-1 text-muted-foreground hover:text-foreground transition-colors"
                                     >
                                         Cancel
@@ -244,31 +315,50 @@ function LogsModal({ containerName, onClose }: LogsModalProps) {
         }
     };
 
-    useEffect(() => { fetch(); }, [containerName]);
-    useEffect(() => { bottomRef?.current?.scrollIntoView({ behavior: "smooth" }); }, [logs]);
+    useEffect(() => {
+        fetch();
+    }, [containerName]);
+    useEffect(() => {
+        bottomRef?.current?.scrollIntoView({ behavior: "smooth" });
+    }, [logs]);
 
     const getColor = (line: string) => {
         const l = line.toLowerCase();
         if (l.includes("error") || l.includes("fatal") || l.includes("err ")) return "text-red-400";
         if (l.includes("warn")) return "text-amber-400";
-        if (l.includes("ready") || l.includes("started") || l.includes("success") || l.includes("✓")) return "text-emerald-400";
+        if (
+            l.includes("ready") ||
+            l.includes("started") ||
+            l.includes("success") ||
+            l.includes("✓")
+        )
+            return "text-emerald-400";
         if (l.includes("info")) return "text-blue-400";
         return "text-zinc-400";
     };
 
-    const filtered = filter ? logs.filter(l => l.toLowerCase().includes(filter.toLowerCase())) : logs;
+    const filtered = filter
+        ? logs.filter((l) => l.toLowerCase().includes(filter.toLowerCase()))
+        : logs;
 
     return (
-        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/70 backdrop-blur-sm" onClick={onClose}>
+        <div
+            className="fixed inset-0 z-50 flex items-end justify-center bg-black/70 backdrop-blur-sm"
+            onClick={onClose}
+        >
             <div
                 className="bg-zinc-950 border border-zinc-800 rounded-t-2xl w-full max-w-4xl shadow-2xl overflow-hidden flex flex-col"
                 style={{ height: "70vh" }}
-                onClick={e => e.stopPropagation()}
+                onClick={(e) => e.stopPropagation()}
             >
                 <div className="flex items-center justify-between px-4 py-3 border-b border-zinc-800 bg-zinc-900/80">
                     <div className="flex items-center gap-2">
                         <div className="flex gap-1.5">
-                            <span className="w-3 h-3 rounded-full bg-red-500/80" onClick={onClose} style={{ cursor: "pointer" }} />
+                            <span
+                                className="w-3 h-3 rounded-full bg-red-500/80"
+                                onClick={onClose}
+                                style={{ cursor: "pointer" }}
+                            />
                             <span className="w-3 h-3 rounded-full bg-amber-500/80" />
                             <span className="w-3 h-3 rounded-full bg-emerald-500/80" />
                         </div>
@@ -279,7 +369,7 @@ function LogsModal({ containerName, onClose }: LogsModalProps) {
                     <div className="flex items-center gap-2">
                         <input
                             value={filter}
-                            onChange={e => setFilter(e.target.value)}
+                            onChange={(e) => setFilter(e.target.value)}
                             placeholder="Filter logs..."
                             className="h-6 text-xs bg-zinc-800 border border-zinc-700 rounded-md px-2 text-zinc-300 placeholder:text-zinc-600 w-36 focus:outline-none focus:border-zinc-500"
                         />
@@ -304,8 +394,13 @@ function LogsModal({ containerName, onClose }: LogsModalProps) {
                         </div>
                     ) : (
                         filtered.map((line, i) => (
-                            <div key={i} className={`flex gap-3 hover:bg-zinc-900/60 px-1 rounded ${getColor(line)}`}>
-                                <span className="text-zinc-700 select-none shrink-0 w-8 text-right">{i + 1}</span>
+                            <div
+                                key={i}
+                                className={`flex gap-3 hover:bg-zinc-900/60 px-1 rounded ${getColor(line)}`}
+                            >
+                                <span className="text-zinc-700 select-none shrink-0 w-8 text-right">
+                                    {i + 1}
+                                </span>
                                 <span className="break-all">{line}</span>
                             </div>
                         ))
@@ -332,21 +427,25 @@ function ShellModal({ container, onClose }: ShellModalProps) {
     const inputEl = useRef<HTMLInputElement>(null);
     const endEl = useRef<HTMLDivElement>(null);
 
-    useEffect(() => { endEl?.current?.scrollIntoView({ behavior: "smooth" }); }, [history]);
-    useEffect(() => { inputEl?.current?.focus(); }, []);
+    useEffect(() => {
+        endEl?.current?.scrollIntoView({ behavior: "smooth" });
+    }, [history]);
+    useEffect(() => {
+        inputEl?.current?.focus();
+    }, []);
 
     const run = async () => {
         if (!input.trim() || running) return;
         const cmd = input.trim();
         setInput("");
         setRunning(true);
-        setCmdHistory(h => [cmd, ...h.slice(0, 49)]);
+        setCmdHistory((h) => [cmd, ...h.slice(0, 49)]);
         setHistoryIdx(-1);
         try {
             const out = await dockerService.execInContainer(container.name, cmd);
-            setHistory(h => [...h, { cmd, out, err: false }]);
+            setHistory((h) => [...h, { cmd, out, err: false }]);
         } catch (e: unknown) {
-            setHistory(h => [...h, { cmd, out: String(e), err: true }]);
+            setHistory((h) => [...h, { cmd, out: String(e), err: true }]);
         } finally {
             setRunning(false);
             setTimeout(() => inputEl?.current?.focus(), 50);
@@ -354,7 +453,10 @@ function ShellModal({ container, onClose }: ShellModalProps) {
     };
 
     const onKeyDown = (e: React.KeyboardEvent) => {
-        if (e.key === "Enter") { run(); return; }
+        if (e.key === "Enter") {
+            run();
+            return;
+        }
         if (e.key === "ArrowUp") {
             const idx = Math.min(historyIdx + 1, cmdHistory.length - 1);
             setHistoryIdx(idx);
@@ -370,23 +472,32 @@ function ShellModal({ container, onClose }: ShellModalProps) {
     };
 
     return (
-        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/70 backdrop-blur-sm" onClick={onClose}>
+        <div
+            className="fixed inset-0 z-50 flex items-end justify-center bg-black/70 backdrop-blur-sm"
+            onClick={onClose}
+        >
             <div
                 className="bg-zinc-950 border border-zinc-800 rounded-t-2xl w-full max-w-4xl shadow-2xl overflow-hidden flex flex-col"
                 style={{ height: "70vh" }}
-                onClick={e => e.stopPropagation()}
+                onClick={(e) => e.stopPropagation()}
             >
                 <div className="flex items-center justify-between px-4 py-3 border-b border-zinc-800 bg-zinc-900/80">
                     <div className="flex items-center gap-2">
                         <div className="flex gap-1.5">
-                            <span className="w-3 h-3 rounded-full bg-red-500/80 cursor-pointer" onClick={onClose} />
+                            <span
+                                className="w-3 h-3 rounded-full bg-red-500/80 cursor-pointer"
+                                onClick={onClose}
+                            />
                             <span className="w-3 h-3 rounded-full bg-amber-500/80" />
                             <span className="w-3 h-3 rounded-full bg-emerald-500/80" />
                         </div>
                         <Monitor className="w-3.5 h-3.5 text-zinc-500 ml-2" />
                         <span className="font-mono text-sm text-zinc-300">{container.name}</span>
                         <span className="text-xs text-zinc-600">— shell</span>
-                        <Badge variant="outline" className="text-[10px] border-emerald-500/30 text-emerald-500 ml-1">
+                        <Badge
+                            variant="outline"
+                            className="text-[10px] border-emerald-500/30 text-emerald-500 ml-1"
+                        >
                             exec
                         </Badge>
                     </div>
@@ -395,7 +506,8 @@ function ShellModal({ container, onClose }: ShellModalProps) {
 
                 <div className="flex-1 overflow-y-auto p-4 font-mono text-[12px] leading-relaxed">
                     <div className="text-zinc-600 mb-3 text-[11px]">
-                        Connected to <span className="text-emerald-500">{container.name}</span> — type commands below
+                        Connected to <span className="text-emerald-500">{container.name}</span> —
+                        type commands below
                     </div>
                     {history.map((h, i) => (
                         <div key={i} className="mb-3">
@@ -404,7 +516,9 @@ function ShellModal({ container, onClose }: ShellModalProps) {
                                 <span className="text-zinc-200">{h.cmd}</span>
                             </div>
                             {h.out && (
-                                <pre className={`pl-5 mt-1 whitespace-pre-wrap break-all text-[11px] ${h.err ? "text-red-400" : "text-zinc-400"}`}>
+                                <pre
+                                    className={`pl-5 mt-1 whitespace-pre-wrap break-all text-[11px] ${h.err ? "text-red-400" : "text-zinc-400"}`}
+                                >
                                     {h.out}
                                 </pre>
                             )}
@@ -418,7 +532,7 @@ function ShellModal({ container, onClose }: ShellModalProps) {
                     <input
                         ref={inputEl}
                         value={input}
-                        onChange={e => setInput(e.target.value)}
+                        onChange={(e) => setInput(e.target.value)}
                         onKeyDown={onKeyDown}
                         placeholder="Type a command..."
                         className="flex-1 bg-transparent font-mono text-sm text-zinc-200 placeholder:text-zinc-700 focus:outline-none"
@@ -430,9 +544,6 @@ function ShellModal({ container, onClose }: ShellModalProps) {
         </div>
     );
 }
-
-// Fix the hooks issue by properly referencing React
-import React, { useRef } from "react";
 
 export default function DockerManagerPage() {
     const navigate = useNavigate();
@@ -483,7 +594,7 @@ export default function DockerManagerPage() {
         );
     }
 
-    const displayContainers = allContainers.filter(c => {
+    const displayContainers = allContainers.filter((c) => {
         if (filter === "running") return c.state === "running";
         if (filter === "stopped") return c.state !== "running";
         return true;
@@ -505,8 +616,8 @@ export default function DockerManagerPage() {
                     </div>
                 </div>
                 <div className="flex items-center gap-2">
-                    <Button 
-                        size="sm" 
+                    <Button
+                        size="sm"
                         className="gap-1.5 text-xs h-8 bg-blue-500 hover:bg-blue-600 text-white"
                         onClick={() => navigate("/projects/new")}
                     >
@@ -514,20 +625,28 @@ export default function DockerManagerPage() {
                         Create Container
                     </Button>
                     <div className="flex items-center gap-1 p-0.5 bg-muted/50 rounded-lg border">
-                        {(["all", "running", "stopped"] as const).map(f => (
+                        {(["all", "running", "stopped"] as const).map((f) => (
                             <button
                                 key={f}
                                 onClick={() => setFilter(f)}
                                 className={cn(
                                     "px-3 py-1 text-xs rounded-md transition-colors capitalize",
-                                    filter === f ? "bg-background shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground"
+                                    filter === f
+                                        ? "bg-background shadow-sm text-foreground"
+                                        : "text-muted-foreground hover:text-foreground"
                                 )}
                             >
                                 {f}
                             </button>
                         ))}
                     </div>
-                    <Button size="sm" variant="outline" className="gap-1.5 text-xs h-8" onClick={refresh} disabled={refreshing}>
+                    <Button
+                        size="sm"
+                        variant="outline"
+                        className="gap-1.5 text-xs h-8"
+                        onClick={refresh}
+                        disabled={refreshing}
+                    >
                         <RefreshCw className={cn("w-3.5 h-3.5", refreshing && "animate-spin")} />
                         Refresh
                     </Button>
@@ -537,13 +656,36 @@ export default function DockerManagerPage() {
             {/* Stats bar */}
             <div className="shrink-0 grid grid-cols-4 gap-0 border-b">
                 {[
-                    { icon: <Wifi className="w-3.5 h-3.5 text-emerald-500" />, label: "Daemon", value: "Active", color: "text-emerald-600" },
-                    { icon: <Container className="w-3.5 h-3.5 text-blue-500" />, label: "Total", value: `${allContainers.length} containers`, color: "text-foreground" },
-                    { icon: <Activity className="w-3.5 h-3.5 text-emerald-500" />, label: "Running", value: `${runningCount} active`, color: "text-emerald-600" },
-                    { icon: <Database className="w-3.5 h-3.5 text-amber-500" />, label: "Databases", value: `${dbRunning}/${containers.length}`, color: "text-foreground" },
+                    {
+                        icon: <Wifi className="w-3.5 h-3.5 text-emerald-500" />,
+                        label: "Daemon",
+                        value: "Active",
+                        color: "text-emerald-600",
+                    },
+                    {
+                        icon: <Container className="w-3.5 h-3.5 text-blue-500" />,
+                        label: "Total",
+                        value: `${allContainers.length} containers`,
+                        color: "text-foreground",
+                    },
+                    {
+                        icon: <Activity className="w-3.5 h-3.5 text-emerald-500" />,
+                        label: "Running",
+                        value: `${runningCount} active`,
+                        color: "text-emerald-600",
+                    },
+                    {
+                        icon: <Database className="w-3.5 h-3.5 text-amber-500" />,
+                        label: "Databases",
+                        value: `${dbRunning}/${containers.length}`,
+                        color: "text-foreground",
+                    },
                 ].map((s, i) => (
                     <div key={i} className={cn("px-4 py-3", i < 3 && "border-r")}>
-                        <div className="flex items-center gap-1.5 mb-1">{s.icon}<span className="text-[11px] text-muted-foreground">{s.label}</span></div>
+                        <div className="flex items-center gap-1.5 mb-1">
+                            {s.icon}
+                            <span className="text-[11px] text-muted-foreground">{s.label}</span>
+                        </div>
                         <span className={`text-xs font-medium ${s.color}`}>{s.value}</span>
                     </div>
                 ))}
@@ -556,11 +698,13 @@ export default function DockerManagerPage() {
                         <Container className="w-10 h-10 text-muted-foreground/30 mb-3" />
                         <p className="text-sm text-muted-foreground">No containers found</p>
                         <p className="text-xs text-muted-foreground/60 mt-1">
-                            {filter !== "all" ? `No ${filter} containers` : "Pull an image or use Docker Apps to deploy"}
+                            {filter !== "all"
+                                ? `No ${filter} containers`
+                                : "Pull an image or use Docker Apps to deploy"}
                         </p>
                     </div>
                 ) : (
-                    displayContainers.map(c => (
+                    displayContainers.map((c) => (
                         <ContainerRow
                             key={c.id}
                             container={c}
@@ -590,7 +734,9 @@ export default function DockerManagerPage() {
             )}
 
             {logsName && <LogsModal containerName={logsName} onClose={() => setLogsName(null)} />}
-            {shellContainer && <ShellModal container={shellContainer} onClose={() => setShellContainer(null)} />}
+            {shellContainer && (
+                <ShellModal container={shellContainer} onClose={() => setShellContainer(null)} />
+            )}
         </div>
     );
 }
