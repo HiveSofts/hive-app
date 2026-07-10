@@ -54,6 +54,7 @@ pub fn run() {
             list_all_projects,
             remove_project,
             get_existing_projects,
+            check_project_exists,
             check_package_manager,
             install_package_manager,
             create_laravel_project,
