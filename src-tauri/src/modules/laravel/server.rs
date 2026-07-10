@@ -1,4 +1,3 @@
-// src-tauri/src/modules/laravel/server.rs
 use std::collections::HashMap;
 use std::fs::{self, File, OpenOptions};
 use std::io::{BufRead, BufReader, Write};
@@ -158,8 +157,38 @@ pub async fn start_laravel_project(project_path: String) -> Result<ServerStatus,
         let _ = writeln!(f, "[{ts}] === Server starting on port {port} ===");
     }
 
-    let mut child = Command::new("php")
-        .args(["artisan", "serve", "--port", &port.to_string()])
+    let composer_path = {
+        let home = std::env::var("HOME").unwrap_or_else(|_| ".".to_string());
+        PathBuf::from(home).join(".hive").join("bin").join("composer")
+    };
+
+    let composer_json_path = PathBuf::from(&project_path).join("composer.json");
+    if composer_json_path.exists() {
+        let content = fs::read_to_string(&composer_json_path).map_err(|e| e.to_string())?;
+        let mut json: serde_json::Value = serde_json::from_str(&content).map_err(|e| e.to_string())?;
+        let has_dev = json
+            .get("scripts")
+            .and_then(|s| s.get("dev"))
+            .is_some();
+        if !has_dev {
+            let scripts = json
+                .get_mut("scripts")
+                .and_then(|s| s.as_object_mut());
+            if let Some(scripts_map) = scripts {
+                scripts_map.insert(
+                    "dev".to_string(),
+                    serde_json::json!([
+                        "Composer\\Config::disableProcessTimeout",
+                        "npx concurrently -c \"#93c5fd,#c4b5fd,#fb7185,#fdba74\" \"php artisan serve\" \"php artisan queue:listen --tries=1 --timeout=0\" \"php artisan pail --timeout=0\" \"npm run dev\" --names=server,queue,logs,vite --kill-others"
+                    ]),
+                );
+                fs::write(&composer_json_path, serde_json::to_string_pretty(&json).map_err(|e| e.to_string())?).map_err(|e| e.to_string())?;
+            }
+        }
+    }
+
+    let mut child = Command::new(&composer_path)
+        .args(["run", "dev"])
         .current_dir(&project_path)
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
@@ -341,6 +370,7 @@ pub async fn clear_server_logs(project_name: String) -> Result<(), String> {
     }
     Ok(())
 }
+
 #[command]
 pub async fn tail_server_logs(project_name: String) -> Result<Vec<String>, String> {
     let path = log_file_path(&project_name);
@@ -355,7 +385,6 @@ pub async fn tail_server_logs(project_name: String) -> Result<Vec<String>, Strin
         .map(|l| l.to_string())
         .collect();
 
-    // Return last 50 lines for tail
     let take = 50;
     let skip = all.len().saturating_sub(take);
     Ok(all[skip..].to_vec())

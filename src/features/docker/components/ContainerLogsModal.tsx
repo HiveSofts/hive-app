@@ -1,9 +1,6 @@
-import { useEffect, useRef, useState } from "react";
-
 import { RefreshCw, Terminal, X } from "lucide-react";
-
+import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
-
 import { getContainerLogs } from "../services/docker.service";
 
 interface Props {
@@ -36,11 +33,9 @@ export function ContainerLogsModal({ containerName, onClose }: Props) {
 
     const getLineColor = (line: string) => {
         const lower = line.toLowerCase();
-        if (lower.includes("error") || lower.includes("fatal") || lower.includes("err"))
-            return "text-red-400";
+        if (lower.includes("error") || lower.includes("fatal") || lower.includes("err")) return "text-red-400";
         if (lower.includes("warn")) return "text-amber-400";
-        if (lower.includes("ready") || lower.includes("started") || lower.includes("success"))
-            return "text-emerald-400";
+        if (lower.includes("ready") || lower.includes("started") || lower.includes("success")) return "text-emerald-400";
         return "text-muted-foreground";
     };
 
@@ -54,13 +49,7 @@ export function ContainerLogsModal({ containerName, onClose }: Props) {
                         <span className="text-xs text-muted-foreground">logs</span>
                     </div>
                     <div className="flex items-center gap-2">
-                        <Button
-                            size="sm"
-                            variant="ghost"
-                            className="h-7 w-7 p-0"
-                            onClick={fetchLogs}
-                            disabled={loading}
-                        >
+                        <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={fetchLogs} disabled={loading}>
                             <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} />
                         </Button>
                         <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={onClose}>
@@ -82,9 +71,7 @@ export function ContainerLogsModal({ containerName, onClose }: Props) {
                     ) : (
                         logs.map((line, i) => (
                             <div key={i} className={`leading-relaxed ${getLineColor(line)}`}>
-                                <span className="text-zinc-600 mr-2 select-none">
-                                    {String(i + 1).padStart(3, "0")}
-                                </span>
+                                <span className="text-zinc-600 mr-2 select-none">{String(i + 1).padStart(3, "0")}</span>
                                 {line}
                             </div>
                         ))

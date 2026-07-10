@@ -1,4 +1,4 @@
-use rusqlite::{params, Connection, Result};
+use rusqlite::{Connection, Result, params};
 
 mod v1_server_processes;
 mod v2_session_id;

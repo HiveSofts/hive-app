@@ -1,8 +1,8 @@
 use super::cloudflared::cloudflared_bin_path;
 use super::db::{
-    tunnel_config_get, tunnel_session_create, tunnel_session_get, tunnel_session_get_active,
-    tunnel_session_get_all_active, tunnel_session_history, tunnel_session_set_error,
-    tunnel_session_set_url, tunnel_session_stop, TunnelSession,
+    TunnelSession, tunnel_config_get, tunnel_session_create, tunnel_session_get,
+    tunnel_session_get_active, tunnel_session_get_all_active, tunnel_session_history,
+    tunnel_session_set_error, tunnel_session_set_url, tunnel_session_stop,
 };
 use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};

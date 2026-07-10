@@ -21,6 +21,76 @@ pub struct PortMapping {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ContainerDetails {
+    pub id: String,
+    pub name: String,
+    pub image: String,
+    pub image_id: String,
+    pub status: String,
+    pub state: String,
+    pub created: String,
+    pub started_at: String,
+    pub finished_at: String,
+    pub restart_count: u32,
+    pub restart_policy: String,
+    pub platform: String,
+    pub ports: Vec<PortMapping>,
+    pub env_vars: Vec<String>,
+    pub labels: Vec<LabelEntry>,
+    pub mounts: Vec<MountInfo>,
+    pub networks: Vec<NetworkInfo>,
+    pub cpu_shares: u64,
+    pub memory_limit: u64,
+    pub memory_swap: i64,
+    pub hostname: String,
+    pub ip_address: String,
+    pub cmd: Vec<String>,
+    pub entrypoint: Vec<String>,
+    pub working_dir: String,
+    pub user: String,
+    pub privileged: bool,
+    pub pid: u64,
+    pub size_rw: Option<i64>,
+    pub size_root_fs: Option<i64>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct LabelEntry {
+    pub key: String,
+    pub value: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct MountInfo {
+    pub mount_type: String,
+    pub source: String,
+    pub destination: String,
+    pub mode: String,
+    pub rw: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct NetworkInfo {
+    pub name: String,
+    pub ip_address: String,
+    pub mac_address: String,
+    pub gateway: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ContainerStats {
+    pub cpu: String,
+    pub memory: String,
+    pub memperc: String,
+    pub net: String,
+    pub block: String,
+    pub pids: String,
+    pub cpu_raw: f64,
+    pub mem_used_mb: f64,
+    pub mem_limit_mb: f64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CreateDatabaseContainerRequest {
     pub db_type: String,
     pub container_name: String,
@@ -47,6 +117,88 @@ pub struct CreateContainerResult {
     pub database: String,
     pub username: String,
     pub error: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ImageInfo {
+    pub id: String,
+    pub repository: String,
+    pub tag: String,
+    pub created: String,
+    pub size: String,
+    pub digest: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct NetworkDetail {
+    pub id: String,
+    pub name: String,
+    pub driver: String,
+    pub scope: String,
+    pub ipam_subnet: String,
+    pub ipam_gateway: String,
+    pub containers_count: u32,
+    pub internal: bool,
+    pub attachable: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct VolumeInfo {
+    pub name: String,
+    pub driver: String,
+    pub mountpoint: String,
+    pub created: String,
+    pub size: String,
+    pub containers: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SystemInfo {
+    pub containers_total: u32,
+    pub containers_running: u32,
+    pub containers_paused: u32,
+    pub containers_stopped: u32,
+    pub images: u32,
+    pub server_version: String,
+    pub storage_driver: String,
+    pub memory_total: u64,
+    pub cpus: u32,
+    pub os: String,
+    pub kernel_version: String,
+    pub architecture: String,
+    pub disk_usage_images: String,
+    pub disk_usage_containers: String,
+    pub disk_usage_volumes: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ContainerProcess {
+    pub pid: String,
+    pub ppid: String,
+    pub user: String,
+    pub cpu: String,
+    pub mem: String,
+    pub vsz: String,
+    pub rss: String,
+    pub tty: String,
+    pub stat: String,
+    pub start: String,
+    pub time: String,
+    pub cmd: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RenameRequest {
+    pub old_name: String,
+    pub new_name: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct UpdateContainerRequest {
+    pub container_name: String,
+    pub memory_limit: Option<String>,
+    pub cpu_shares: Option<u64>,
+    pub restart_policy: Option<String>,
 }
 
 fn docker_cmd(args: &[&str]) -> Result<String, String> {
@@ -131,6 +283,607 @@ fn parse_ports(ports_str: &str) -> Vec<PortMapping> {
 }
 
 #[tauri::command]
+pub async fn inspect_container(container_name: String) -> Result<ContainerDetails, String> {
+    let fmt = r#"{{.Id}}|||{{.Name}}|||{{.Config.Image}}|||{{.Image}}|||{{.State.Status}}|||{{.State.Status}}|||{{.Created}}|||{{.State.StartedAt}}|||{{.State.FinishedAt}}|||{{.RestartCount}}|||{{.HostConfig.RestartPolicy.Name}}|||{{.Platform}}|||{{.Config.Hostname}}|||{{.HostConfig.CpuShares}}|||{{.HostConfig.Memory}}|||{{.HostConfig.MemorySwap}}|||{{.Config.WorkingDir}}|||{{.Config.User}}|||{{.HostConfig.Privileged}}|||{{.State.Pid}}"#;
+
+    let output = docker_cmd(&["inspect", "--format", fmt, &container_name])?;
+
+    let parts: Vec<&str> = output.splitn(20, "|||").collect();
+
+    let id = parts.get(0).unwrap_or(&"").trim_start_matches('/').to_string();
+    let name = parts.get(1).unwrap_or(&"").trim_start_matches('/').to_string();
+
+    let ip_address = docker_cmd(&[
+        "inspect",
+        "--format",
+        r#"{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}"#,
+        &container_name,
+    ])
+    .unwrap_or_default()
+    .trim()
+    .to_string();
+
+    let env_output = docker_cmd(&[
+        "inspect",
+        "--format",
+        "{{range .Config.Env}}{{.}}\n{{end}}",
+        &container_name,
+    ])
+    .unwrap_or_default();
+    let env_vars: Vec<String> = env_output
+        .lines()
+        .filter(|l| !l.trim().is_empty())
+        .map(|l| l.to_string())
+        .collect();
+
+    let mounts_output = docker_cmd(&[
+        "inspect",
+        "--format",
+        "{{range .Mounts}}{{.Type}}|{{.Source}}|{{.Destination}}|{{.Mode}}|{{.RW}}\n{{end}}",
+        &container_name,
+    ])
+    .unwrap_or_default();
+    let mounts: Vec<MountInfo> = mounts_output
+        .lines()
+        .filter(|l| !l.trim().is_empty())
+        .map(|line| {
+            let p: Vec<&str> = line.splitn(5, '|').collect();
+            MountInfo {
+                mount_type: p.get(0).unwrap_or(&"").to_string(),
+                source: p.get(1).unwrap_or(&"").to_string(),
+                destination: p.get(2).unwrap_or(&"").to_string(),
+                mode: p.get(3).unwrap_or(&"").to_string(),
+                rw: p.get(4).unwrap_or(&"false") == &"true",
+            }
+        })
+        .collect();
+
+    let networks_output = docker_cmd(&[
+        "inspect",
+        "--format",
+        "{{range $k,$v := .NetworkSettings.Networks}}{{$k}}|{{$v.IPAddress}}|{{$v.MacAddress}}|{{$v.Gateway}}\n{{end}}",
+        &container_name,
+    ])
+    .unwrap_or_default();
+    let networks: Vec<NetworkInfo> = networks_output
+        .lines()
+        .filter(|l| !l.trim().is_empty())
+        .map(|line| {
+            let p: Vec<&str> = line.splitn(4, '|').collect();
+            NetworkInfo {
+                name: p.get(0).unwrap_or(&"").to_string(),
+                ip_address: p.get(1).unwrap_or(&"").to_string(),
+                mac_address: p.get(2).unwrap_or(&"").to_string(),
+                gateway: p.get(3).unwrap_or(&"").to_string(),
+            }
+        })
+        .collect();
+
+    let labels_output = docker_cmd(&[
+        "inspect",
+        "--format",
+        "{{range $k,$v := .Config.Labels}}{{$k}}={{$v}}\n{{end}}",
+        &container_name,
+    ])
+    .unwrap_or_default();
+    let labels: Vec<LabelEntry> = labels_output
+        .lines()
+        .filter(|l| !l.trim().is_empty())
+        .map(|line| {
+            if let Some(eq) = line.find('=') {
+                LabelEntry {
+                    key: line[..eq].to_string(),
+                    value: line[eq + 1..].to_string(),
+                }
+            } else {
+                LabelEntry {
+                    key: line.to_string(),
+                    value: String::new(),
+                }
+            }
+        })
+        .collect();
+
+    let ports_output = docker_cmd(&[
+        "inspect",
+        "--format",
+        "{{range $p,$b := .NetworkSettings.Ports}}{{if $b}}{{range $b}}{{.HostPort}}|{{$p}}\n{{end}}{{end}}{{end}}",
+        &container_name,
+    ])
+    .unwrap_or_default();
+    let ports: Vec<PortMapping> = ports_output
+        .lines()
+        .filter(|l| !l.trim().is_empty())
+        .map(|line| {
+            let p: Vec<&str> = line.splitn(2, '|').collect();
+            let host_port: u16 = p.get(0).unwrap_or(&"0").parse().unwrap_or(0);
+            let container_spec = p.get(1).unwrap_or(&"0/tcp");
+            let (container_port, protocol) = if let Some(slash) = container_spec.find('/') {
+                (
+                    container_spec[..slash].parse().unwrap_or(0u16),
+                    container_spec[slash + 1..].to_string(),
+                )
+            } else {
+                (container_spec.parse().unwrap_or(0u16), "tcp".to_string())
+            };
+            PortMapping {
+                host_port,
+                container_port,
+                protocol,
+            }
+        })
+        .collect();
+
+    let cmd_output = docker_cmd(&[
+        "inspect",
+        "--format",
+        "{{range .Config.Cmd}}{{.}}\n{{end}}",
+        &container_name,
+    ])
+    .unwrap_or_default();
+    let cmd: Vec<String> = cmd_output
+        .lines()
+        .filter(|l| !l.trim().is_empty())
+        .map(|l| l.to_string())
+        .collect();
+
+    let ep_output = docker_cmd(&[
+        "inspect",
+        "--format",
+        "{{range .Config.Entrypoint}}{{.}}\n{{end}}",
+        &container_name,
+    ])
+    .unwrap_or_default();
+    let entrypoint: Vec<String> = ep_output
+        .lines()
+        .filter(|l| !l.trim().is_empty())
+        .map(|l| l.to_string())
+        .collect();
+
+    Ok(ContainerDetails {
+        id: id[..12.min(id.len())].to_string(),
+        name,
+        image: parts.get(2).unwrap_or(&"").to_string(),
+        image_id: parts.get(3).unwrap_or(&"").to_string(),
+        status: parts.get(4).unwrap_or(&"").to_string(),
+        state: parts.get(5).unwrap_or(&"").to_string(),
+        created: parts.get(6).unwrap_or(&"").to_string(),
+        started_at: parts.get(7).unwrap_or(&"").to_string(),
+        finished_at: parts.get(8).unwrap_or(&"").to_string(),
+        restart_count: parts.get(9).unwrap_or(&"0").parse().unwrap_or(0),
+        restart_policy: parts.get(10).unwrap_or(&"").to_string(),
+        platform: parts.get(11).unwrap_or(&"").to_string(),
+        hostname: parts.get(12).unwrap_or(&"").to_string(),
+        ip_address,
+        cpu_shares: parts.get(13).unwrap_or(&"0").parse().unwrap_or(0),
+        memory_limit: parts.get(14).unwrap_or(&"0").parse().unwrap_or(0),
+        memory_swap: parts.get(15).unwrap_or(&"0").parse().unwrap_or(0),
+        working_dir: parts.get(16).unwrap_or(&"").to_string(),
+        user: parts.get(17).unwrap_or(&"").to_string(),
+        privileged: parts.get(18).unwrap_or(&"false") == &"true",
+        pid: parts.get(19).unwrap_or(&"0").parse().unwrap_or(0),
+        size_rw: None,
+        size_root_fs: None,
+        env_vars,
+        labels,
+        mounts,
+        networks,
+        ports,
+        cmd,
+        entrypoint,
+    })
+}
+#[tauri::command]
+pub async fn get_container_processes(
+    container_name: String,
+) -> Result<Vec<ContainerProcess>, String> {
+    let output = Command::new("docker")
+        .args([
+            "top",
+            &container_name,
+            "-eo",
+            "pid,ppid,user,pcpu,pmem,vsz,rss,tty,stat,start,time,cmd",
+        ])
+        .output()
+        .map_err(|e| e.to_string())?;
+
+    if !output.status.success() {
+        return Err(String::from_utf8_lossy(&output.stderr).to_string());
+    }
+
+    let stdout = String::from_utf8_lossy(&output.stdout).to_string();
+    let mut lines = stdout.lines();
+    lines.next();
+
+    let procs = lines
+        .filter(|l| !l.trim().is_empty())
+        .map(|line| {
+            let parts: Vec<&str> = line.splitn(12, ' ').filter(|s| !s.is_empty()).collect();
+            ContainerProcess {
+                pid: parts.get(0).unwrap_or(&"").to_string(),
+                ppid: parts.get(1).unwrap_or(&"").to_string(),
+                user: parts.get(2).unwrap_or(&"").to_string(),
+                cpu: parts.get(3).unwrap_or(&"").to_string(),
+                mem: parts.get(4).unwrap_or(&"").to_string(),
+                vsz: parts.get(5).unwrap_or(&"").to_string(),
+                rss: parts.get(6).unwrap_or(&"").to_string(),
+                tty: parts.get(7).unwrap_or(&"").to_string(),
+                stat: parts.get(8).unwrap_or(&"").to_string(),
+                start: parts.get(9).unwrap_or(&"").to_string(),
+                time: parts.get(10).unwrap_or(&"").to_string(),
+                cmd: parts.get(11).unwrap_or(&"").to_string(),
+            }
+        })
+        .collect();
+
+    Ok(procs)
+}
+
+#[tauri::command]
+pub async fn pause_container(container_name: String) -> Result<String, String> {
+    docker_cmd(&["pause", &container_name])
+}
+
+#[tauri::command]
+pub async fn unpause_container(container_name: String) -> Result<String, String> {
+    docker_cmd(&["unpause", &container_name])
+}
+
+#[tauri::command]
+pub async fn rename_container(old_name: String, new_name: String) -> Result<String, String> {
+    docker_cmd(&["rename", &old_name, &new_name])
+}
+
+#[tauri::command]
+pub async fn update_container(
+    container_name: String,
+    memory_limit: Option<String>,
+    cpu_shares: Option<u64>,
+    restart_policy: Option<String>,
+) -> Result<String, String> {
+    let mut args = vec!["update".to_string()];
+
+    if let Some(mem) = memory_limit {
+        args.push("--memory".to_string());
+        args.push(mem);
+        args.push("--memory-swap".to_string());
+        args.push("-1".to_string());
+    }
+
+    if let Some(cpu) = cpu_shares {
+        args.push("--cpu-shares".to_string());
+        args.push(cpu.to_string());
+    }
+
+    if let Some(policy) = restart_policy {
+        args.push("--restart".to_string());
+        args.push(policy);
+    }
+
+    args.push(container_name);
+
+    let args_ref: Vec<&str> = args.iter().map(|s| s.as_str()).collect();
+    docker_cmd(&args_ref)
+}
+
+#[tauri::command]
+pub async fn commit_container(
+    container_name: String,
+    repo: String,
+    tag: String,
+    message: String,
+) -> Result<String, String> {
+    let image_ref = format!("{}:{}", repo, tag);
+    if message.is_empty() {
+        docker_cmd(&["commit", &container_name, &image_ref])
+    } else {
+        docker_cmd(&["commit", "-m", &message, &container_name, &image_ref])
+    }
+}
+
+#[tauri::command]
+pub async fn export_container(
+    container_name: String,
+    output_path: String,
+) -> Result<String, String> {
+    let output = Command::new("docker")
+        .args(["export", "-o", &output_path, &container_name])
+        .output()
+        .map_err(|e| e.to_string())?;
+
+    if output.status.success() {
+        Ok(format!("Exported to {}", output_path))
+    } else {
+        Err(String::from_utf8_lossy(&output.stderr).to_string())
+    }
+}
+
+#[tauri::command]
+pub async fn copy_from_container(
+    container_name: String,
+    container_path: String,
+    host_path: String,
+) -> Result<String, String> {
+    let src = format!("{}:{}", container_name, container_path);
+    docker_cmd(&["cp", &src, &host_path])
+}
+
+#[tauri::command]
+pub async fn copy_to_container(
+    container_name: String,
+    host_path: String,
+    container_path: String,
+) -> Result<String, String> {
+    let dst = format!("{}:{}", container_name, container_path);
+    docker_cmd(&["cp", &host_path, &dst])
+}
+
+#[tauri::command]
+pub async fn kill_container(container_name: String, signal: String) -> Result<String, String> {
+    let sig = if signal.is_empty() {
+        "SIGKILL".to_string()
+    } else {
+        signal
+    };
+    docker_cmd(&["kill", "-s", &sig, &container_name])
+}
+
+#[tauri::command]
+pub async fn list_images() -> Result<Vec<ImageInfo>, String> {
+    let output = docker_cmd(&[
+        "images",
+        "--format",
+        "{{.ID}}|{{.Repository}}|{{.Tag}}|{{.CreatedSince}}|{{.Size}}|{{.Digest}}",
+    ])?;
+
+    let images = output
+        .lines()
+        .filter(|l| !l.trim().is_empty())
+        .map(|line| {
+            let p: Vec<&str> = line.splitn(6, '|').collect();
+            ImageInfo {
+                id: p.get(0).unwrap_or(&"").to_string(),
+                repository: p.get(1).unwrap_or(&"").to_string(),
+                tag: p.get(2).unwrap_or(&"").to_string(),
+                created: p.get(3).unwrap_or(&"").to_string(),
+                size: p.get(4).unwrap_or(&"").to_string(),
+                digest: p.get(5).unwrap_or(&"").to_string(),
+            }
+        })
+        .collect();
+
+    Ok(images)
+}
+
+#[tauri::command]
+pub async fn remove_image(image_id: String, force: bool) -> Result<String, String> {
+    if force {
+        docker_cmd(&["rmi", "-f", &image_id])
+    } else {
+        docker_cmd(&["rmi", &image_id])
+    }
+}
+
+#[tauri::command]
+pub async fn prune_images() -> Result<String, String> {
+    docker_cmd(&["image", "prune", "-f"])
+}
+
+#[tauri::command]
+pub async fn prune_containers() -> Result<String, String> {
+    docker_cmd(&["container", "prune", "-f"])
+}
+
+#[tauri::command]
+pub async fn prune_volumes() -> Result<String, String> {
+    docker_cmd(&["volume", "prune", "-f"])
+}
+
+#[tauri::command]
+pub async fn prune_system() -> Result<String, String> {
+    docker_cmd(&["system", "prune", "-f", "--volumes"])
+}
+
+#[tauri::command]
+pub async fn get_docker_system_info() -> Result<SystemInfo, String> {
+    let output = Command::new("docker")
+        .args([
+            "system",
+            "info",
+            "--format",
+            r#"{{.Containers}}|{{.ContainersRunning}}|{{.ContainersPaused}}|{{.ContainersStopped}}|{{.Images}}|{{.ServerVersion}}|{{.Driver}}|{{.MemTotal}}|{{.NCPU}}|{{.OperatingSystem}}|{{.KernelVersion}}|{{.Architecture}}"#,
+        ])
+        .output()
+        .map_err(|e| e.to_string())?;
+
+    let out = String::from_utf8_lossy(&output.stdout).trim().to_string();
+    let p: Vec<&str> = out.splitn(12, '|').collect();
+
+    let du_output = Command::new("docker")
+        .args([
+            "system",
+            "df",
+            "--format",
+            "{{.Type}}|{{.Size}}|{{.Reclaimable}}",
+        ])
+        .output()
+        .map_err(|e| e.to_string())?;
+    let du_str = String::from_utf8_lossy(&du_output.stdout).to_string();
+
+    let mut img_size = String::from("0B");
+    let mut cont_size = String::from("0B");
+    let mut vol_size = String::from("0B");
+
+    for line in du_str.lines() {
+        let dp: Vec<&str> = line.splitn(3, '|').collect();
+        match dp.get(0).unwrap_or(&"") {
+            &"Images" => img_size = dp.get(1).unwrap_or(&"0B").to_string(),
+            &"Containers" => cont_size = dp.get(1).unwrap_or(&"0B").to_string(),
+            &"Local Volumes" => vol_size = dp.get(1).unwrap_or(&"0B").to_string(),
+            _ => {}
+        }
+    }
+
+    Ok(SystemInfo {
+        containers_total: p.get(0).unwrap_or(&"0").parse().unwrap_or(0),
+        containers_running: p.get(1).unwrap_or(&"0").parse().unwrap_or(0),
+        containers_paused: p.get(2).unwrap_or(&"0").parse().unwrap_or(0),
+        containers_stopped: p.get(3).unwrap_or(&"0").parse().unwrap_or(0),
+        images: p.get(4).unwrap_or(&"0").parse().unwrap_or(0),
+        server_version: p.get(5).unwrap_or(&"").to_string(),
+        storage_driver: p.get(6).unwrap_or(&"").to_string(),
+        memory_total: p.get(7).unwrap_or(&"0").parse().unwrap_or(0),
+        cpus: p.get(8).unwrap_or(&"0").parse().unwrap_or(0),
+        os: p.get(9).unwrap_or(&"").to_string(),
+        kernel_version: p.get(10).unwrap_or(&"").to_string(),
+        architecture: p.get(11).unwrap_or(&"").to_string(),
+        disk_usage_images: img_size,
+        disk_usage_containers: cont_size,
+        disk_usage_volumes: vol_size,
+    })
+}
+
+#[tauri::command]
+pub async fn list_networks() -> Result<Vec<NetworkDetail>, String> {
+    let output = docker_cmd(&[
+        "network",
+        "ls",
+        "--format",
+        "{{.ID}}|{{.Name}}|{{.Driver}}|{{.Scope}}",
+    ])?;
+
+    let mut networks = Vec::new();
+    for line in output.lines().filter(|l| !l.trim().is_empty()) {
+        let p: Vec<&str> = line.splitn(4, '|').collect();
+        let id = p.get(0).unwrap_or(&"").to_string();
+
+        let inspect_out = docker_cmd(&[
+            "network",
+            "inspect",
+            "--format",
+            "{{range .IPAM.Config}}{{.Subnet}}|{{.Gateway}}{{end}}|||{{len .Containers}}|||{{.Internal}}|||{{.Attachable}}",
+            &id,
+        ])
+        .unwrap_or_default();
+
+        let parts: Vec<&str> = inspect_out.splitn(4, "|||").collect();
+        let ip_parts: Vec<&str> = parts.get(0).unwrap_or(&"").splitn(2, '|').collect();
+
+        networks.push(NetworkDetail {
+            id: id[..12.min(id.len())].to_string(),
+            name: p.get(1).unwrap_or(&"").to_string(),
+            driver: p.get(2).unwrap_or(&"").to_string(),
+            scope: p.get(3).unwrap_or(&"").to_string(),
+            ipam_subnet: ip_parts.get(0).unwrap_or(&"").to_string(),
+            ipam_gateway: ip_parts.get(1).unwrap_or(&"").to_string(),
+            containers_count: parts.get(1).unwrap_or(&"0").trim().parse().unwrap_or(0),
+            internal: parts.get(2).unwrap_or(&"false").trim() == "true",
+            attachable: parts.get(3).unwrap_or(&"false").trim() == "true",
+        });
+    }
+
+    Ok(networks)
+}
+
+#[tauri::command]
+pub async fn create_network(
+    name: String,
+    driver: String,
+    subnet: Option<String>,
+    gateway: Option<String>,
+) -> Result<String, String> {
+    let mut args = vec!["network".to_string(), "create".to_string()];
+    args.push("--driver".to_string());
+    args.push(driver);
+
+    if let Some(s) = subnet {
+        args.push("--subnet".to_string());
+        args.push(s);
+    }
+    if let Some(g) = gateway {
+        args.push("--gateway".to_string());
+        args.push(g);
+    }
+
+    args.push(name);
+    let args_ref: Vec<&str> = args.iter().map(|s| s.as_str()).collect();
+    docker_cmd(&args_ref)
+}
+
+#[tauri::command]
+pub async fn remove_network(network_id: String) -> Result<String, String> {
+    docker_cmd(&["network", "rm", &network_id])
+}
+
+#[tauri::command]
+pub async fn connect_container_to_network(
+    container_name: String,
+    network_name: String,
+) -> Result<String, String> {
+    docker_cmd(&["network", "connect", &network_name, &container_name])
+}
+
+#[tauri::command]
+pub async fn disconnect_container_from_network(
+    container_name: String,
+    network_name: String,
+) -> Result<String, String> {
+    docker_cmd(&["network", "disconnect", &network_name, &container_name])
+}
+
+#[tauri::command]
+pub async fn list_docker_volumes_detailed() -> Result<Vec<VolumeInfo>, String> {
+    let output = docker_cmd(&[
+        "volume",
+        "ls",
+        "--format",
+        "{{.Name}}|{{.Driver}}|{{.Mountpoint}}",
+    ])?;
+
+    let mut volumes = Vec::new();
+    for line in output.lines().filter(|l| !l.trim().is_empty()) {
+        let p: Vec<&str> = line.splitn(3, '|').collect();
+        let name = p.get(0).unwrap_or(&"").to_string();
+
+        let created = docker_cmd(&["volume", "inspect", "--format", "{{.CreatedAt}}", &name])
+            .unwrap_or_default();
+
+        let containers_using: Vec<String> = {
+            let c_out = docker_cmd(&[
+                "ps",
+                "-a",
+                "--filter",
+                &format!("volume={}", name),
+                "--format",
+                "{{.Names}}",
+            ])
+            .unwrap_or_default();
+            c_out
+                .lines()
+                .filter(|l| !l.trim().is_empty())
+                .map(|l| l.to_string())
+                .collect()
+        };
+
+        volumes.push(VolumeInfo {
+            name,
+            driver: p.get(1).unwrap_or(&"").to_string(),
+            mountpoint: p.get(2).unwrap_or(&"").to_string(),
+            created: created.trim().to_string(),
+            size: "N/A".to_string(),
+            containers: containers_using,
+        });
+    }
+
+    Ok(volumes)
+}
+
+#[tauri::command]
+pub async fn create_volume(name: String, driver: String) -> Result<String, String> {
+    docker_cmd(&["volume", "create", "--driver", &driver, &name])
+}
+
+#[tauri::command]
 pub async fn create_database_container(
     req: CreateDatabaseContainerRequest,
 ) -> Result<CreateContainerResult, String> {
@@ -159,13 +912,10 @@ pub async fn create_database_container(
     }
 
     let mut run_args = vec!["run".to_string(), "-d".to_string()];
-
     run_args.push("--name".to_string());
     run_args.push(req.container_name.clone());
-
     run_args.push("--restart".to_string());
     run_args.push(req.restart_policy.clone());
-
     run_args.push("-p".to_string());
     run_args.push(format!("{}:{}", req.host_port, default_port(&req.db_type)));
 
@@ -173,7 +923,6 @@ pub async fn create_database_container(
         run_args.push("--memory".to_string());
         run_args.push(mem.clone());
     }
-
     if let Some(cpu) = req.cpu_limit {
         run_args.push("--cpus".to_string());
         run_args.push(cpu.to_string());
@@ -183,7 +932,6 @@ pub async fn create_database_container(
         .data_volume
         .clone()
         .unwrap_or_else(|| format!("hive_{}_data", req.container_name));
-
     run_args.push("-v".to_string());
     run_args.push(format!("{}:{}", volume_name, data_path(&req.db_type)));
 
@@ -217,7 +965,9 @@ pub async fn create_database_container(
         });
     }
 
-    let container_id = String::from_utf8_lossy(&output.stdout).trim()[..12].to_string();
+    let container_id = String::from_utf8_lossy(&output.stdout).trim()
+        [..12.min(String::from_utf8_lossy(&output.stdout).trim().len())]
+        .to_string();
     let conn_str = build_connection_string(&req);
 
     Ok(CreateContainerResult {
@@ -352,9 +1102,9 @@ pub async fn get_container_logs(
     container_name: String,
     tail: Option<u32>,
 ) -> Result<Vec<String>, String> {
-    let tail_str = tail.unwrap_or(100).to_string();
+    let tail_str = tail.unwrap_or(200).to_string();
     let output = Command::new("docker")
-        .args(["logs", "--tail", &tail_str, &container_name])
+        .args(["logs", "--tail", &tail_str, "--timestamps", &container_name])
         .output()
         .map_err(|e| e.to_string())?;
 
@@ -365,20 +1115,65 @@ pub async fn get_container_logs(
 }
 
 #[tauri::command]
-pub async fn get_container_stats(container_name: String) -> Result<serde_json::Value, String> {
+pub async fn get_container_stats(container_name: String) -> Result<ContainerStats, String> {
     let output = Command::new("docker")
         .args([
             "stats",
             "--no-stream",
             "--format",
-            r#"{"cpu":"{{.CPUPerc}}","memory":"{{.MemUsage}}","memperc":"{{.MemPerc}}","net":"{{.NetIO}}","block":"{{.BlockIO}}"}"#,
+            r#"{{.CPUPerc}}|||{{.MemUsage}}|||{{.MemPerc}}|||{{.NetIO}}|||{{.BlockIO}}|||{{.PIDs}}"#,
             &container_name,
         ])
         .output()
         .map_err(|e| e.to_string())?;
 
     let out = String::from_utf8_lossy(&output.stdout).trim().to_string();
-    serde_json::from_str(&out).map_err(|e| e.to_string())
+    let parts: Vec<&str> = out.splitn(6, "|||").collect();
+
+    let cpu_str = parts.get(0).unwrap_or(&"0%").trim_end_matches('%');
+    let cpu_raw: f64 = cpu_str.parse().unwrap_or(0.0);
+
+    let mem_usage = parts.get(1).unwrap_or(&"0MiB / 0GiB").to_string();
+    let mem_parts: Vec<&str> = mem_usage.split(" / ").collect();
+    let mem_used_mb = parse_mem_to_mb(mem_parts.get(0).unwrap_or(&"0MiB"));
+    let mem_limit_mb = parse_mem_to_mb(mem_parts.get(1).unwrap_or(&"0GiB"));
+
+    Ok(ContainerStats {
+        cpu: parts.get(0).unwrap_or(&"0%").to_string(),
+        memory: parts.get(1).unwrap_or(&"").to_string(),
+        memperc: parts.get(2).unwrap_or(&"0%").to_string(),
+        net: parts.get(3).unwrap_or(&"").to_string(),
+        block: parts.get(4).unwrap_or(&"").to_string(),
+        pids: parts.get(5).unwrap_or(&"0").to_string(),
+        cpu_raw,
+        mem_used_mb,
+        mem_limit_mb,
+    })
+}
+
+fn parse_mem_to_mb(s: &str) -> f64 {
+    let s = s.trim();
+    if s.ends_with("GiB") {
+        s.trim_end_matches("GiB")
+            .trim()
+            .parse::<f64>()
+            .unwrap_or(0.0)
+            * 1024.0
+    } else if s.ends_with("MiB") {
+        s.trim_end_matches("MiB")
+            .trim()
+            .parse::<f64>()
+            .unwrap_or(0.0)
+    } else if s.ends_with("kB") || s.ends_with("KiB") {
+        s.trim_end_matches("kB")
+            .trim_end_matches("KiB")
+            .trim()
+            .parse::<f64>()
+            .unwrap_or(0.0)
+            / 1024.0
+    } else {
+        0.0
+    }
 }
 
 #[tauri::command]
@@ -464,5 +1259,137 @@ pub async fn execute_sql_in_container(
         Ok(String::from_utf8_lossy(&output.stdout).to_string())
     } else {
         Err(String::from_utf8_lossy(&output.stderr).to_string())
+    }
+}
+
+#[tauri::command]
+pub async fn run_docker_compose(
+    project_name: String,
+    compose_content: String,
+    env_vars: std::collections::HashMap<String, String>,
+    window: tauri::Window,
+) -> Result<(), String> {
+    let tmp_dir = std::env::temp_dir().join(format!("hive_compose_{}", project_name));
+    std::fs::create_dir_all(&tmp_dir).map_err(|e| e.to_string())?;
+    let compose_file = tmp_dir.join("docker-compose.yml");
+    std::fs::write(&compose_file, compose_content).map_err(|e| e.to_string())?;
+
+    let env_file_content: String = env_vars
+        .iter()
+        .map(|(k, v)| format!("{}={}", k, v))
+        .collect::<Vec<_>>()
+        .join("\n");
+    std::fs::write(tmp_dir.join(".env"), env_file_content).map_err(|e| e.to_string())?;
+
+    let _ = window.emit("compose-log", format!("Starting project: {}", project_name));
+
+    let output = Command::new("docker")
+        .args([
+            "compose",
+            "-p",
+            &project_name,
+            "-f",
+            compose_file.to_str().unwrap_or(""),
+            "up",
+            "-d",
+        ])
+        .output()
+        .map_err(|e| e.to_string())?;
+
+    let stdout = String::from_utf8_lossy(&output.stdout).to_string();
+    let stderr = String::from_utf8_lossy(&output.stderr).to_string();
+
+    for line in stdout.lines().chain(stderr.lines()) {
+        let _ = window.emit("compose-log", line.to_string());
+    }
+
+    if output.status.success() {
+        Ok(())
+    } else {
+        Err(stderr)
+    }
+}
+
+#[tauri::command]
+pub async fn stop_docker_compose(project_name: String) -> Result<(), String> {
+    let tmp_dir = std::env::temp_dir().join(format!("hive_compose_{}", project_name));
+    let compose_file = tmp_dir.join("docker-compose.yml");
+
+    let output = Command::new("docker")
+        .args([
+            "compose",
+            "-p",
+            &project_name,
+            "-f",
+            compose_file.to_str().unwrap_or(""),
+            "down",
+        ])
+        .output()
+        .map_err(|e| e.to_string())?;
+
+    if output.status.success() {
+        Ok(())
+    } else {
+        Err(String::from_utf8_lossy(&output.stderr).to_string())
+    }
+}
+
+#[tauri::command]
+pub async fn list_compose_projects() -> Result<Vec<serde_json::Value>, String> {
+    let output = docker_cmd(&["compose", "ls", "--format", "json"]).unwrap_or_default();
+    serde_json::from_str::<Vec<serde_json::Value>>(&output).or_else(|_| Ok(vec![]))
+}
+
+#[tauri::command]
+pub async fn backup_database_container(
+    container_name: String,
+    db_type: String,
+    username: String,
+    password: String,
+    database: String,
+    output_path: String,
+) -> Result<String, String> {
+    let cmd = match db_type.as_str() {
+        "mysql" | "mariadb" => format!(
+            "mysqldump -u{} -p{} {} > /tmp/backup.sql && cat /tmp/backup.sql",
+            username, password, database
+        ),
+        "postgres" | "postgresql" => format!("pg_dump -U {} {}", username, database),
+        "mongodb" => format!(
+            "mongodump --username {} --password {} --db {} --archive --gzip",
+            username, password, database
+        ),
+        _ => return Err("Unsupported database type for backup".to_string()),
+    };
+
+    let output = Command::new("docker")
+        .args(["exec", &container_name, "sh", "-c", &cmd])
+        .output()
+        .map_err(|e| e.to_string())?;
+
+    if output.status.success() {
+        std::fs::write(&output_path, &output.stdout).map_err(|e| e.to_string())?;
+        Ok(format!("Backup saved to {}", output_path))
+    } else {
+        Err(String::from_utf8_lossy(&output.stderr).to_string())
+    }
+}
+
+#[tauri::command]
+pub async fn exec_in_container(container_name: String, command: String) -> Result<String, String> {
+    let output = Command::new("docker")
+        .args(["exec", &container_name, "sh", "-c", &command])
+        .output()
+        .map_err(|e| format!("Failed to exec: {}", e))?;
+
+    let stdout = String::from_utf8_lossy(&output.stdout).to_string();
+    let stderr = String::from_utf8_lossy(&output.stderr).to_string();
+
+    if output.status.success() {
+        Ok(stdout)
+    } else if !stderr.is_empty() {
+        Err(stderr)
+    } else {
+        Ok(stdout)
     }
 }

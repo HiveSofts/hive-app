@@ -1,6 +1,8 @@
 import { cn } from "@/core/lib/utils";
 
 import React, { useCallback, useEffect, useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import axios from "axios";
 
 import {
     Activity,
@@ -45,19 +47,97 @@ import {
     DBPreset,
 } from "./services/types";
 
-function generatePassword(len = 18) {
-    const chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789!@#$%^";
-    return Array.from({ length: len }, () => chars[Math.floor(Math.random() * chars.length)]).join(
-        ""
-    );
+const GITHUB_API_URL = "https://api.github.com/repos/HiveSofts/hive-docker-containers/contents/databases-container";
+
+async function loadPresetsFromGitHub(): Promise<DBPreset[]> {
+    try {
+        const response = await axios.get(GITHUB_API_URL, {
+            headers: {
+                Accept: "application/vnd.github.v3+json",
+            },
+            timeout: 10000,
+        });
+
+        const files: Array<{ name: string; download_url: string }> = response.data;
+        const jsonFiles = files.filter(f => f.name.endsWith('.json') && f.download_url);
+        const presets: DBPreset[] = [];
+
+        for (const file of jsonFiles) {
+            try {
+                const res = await axios.get(file.download_url, {
+                    timeout: 5000,
+                });
+                const data = res.data;
+                presets.push({
+                    id: data.id,
+                    label: data.label,
+                    color: data.color,
+                    icon: data.icon,
+                    defaultPort: data.defaultPort,
+                    defaultVersion: data.defaultVersion,
+                    versions: data.versions || [data.defaultVersion],
+                    hasRootPassword: data.hasRootPassword ?? false,
+                    hasDatabase: data.hasDatabase ?? false,
+                    hasUser: data.hasUser ?? false,
+                    hasPassword: data.hasPassword ?? false,
+                    category: data.category || "relational",
+                    description: data.description || "",
+                });
+            } catch {
+                continue;
+            }
+        }
+        return presets;
+    } catch (error) {
+        console.error("Failed to load presets from GitHub:", error);
+        throw error;
+    }
 }
 
-function getPresetForImage(image: string): DBPreset | null {
+let cachedPresets: DBPreset[] | null = null;
+
+function usePresets() {
+    const [presets, setPresets] = useState<DBPreset[]>(cachedPresets || DB_PRESETS);
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+
+    const load = useCallback(async (force = false) => {
+        if (cachedPresets && !force) {
+            setPresets(cachedPresets);
+            setLoading(false);
+            return;
+        }
+        setLoading(true);
+        setError(null);
+        try {
+            const result = await loadPresetsFromGitHub();
+            cachedPresets = result;
+            setPresets(result);
+        } catch (err) {
+            setError(String(err));
+            setPresets(DB_PRESETS);
+        } finally {
+            setLoading(false);
+        }
+    }, []);
+
+    useEffect(() => {
+        if (!cachedPresets) {
+            load(false);
+        }
+    }, [load]);
+
+    return { presets, loading, error, refresh: () => load(true) };
+}
+
+function getPresetForImage(image: string, presets: DBPreset[]): DBPreset | null {
     const lower = image.toLowerCase();
-    return (
-        DB_PRESETS.find((p) => lower.includes(p.id) || lower.includes(p.label.toLowerCase())) ??
-        null
-    );
+    return presets.find((p) => lower.includes(p.id) || lower.includes(p.label.toLowerCase())) ?? null;
+}
+
+function generatePassword(len = 18) {
+    const chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789!@#$%^";
+    return Array.from({ length: len }, () => chars[Math.floor(Math.random() * chars.length)]).join("");
 }
 
 function stateColors(state: string) {
@@ -83,9 +163,6 @@ function stateColors(state: string) {
     }
 }
 
-// ──────────────────────────────────────────────
-// Password field
-// ──────────────────────────────────────────────
 function PasswordInput({
     value,
     onChange,
@@ -134,17 +211,15 @@ function FieldRow({
     );
 }
 
-// ──────────────────────────────────────────────
-// Create Database Wizard
-// ──────────────────────────────────────────────
 type WizardStep = "type" | "config" | "advanced" | "result";
 
 interface WizardProps {
     onClose: () => void;
     onCreate: (req: CreateDatabaseContainerRequest) => Promise<CreateContainerResult>;
+    presets: DBPreset[];
 }
 
-function CreateDatabaseWizard({ onClose, onCreate }: WizardProps) {
+function CreateDatabaseWizard({ onClose, onCreate, presets }: WizardProps) {
     const [step, setStep] = useState<WizardStep>("type");
     const [preset, setPreset] = useState<DBPreset | null>(null);
     const [creating, setCreating] = useState(false);
@@ -229,11 +304,11 @@ function CreateDatabaseWizard({ onClose, onCreate }: WizardProps) {
 
     const stepIndex = steps.findIndex((s) => s.key === step);
 
-    const categories = ["all", ...Array.from(new Set(DB_PRESETS.map((p) => p.category)))];
+    const categories = ["all", ...Array.from(new Set(presets.map((p) => p.category)))];
     const filteredPresets =
         categoryFilter === "all"
-            ? DB_PRESETS
-            : DB_PRESETS.filter((p) => p.category === categoryFilter);
+            ? presets
+            : presets.filter((p) => p.category === categoryFilter);
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
@@ -241,7 +316,6 @@ function CreateDatabaseWizard({ onClose, onCreate }: WizardProps) {
                 className="bg-background border rounded-2xl w-full max-w-xl shadow-2xl overflow-hidden flex flex-col"
                 style={{ maxHeight: "90vh" }}
             >
-                {/* Header */}
                 <div className="flex items-center justify-between px-5 py-4 border-b shrink-0">
                     <div className="flex items-center gap-2.5">
                         {preset ? (
@@ -266,7 +340,6 @@ function CreateDatabaseWizard({ onClose, onCreate }: WizardProps) {
                     </button>
                 </div>
 
-                {/* Step indicator */}
                 <div className="px-5 py-3 border-b shrink-0 flex items-center gap-0">
                     {steps.map((s, i) => {
                         const active = s.key === step;
@@ -305,12 +378,9 @@ function CreateDatabaseWizard({ onClose, onCreate }: WizardProps) {
                     })}
                 </div>
 
-                {/* Body */}
                 <div className="flex-1 overflow-y-auto p-5">
-                    {/* Step 1: Select type */}
                     {step === "type" && (
                         <div className="space-y-3">
-                            {/* Category filter */}
                             <div className="flex gap-1.5 flex-wrap">
                                 {categories.map((cat) => (
                                     <button
@@ -378,7 +448,6 @@ function CreateDatabaseWizard({ onClose, onCreate }: WizardProps) {
                         </div>
                     )}
 
-                    {/* Step 2: Config */}
                     {step === "config" && preset && (
                         <div className="space-y-4">
                             <div className="grid grid-cols-2 gap-3">
@@ -477,7 +546,6 @@ function CreateDatabaseWizard({ onClose, onCreate }: WizardProps) {
                         </div>
                     )}
 
-                    {/* Step 3: Advanced */}
                     {step === "advanced" && (
                         <div className="space-y-4">
                             <div className="flex items-start gap-2 p-3 rounded-lg bg-blue-500/5 border border-blue-500/20 text-xs text-blue-600">
@@ -533,7 +601,6 @@ function CreateDatabaseWizard({ onClose, onCreate }: WizardProps) {
                         </div>
                     )}
 
-                    {/* Step 4: Result */}
                     {step === "result" && result && (
                         <div className="space-y-4">
                             {creating && (
@@ -627,7 +694,6 @@ function CreateDatabaseWizard({ onClose, onCreate }: WizardProps) {
                                         </div>
                                     )}
 
-                                    {/* Logs */}
                                     {logs.length > 0 && (
                                         <div className="p-3 rounded-xl border bg-muted/10 font-mono text-[11px] space-y-1 max-h-32 overflow-y-auto">
                                             {logs.map((l, i) => (
@@ -664,7 +730,6 @@ function CreateDatabaseWizard({ onClose, onCreate }: WizardProps) {
                     )}
                 </div>
 
-                {/* Footer */}
                 <div className="flex items-center justify-between px-5 py-4 border-t bg-muted/10 shrink-0">
                     <div>
                         {step !== "type" && step !== "result" && (
@@ -739,9 +804,6 @@ function CreateDatabaseWizard({ onClose, onCreate }: WizardProps) {
     );
 }
 
-// ──────────────────────────────────────────────
-// Logs modal
-// ──────────────────────────────────────────────
 function LogsModal({ containerName, onClose }: { containerName: string; onClose: () => void }) {
     const [logs, setLogs] = useState<string[]>([]);
     const [loading, setLoading] = useState(true);
@@ -845,10 +907,7 @@ function LogsModal({ containerName, onClose }: { containerName: string; onClose:
     );
 }
 
-// ──────────────────────────────────────────────
-// Shell modal
-// ──────────────────────────────────────────────
-function ShellModal({ container, onClose }: { container: ContainerInfo; onClose: () => void }) {
+function ShellModal({ container, presets, onClose }: { container: ContainerInfo; presets: DBPreset[]; onClose: () => void }) {
     const [history, setHistory] = useState<Array<{ cmd: string; out: string; err: boolean }>>([]);
     const [input, setInput] = useState("");
     const [running, setRunning] = useState(false);
@@ -901,7 +960,7 @@ function ShellModal({ container, onClose }: { container: ContainerInfo; onClose:
         }
     };
 
-    const preset = getPresetForImage(container.image);
+    const preset = getPresetForImage(container.image, presets);
 
     return (
         <div
@@ -974,11 +1033,9 @@ function ShellModal({ container, onClose }: { container: ContainerInfo; onClose:
     );
 }
 
-// ──────────────────────────────────────────────
-// Database Card
-// ──────────────────────────────────────────────
 interface DBCardProps {
     container: ContainerInfo;
+    presets: DBPreset[];
     onStart: (n: string) => Promise<void>;
     onStop: (n: string) => Promise<void>;
     onRestart: (n: string) => Promise<void>;
@@ -989,6 +1046,7 @@ interface DBCardProps {
 
 function DatabaseCard({
     container,
+    presets,
     onStart,
     onStop,
     onRestart,
@@ -996,11 +1054,12 @@ function DatabaseCard({
     onLogs,
     onShell,
 }: DBCardProps) {
+    const navigate = useNavigate();
     const [busy, setBusy] = useState<string | null>(null);
     const [showRemove, setShowRemove] = useState(false);
     const [copied, setCopied] = useState(false);
 
-    const preset = getPresetForImage(container.image);
+    const preset = getPresetForImage(container.image, presets);
     const colors = stateColors(container.state);
     const isRunning = container.state === "running";
     const port = container.ports[0]?.host_port;
@@ -1021,14 +1080,18 @@ function DatabaseCard({
         setTimeout(() => setCopied(false), 1500);
     };
 
+    const handleCardClick = () => {
+        navigate(`/databases/${container.name}`);
+    };
+
     return (
         <div
             className={cn(
-                "rounded-2xl border bg-card p-4 flex flex-col gap-3 transition-shadow hover:shadow-md",
+                "rounded-2xl border bg-card p-4 flex flex-col gap-3 transition-shadow hover:shadow-md cursor-pointer",
                 colors.border
             )}
+            onClick={handleCardClick}
         >
-            {/* Top row */}
             <div className="flex items-start justify-between">
                 <div className="flex items-center gap-2.5">
                     <div
@@ -1071,7 +1134,6 @@ function DatabaseCard({
                 </div>
             </div>
 
-            {/* Port */}
             {port && (
                 <div className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-muted/40 border text-[11px]">
                     <Server className="w-3 h-3 text-muted-foreground" />
@@ -1087,8 +1149,7 @@ function DatabaseCard({
                 </div>
             )}
 
-            {/* Actions */}
-            <div className="flex gap-1">
+            <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
                 {isRunning ? (
                     <button
                         onClick={() => act("stop", () => onStop(container.name))}
@@ -1130,7 +1191,7 @@ function DatabaseCard({
                 </button>
             </div>
 
-            <div className="flex gap-1">
+            <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
                 <button
                     onClick={() => onLogs(container.name)}
                     className="flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg border hover:bg-blue-500/10 hover:text-blue-600 hover:border-blue-500/30 text-muted-foreground text-[11px] transition-colors"
@@ -1194,9 +1255,6 @@ function DatabaseCard({
     );
 }
 
-// ──────────────────────────────────────────────
-// Main page
-// ──────────────────────────────────────────────
 export default function DockerDatabaseManagerPage() {
     const {
         dockerInfo,
@@ -1209,6 +1267,8 @@ export default function DockerDatabaseManagerPage() {
         restartContainer,
         removeContainer,
     } = useDocker();
+
+    const { presets, loading: presetsLoading, error: presetsError, refresh: refreshPresets } = usePresets();
 
     const [showWizard, setShowWizard] = useState(false);
     const [logsName, setLogsName] = useState<string | null>(null);
@@ -1243,7 +1303,7 @@ export default function DockerDatabaseManagerPage() {
     }
 
     const dbCategories = Array.from(
-        new Set(containers.map((c) => getPresetForImage(c.image)?.category).filter(Boolean))
+        new Set(containers.map((c) => getPresetForImage(c.image, presets)?.category).filter(Boolean))
     );
 
     const filtered = containers.filter((c) => {
@@ -1253,7 +1313,7 @@ export default function DockerDatabaseManagerPage() {
             c.image.toLowerCase().includes(search.toLowerCase());
         if (!matchSearch) return false;
         if (categoryFilter !== "all") {
-            const p = getPresetForImage(c.image);
+            const p = getPresetForImage(c.image, presets);
             return p?.category === categoryFilter;
         }
         return true;
@@ -1263,7 +1323,6 @@ export default function DockerDatabaseManagerPage() {
 
     return (
         <div className="min-h-screen p-6 max-w-7xl mx-auto space-y-6">
-            {/* Header */}
             <div className="flex items-center justify-between gap-4">
                 <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center">
@@ -1291,7 +1350,12 @@ export default function DockerDatabaseManagerPage() {
                     <Button
                         size="sm"
                         className="gap-1.5 text-xs h-8 bg-blue-600 hover:bg-blue-700 text-white"
-                        onClick={() => setShowWizard(true)}
+                        onClick={() => {
+                            if (!cachedPresets) {
+                                refreshPresets();
+                            }
+                            setShowWizard(true);
+                        }}
                     >
                         <Plus className="w-3.5 h-3.5" />
                         New database
@@ -1299,7 +1363,6 @@ export default function DockerDatabaseManagerPage() {
                 </div>
             </div>
 
-            {/* Stats */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                 {[
                     {
@@ -1337,7 +1400,6 @@ export default function DockerDatabaseManagerPage() {
                 ))}
             </div>
 
-            {/* Filters */}
             <div className="flex items-center gap-3">
                 <div className="relative flex-1 max-w-xs">
                     <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
@@ -1368,7 +1430,6 @@ export default function DockerDatabaseManagerPage() {
                 )}
             </div>
 
-            {/* Grid */}
             {filtered.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-24 rounded-2xl border-2 border-dashed">
                     <Database className="w-12 h-12 text-muted-foreground/20 mb-4" />
@@ -1386,7 +1447,12 @@ export default function DockerDatabaseManagerPage() {
                         <Button
                             size="sm"
                             className="gap-1.5 text-xs bg-blue-600 hover:bg-blue-700 text-white"
-                            onClick={() => setShowWizard(true)}
+                            onClick={() => {
+                                if (!cachedPresets) {
+                                    refreshPresets();
+                                }
+                                setShowWizard(true);
+                            }}
                         >
                             <Plus className="w-3.5 h-3.5" />
                             Create first database
@@ -1399,6 +1465,7 @@ export default function DockerDatabaseManagerPage() {
                         <DatabaseCard
                             key={c.id}
                             container={c}
+                            presets={presets}
                             onStart={startContainer}
                             onStop={stopContainer}
                             onRestart={restartContainer}
@@ -1418,11 +1485,12 @@ export default function DockerDatabaseManagerPage() {
                         if (result.success) setTimeout(() => setShowWizard(false), 2000);
                         return result;
                     }}
+                    presets={presets}
                 />
             )}
             {logsName && <LogsModal containerName={logsName} onClose={() => setLogsName(null)} />}
             {shellContainer && (
-                <ShellModal container={shellContainer} onClose={() => setShellContainer(null)} />
+                <ShellModal container={shellContainer} presets={presets} onClose={() => setShellContainer(null)} />
             )}
         </div>
     );
