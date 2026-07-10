@@ -13,6 +13,10 @@ import { NextjsDeployPanel } from "@/features/projects/components/detail/nextjs/
 import { NextjsLogsPanel } from "@/features/projects/components/detail/nextjs/NextjsLogsPanel";
 import { NextjsOverviewPanel } from "@/features/projects/components/detail/nextjs/NextjsOverviewPanel";
 import { NextjsShellPanel } from "@/features/projects/components/detail/nextjs/NextjsShellPanel";
+import { NodejsOverviewPanel } from "@/features/projects/components/detail/nodejs/NodejsOverviewPanel";
+import { NodejsShellPanel } from "@/features/projects/components/detail/nodejs/NodejsShellPanel";
+import { NodejsPackagesPanel } from "@/features/projects/components/detail/nodejs/NodejsPackagesPanel";
+import { NodejsLogsPanel } from "@/features/projects/components/detail/nodejs/NodejsLogsPanel";
 import { PhpComposerPanel } from "@/features/projects/components/detail/php/PhpComposerPanel";
 import { PhpExtensionsPanel } from "@/features/projects/components/detail/php/PhpExtensionsPanel";
 import { PhpLogsPanel } from "@/features/projects/components/detail/php/PhpLogsPanel";
@@ -145,7 +149,33 @@ export const PROJECT_DETAIL_CONFIG: Record<ProjectType, ProjectConfig> = {
             { id: "packages", label: "Packages", icon: "📦" },
             { id: "logs", label: "Logs", icon: "📄" },
         ],
-        panels: [],
+        panels: [
+            {
+                id: "overview",
+                component: NodejsOverviewPanel,
+                props: {
+                    packageManager: (p: any) => p.package_manager,
+                    nodeVersion: (p: any) => p.nodeVersion,
+                    host: (p: any) => p.host,
+                    port: (p: any) => p.port,
+                    description: (p: any) => p.description,
+                    github_repo: (p: any) => p.github_repo,
+                    created_at: (p: any) => p.created_at,
+                },
+            },
+            {
+                id: "shell",
+                component: NodejsShellPanel,
+            },
+            {
+                id: "packages",
+                component: NodejsPackagesPanel,
+                props: {
+                    packageManager: (p: any) => p.package_manager,
+                },
+            },
+            { id: "logs", component: NodejsLogsPanel },
+        ],
     },
     php: {
         tabs: [
