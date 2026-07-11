@@ -22,6 +22,8 @@ import { PhpExtensionsPanel } from "@/features/projects/components/detail/php/Ph
 import { PhpLogsPanel } from "@/features/projects/components/detail/php/PhpLogsPanel";
 import { PhpOverviewPanel } from "@/features/projects/components/detail/php/PhpOverviewPanel";
 import { PhpShellPanel } from "@/features/projects/components/detail/php/PhpShellPanel";
+import { StaticOverviewPanel } from "@/features/projects/components/detail/static/StaticOverviewPanel";
+import { StaticShellPanel } from "@/features/projects/components/detail/static/StaticShellPanel";
 import { WordPressOverviewPanel } from "@/features/projects/components/detail/wordpress/WordPressOverviewPanel";
 import { WordPressPluginsPanel } from "@/features/projects/components/detail/wordpress/WordPressPluginsPanel";
 import { WordPressThemesPanel } from "@/features/projects/components/detail/wordpress/WordPressThemesPanel";
@@ -215,9 +217,28 @@ export const PROJECT_DETAIL_CONFIG: Record<ProjectType, ProjectConfig> = {
         tabs: [
             { id: "overview", label: "Overview", icon: "📊" },
             { id: "shell", label: "Shell", icon: "💻" },
-            { id: "preview", label: "Preview", icon: "👁️" },
         ],
-        panels: [],
+        panels: [
+            {
+                id: "overview",
+                component: StaticOverviewPanel,
+                props: {
+                    index_path: (p: any) => p.index_path,
+                    host: (p: any) => p.host,
+                    port: (p: any) => p.port,
+                    description: (p: any) => p.description,
+                    github_repo: (p: any) => p.github_repo,
+                    created_at: (p: any) => p.created_at,
+                },
+            },
+            {
+                id: "shell",
+                component: StaticShellPanel,
+                props: {
+                    package_manager: (p: any) => p.package_manager,
+                },
+            },
+        ],
     },
     wordpress: {
         tabs: [

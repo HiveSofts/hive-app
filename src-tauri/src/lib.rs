@@ -155,6 +155,7 @@ pub fn run() {
             get_all_active_tunnels,
             get_tunnel_history,
             get_tunnel_session,
+            list_directory_contents,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

@@ -4,6 +4,7 @@ pub mod onboarding;
 pub mod runtime;
 pub mod storage;
 pub mod system;
+pub mod fs_utils;
 
 pub use config::*;
 pub use database::*;
@@ -11,3 +12,4 @@ pub use onboarding::*;
 pub use runtime::*;
 pub use storage::*;
 pub use system::*;
+pub use fs_utils::*;
