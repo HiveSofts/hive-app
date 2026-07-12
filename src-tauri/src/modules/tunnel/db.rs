@@ -16,7 +16,6 @@ pub struct TunnelSession {
     pub error: Option<String>,
 }
 
-
 pub fn tunnel_config_get(key: &str) -> Option<String> {
     let conn = DB.lock().unwrap();
     conn.query_row(
@@ -40,12 +39,8 @@ pub fn tunnel_config_set(key: &str, value: &str) {
 
 pub fn tunnel_config_delete(key: &str) {
     let conn = DB.lock().unwrap();
-    let _ = conn.execute(
-        "DELETE FROM tunnel_config WHERE key = ?1",
-        params![key],
-    );
+    let _ = conn.execute("DELETE FROM tunnel_config WHERE key = ?1", params![key]);
 }
-
 
 pub fn tunnel_session_create(
     project_path: &str,

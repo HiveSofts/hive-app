@@ -27,8 +27,6 @@ import { StaticShellPanel } from "@/features/projects/components/detail/static/S
 import { WordPressOverviewPanel } from "@/features/projects/components/detail/wordpress/WordPressOverviewPanel";
 import { WordPressPluginsPanel } from "@/features/projects/components/detail/wordpress/WordPressPluginsPanel";
 import { WordPressThemesPanel } from "@/features/projects/components/detail/wordpress/WordPressThemesPanel";
-import { WordPressDatabasePanel } from "@/features/projects/components/detail/wordpress/WordPressDatabasePanel";
-import { WordPressLogsPanel } from "@/features/projects/components/detail/wordpress/WordPressLogsPanel";
 import type { PanelConfig, ProjectType, TabConfig } from "@/features/projects/types";
 
 interface ProjectConfig {

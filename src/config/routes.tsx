@@ -1,5 +1,3 @@
-import NotFoundPage from "@/features/NotFoundPage";
-
 import { Suspense, lazy } from "react";
 
 import { createBrowserRouter } from "react-router-dom";
@@ -11,11 +9,14 @@ const Dashboard = lazy(() => import("@/features/dashboard/Dashboard"));
 const ProjectsListPage = lazy(() => import("@/features/projects/pages/ProjectsListPage"));
 const CreateProjectPage = lazy(() => import("@/features/projects/pages/CreateProjectPage"));
 const ProjectDetailPage = lazy(() => import("@/features/projects/pages/ProjectDetailPage"));
-const PhpManagerPage = lazy(() => import("@/features/modules/php/PhpManagerPage"));
-const NodeManagerPage = lazy(() => import("@/features/modules/nodejs/NodeManagerPage"));
-const DatabaseManagerPage = lazy(() => import("@/features/database/DatabaseManagerPage"));
 const TunnelManagerPage = lazy(() => import("@/features/tunnel/TunnelManagerPage"));
 const SettingsPage = lazy(() => import("@/features/settings/SettingsPage"));
+const DockerManagerPage = lazy(() => import("@/features/docker/DockerManagerPage"));
+const DockerDatabaseManagerPage = lazy(() => import("@/features/docker/DockerDatabaseManagerPage"));
+const ContainerDetailPage = lazy(() => import("@/features/docker/ContainerDetailPage"));
+const DatabaseDetailPage = lazy(() => import("@/features/docker/DatabaseDetailPage"));
+const RuntimeManagerPage = lazy(() => import("@/features/runtimes/RuntimeManagerPage"));
+const NotFoundPage = lazy(() => import("@/features/NotFoundPage"));
 
 function LazyPage({ children }: { children: React.ReactNode }) {
     return <Suspense fallback={<LoadingSpinner />}>{children}</Suspense>;
@@ -59,18 +60,10 @@ export const router = createBrowserRouter([
                 ),
             },
             {
-                path: "php",
+                path: "runtimes",
                 element: (
                     <LazyPage>
-                        <PhpManagerPage />
-                    </LazyPage>
-                ),
-            },
-            {
-                path: "nodejs",
-                element: (
-                    <LazyPage>
-                        <NodeManagerPage />
+                        <RuntimeManagerPage />
                     </LazyPage>
                 ),
             },
@@ -78,7 +71,15 @@ export const router = createBrowserRouter([
                 path: "databases",
                 element: (
                     <LazyPage>
-                        <DatabaseManagerPage />
+                        <DockerDatabaseManagerPage />
+                    </LazyPage>
+                ),
+            },
+            {
+                path: "databases/:containerName",
+                element: (
+                    <LazyPage>
+                        <DatabaseDetailPage />
                     </LazyPage>
                 ),
             },
@@ -98,10 +99,30 @@ export const router = createBrowserRouter([
                     </LazyPage>
                 ),
             },
+            {
+                path: "docker",
+                element: (
+                    <LazyPage>
+                        <DockerManagerPage />
+                    </LazyPage>
+                ),
+            },
+            {
+                path: "docker/:containerName",
+                element: (
+                    <LazyPage>
+                        <ContainerDetailPage />
+                    </LazyPage>
+                ),
+            },
         ],
     },
     {
         path: "*",
-        element: <NotFoundPage />,
+        element: (
+            <LazyPage>
+                <NotFoundPage />
+            </LazyPage>
+        ),
     },
 ]);

@@ -110,7 +110,7 @@ pub async fn install_package_manager(manager: String) -> Result<(), String> {
             _ => {
                 return Err(
                     "npm is required but it is not installed or not available in PATH.".to_string(),
-                )
+                );
             }
         }
 
@@ -121,7 +121,7 @@ pub async fn install_package_manager(manager: String) -> Result<(), String> {
                 return Err(format!(
                     "Automatic install is not supported for {}",
                     manager
-                ))
+                ));
             }
         };
 

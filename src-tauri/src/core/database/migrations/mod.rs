@@ -1,4 +1,4 @@
-use rusqlite::{params, Connection, Result};
+use rusqlite::{Connection, Result, params};
 
 mod v1_server_processes;
 mod v2_session_id;
@@ -6,7 +6,6 @@ mod v3_last_activity;
 mod v4_error_count;
 mod v5_metadata;
 mod v6_tunnel;
-
 
 pub trait Migration {
     fn version(&self) -> &str;

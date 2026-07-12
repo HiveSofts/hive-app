@@ -2,9 +2,8 @@ import { UserConfig } from "@/features/onboarding/types";
 
 import { useEffect, useState } from "react";
 
-import { SiNodeDotJs } from "@react-icons/all-files/si/SiNodeDotJs";
-import { SiPhp } from "@react-icons/all-files/si/SiPhp";
 import {
+    IconCpu2,
     IconDashboard,
     IconDatabase,
     IconFolder,
@@ -14,6 +13,7 @@ import {
 } from "@tabler/icons-react";
 import { invoke } from "@tauri-apps/api/core";
 import { motion } from "framer-motion";
+import { SiDocker } from "react-icons/si";
 
 import { NavMain } from "@/components/nav-main";
 import { NavSecondary } from "@/components/nav-secondary";
@@ -32,8 +32,8 @@ import { NavUser } from "./nav-user";
 const navMainItems = [
     { title: "Dashboard", url: "/", icon: IconDashboard },
     { title: "Projects", url: "/projects", icon: IconFolder },
-    { title: "PHP", url: "/php", icon: SiPhp },
-    { title: "Node.js", url: "/nodejs", icon: SiNodeDotJs },
+    { title: "Docker", url: "/docker", icon: SiDocker },
+    { title: "Runtimes", url: "/runtimes", icon: IconCpu2 },
     { title: "Databases", url: "/databases", icon: IconDatabase },
     { title: "Tunnel", url: "/tunnel", icon: IconShare },
 ];

@@ -6,7 +6,6 @@ use std::io::Write;
 use std::path::PathBuf;
 use tauri::Emitter;
 
-
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CloudflaredInfo {
     pub installed: bool,
@@ -21,7 +20,6 @@ pub struct TunnelConfig {
     pub auth_token: Option<String>,
     pub has_auth: bool,
 }
-
 
 pub fn cloudflared_bin_path() -> PathBuf {
     let name = if cfg!(windows) {
@@ -86,14 +84,9 @@ fn get_cloudflared_version(path: &PathBuf) -> Option<String> {
         .map(|o| {
             let out = String::from_utf8_lossy(&o.stdout).to_string()
                 + &String::from_utf8_lossy(&o.stderr);
-            out.lines()
-                .next()
-                .unwrap_or("unknown")
-                .trim()
-                .to_string()
+            out.lines().next().unwrap_or("unknown").trim().to_string()
         })
 }
-
 
 #[tauri::command]
 pub fn detect_cloudflared() -> CloudflaredInfo {

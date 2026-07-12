@@ -116,8 +116,8 @@ export const TECHNOLOGIES: Technology[] = [
         icon: DockerIcon,
         color: "border-blue-500/40 hover:border-blue-500/80 hover:bg-blue-500/5",
         selectedColor: "border-blue-500 bg-blue-500/10 ring-1 ring-blue-500/50",
-        available: false,
-        soon: true,
+        available: true,
+        soon: false,
     },
     {
         id: "django",

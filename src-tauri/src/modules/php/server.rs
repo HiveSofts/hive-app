@@ -159,7 +159,11 @@ pub async fn start_php_project(project_path: String) -> Result<PhpServerStatus, 
         .to_string();
 
     let port = if let Some(rec) = existing {
-        if !port_is_open(rec.port) { rec.port } else { free_port(8000) }
+        if !port_is_open(rec.port) {
+            rec.port
+        } else {
+            free_port(8000)
+        }
     } else {
         free_port(8000)
     };

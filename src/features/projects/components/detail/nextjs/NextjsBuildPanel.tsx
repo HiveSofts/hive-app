@@ -17,10 +17,7 @@ const LOCKFILES: Record<string, string> = {
     "package-lock.json": "npm",
 };
 
-export function NextjsBuildPanel({
-    projectPath,
-    packageManager,
-}: NextjsBuildPanelProps) {
+export function NextjsBuildPanel({ projectPath, packageManager }: NextjsBuildPanelProps) {
     const [pm, setPm] = useState(packageManager || "npm");
     const [scripts, setScripts] = useState<Record<string, string>>({});
     const [loading, setLoading] = useState(true);
@@ -175,9 +172,7 @@ export function NextjsBuildPanel({
 
             <div className="rounded-xl border border-zinc-700/60 bg-zinc-950 shadow-xl overflow-hidden">
                 <div className="flex items-center justify-between px-4 py-2.5 border-b border-zinc-800 bg-zinc-900/80">
-                    <span className="text-[11px] text-zinc-500 font-mono">
-                        build output
-                    </span>
+                    <span className="text-[11px] text-zinc-500 font-mono">build output</span>
                     {output.length > 0 && (
                         <button
                             onClick={clearOutput}
@@ -190,9 +185,7 @@ export function NextjsBuildPanel({
                 </div>
                 <div className="p-4 font-mono text-xs min-h-[200px] max-h-[420px] overflow-y-auto space-y-0.5">
                     {output.length === 0 ? (
-                        <p className="text-zinc-600">
-                            Run a script to see its output here.
-                        </p>
+                        <p className="text-zinc-600">Run a script to see its output here.</p>
                     ) : (
                         <>
                             {output.map((line, i) => (
@@ -206,9 +199,7 @@ export function NextjsBuildPanel({
                             {exitCode !== null && (
                                 <pre
                                     className={`whitespace-pre-wrap leading-relaxed ${
-                                        exitCode === 0
-                                            ? "text-emerald-400"
-                                            : "text-red-400"
+                                        exitCode === 0 ? "text-emerald-400" : "text-red-400"
                                     }`}
                                 >
                                     {exitCode === 0

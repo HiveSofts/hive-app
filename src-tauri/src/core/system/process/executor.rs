@@ -1,6 +1,6 @@
 use std::io::{BufRead, BufReader};
 use std::process::{Command, Stdio};
-use tauri::{command, AppHandle, Emitter};
+use tauri::{AppHandle, Emitter, command};
 
 #[derive(Clone, serde::Serialize)]
 struct ShellOutput {
