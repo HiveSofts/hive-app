@@ -426,8 +426,9 @@ pub async fn create_laravel_project(
         "id": uuid,
         "name": name,
         "type": "laravel",
-        "path": final_full_path.to_string_lossy().to_string(),
+        "path": final_full_path.to_string_lossy().to_string(), // Ensure proper path format
         "created_at": chrono::Local::now().to_rfc3339(),
+        "status": "stopped",
     });
 
     let project_file = hive_dir.join(format!("{}.json", name));
@@ -438,6 +439,11 @@ pub async fn create_laravel_project(
             .map_err(|e| format!("Failed to serialize project metadata: {}", e))?,
     )
     .map_err(|e| format!("Failed to save project metadata: {}", e))?;
+
+    // Verify the file was created successfully
+    if !project_file.exists() {
+        return Err("Project metadata file was not created successfully".to_string());
+    }
 
     let _ = app.emit(
         "laravel-output",
@@ -484,4 +490,67 @@ pub fn get_existing_projects() -> Result<Vec<String>, String> {
 pub fn check_project_exists(project_path: String) -> Result<bool, String> {
     let path = PathBuf::from(expand_home(&project_path));
     Ok(path.exists())
+}
+
+// Helper function to get Laravel project description from composer.json
+fn get_laravel_description(project_path: &PathBuf) -> Result<String, String> {
+    let composer_path = project_path.join("composer.json");
+    if !composer_path.exists() {
+        return Ok("Laravel project".to_string());
+    }
+
+    let content = std::fs::read_to_string(&composer_path)
+        .map_err(|e| format!("Failed to read composer.json: {}", e))?;
+    
+    let json: serde_json::Value = serde_json::from_str(&content)
+        .map_err(|e| format!("Failed to parse composer.json: {}", e))?;
+    
+    if let Some(description) = json.get("description").and_then(|v| v.as_str()) {
+        Ok(description.to_string())
+    } else {
+        Ok("Laravel project".to_string())
+    }
+}
+
+// Helper function to get Laravel version from composer.lock or composer.json
+fn get_laravel_version(project_path: &PathBuf) -> Result<String, String> {
+    // Try to get version from composer.lock first
+    let composer_lock_path = project_path.join("composer.lock");
+    if composer_lock_path.exists() {
+        let content = std::fs::read_to_string(&composer_lock_path)
+            .map_err(|e| format!("Failed to read composer.lock: {}", e))?;
+        
+        let json: serde_json::Value = serde_json::from_str(&content)
+            .map_err(|e| format!("Failed to parse composer.lock: {}", e))?;
+        
+        if let Some(packages) = json.get("packages").and_then(|v| v.as_array()) {
+            for package in packages {
+                if let Some(name) = package.get("name").and_then(|v| v.as_str()) {
+                    if name == "laravel/framework" {
+                        if let Some(version) = package.get("version").and_then(|v| v.as_str()) {
+                            return Ok(version.to_string());
+                        }
+                    }
+                }
+            }
+        }
+    }
+    
+    // Fallback: try to get from composer.json
+    let composer_path = project_path.join("composer.json");
+    if composer_path.exists() {
+        let content = std::fs::read_to_string(&composer_path)
+            .map_err(|e| format!("Failed to read composer.json: {}", e))?;
+        
+        let json: serde_json::Value = serde_json::from_str(&content)
+            .map_err(|e| format!("Failed to parse composer.json: {}", e))?;
+        
+        if let Some(require) = json.get("require") {
+            if let Some(laravel_version) = require.get("laravel/framework").and_then(|v| v.as_str()) {
+                return Ok(laravel_version.to_string());
+            }
+        }
+    }
+    
+    Ok("".to_string())
 }

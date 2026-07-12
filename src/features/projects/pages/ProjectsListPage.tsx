@@ -1,5 +1,6 @@
 import { FolderOpen, Loader2, Plus } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { useEffect } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 
 import { Button } from "@/components/ui/button";
 
@@ -9,18 +10,33 @@ import { useProjects } from "../hooks/useProjects";
 
 export default function ProjectsListPage() {
     const navigate = useNavigate();
+    const location = useLocation();
     const {
         projects,
         loading,
         error,
         deleteDialog,
         runningCount,
+        fetchProjects,  // Using the fetchProjects function to refresh
         openDeleteDialog,
         closeDeleteDialog,
         confirmDelete,
         toggleDeleteFiles,
         setError,
     } = useProjects();
+
+    // Check if we came from project creation and need to refresh
+    useEffect(() => {
+        if (location.state?.refreshAfterCreation) {
+            // Clear the state to avoid repeated refreshes
+            setTimeout(() => {
+                window.history.replaceState({}, document.title);
+            }, 100);
+            
+            // Refresh the projects list
+            fetchProjects();
+        }
+    }, [location.state, fetchProjects]);
 
     if (loading) {
         return (

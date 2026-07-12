@@ -23,7 +23,8 @@ export default function CreateProjectPage() {
     const [selectedTech, setSelectedTech] = useState<ProjectType | null>(null);
 
     const handleProjectCreated = () => {
-        navigate("/projects");
+        // Navigate to projects list with state indicating a refresh is needed
+        navigate("/projects", { state: { refreshAfterCreation: true } });
     };
 
     const selectedConfig = TECHNOLOGIES.find((t) => t.id === selectedTech);
