@@ -39,6 +39,12 @@ import { ViteShellPanel } from "@/features/projects/components/detail/vite/ViteS
 import { ViteBuildPanel } from "@/features/projects/components/detail/vite/ViteBuildPanel";
 import { ViteLogsPanel } from "@/features/projects/components/detail/vite/ViteLogsPanel";
 import { ViteDependenciesPanel } from "@/features/projects/components/detail/vite/ViteDependenciesPanel";
+import { ReactOverviewPanel } from "@/features/projects/components/detail/react/ReactOverviewPanel";
+import { ReactShellPanel } from "@/features/projects/components/detail/react/ReactShellPanel";
+import { ReactDependenciesPanel } from "@/features/projects/components/detail/react/ReactDependenciesPanel";
+import { ReactBuildPanel } from "@/features/projects/components/detail/react/ReactBuildPanel";
+import { ReactLogsPanel } from "@/features/projects/components/detail/react/ReactLogsPanel";
+import { ReactDeployPanel } from "@/features/projects/components/detail/react/ReactDeployPanel";
 import type { PanelConfig, ProjectType, TabConfig } from "@/features/projects/types";
 
 interface ProjectConfig {
@@ -79,7 +85,53 @@ export const PROJECT_DETAIL_CONFIG: Record<ProjectType, ProjectConfig> = {
             { id: "logs", label: "Logs", icon: "📄" },
             { id: "deploy", label: "Deploy", icon: "🚀" },
         ],
-        panels: [],
+        panels: [
+            {
+                id: "overview",
+                component: ReactOverviewPanel,
+                props: {
+                    packageManager: (p: any) => p.package_manager,
+                    nodeVersion: (p: any) => p.nodeVersion,
+                    host: (p: any) => p.host,
+                    port: (p: any) => p.port,
+                    description: (p: any) => p.description,
+                    github_repo: (p: any) => p.github_repo,
+                    created_at: (p: any) => p.created_at,
+                },
+            },
+            {
+                id: "shell",
+                component: ReactShellPanel,
+                props: {
+                    packageManager: (p: any) => p.package_manager,
+                },
+            },
+            {
+                id: "dependencies",
+                component: ReactDependenciesPanel,
+                props: {
+                    packageManager: (p: any) => p.package_manager,
+                },
+            },
+            {
+                id: "build",
+                component: ReactBuildPanel,
+                props: {
+                    packageManager: (p: any) => p.package_manager,
+                },
+            },
+            { 
+                id: "logs", 
+                component: ReactLogsPanel 
+            },
+            {
+                id: "deploy",
+                component: ReactDeployPanel,
+                props: {
+                    packageManager: (p: any) => p.package_manager,
+                },
+            },
+        ],
     },
     nextjs: {
         tabs: [
