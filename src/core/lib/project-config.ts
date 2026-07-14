@@ -29,6 +29,11 @@ import { WordPressPluginsPanel } from "@/features/projects/components/detail/wor
 import { WordPressThemesPanel } from "@/features/projects/components/detail/wordpress/WordPressThemesPanel";
 import { WordPressDatabasePanel } from "@/features/projects/components/detail/wordpress/WordPressDatabasePanel";
 import { WordPressLogsPanel } from "@/features/projects/components/detail/wordpress/WordPressLogsPanel";
+import { VueOverviewPanel } from "@/features/projects/components/detail/vue/VueOverviewPanel";
+import { VueShellPanel } from "@/features/projects/components/detail/vue/VueShellPanel";
+import { VueDependenciesPanel } from "@/features/projects/components/detail/vue/VueDependenciesPanel";
+import { VueBuildPanel } from "@/features/projects/components/detail/vue/VueBuildPanel";
+import { VueLogsPanel } from "@/features/projects/components/detail/vue/VueLogsPanel";
 import type { PanelConfig, ProjectType, TabConfig } from "@/features/projects/types";
 
 interface ProjectConfig {
@@ -133,7 +138,43 @@ export const PROJECT_DETAIL_CONFIG: Record<ProjectType, ProjectConfig> = {
             { id: "build", label: "Build", icon: "🔨" },
             { id: "logs", label: "Logs", icon: "📄" },
         ],
-        panels: [],
+        panels: [
+            {
+                id: "overview",
+                component: VueOverviewPanel,
+                props: {
+                    packageManager: (p: any) => p.package_manager,
+                    nodeVersion: (p: any) => p.nodeVersion,
+                    host: (p: any) => p.host,
+                    port: (p: any) => p.port,
+                    description: (p: any) => p.description,
+                    github_repo: (p: any) => p.github_repo,
+                    created_at: (p: any) => p.created_at,
+                },
+            },
+            {
+                id: "shell",
+                component: VueShellPanel,
+                props: {
+                    packageManager: (p: any) => p.package_manager,
+                },
+            },
+            {
+                id: "dependencies",
+                component: VueDependenciesPanel,
+                props: {
+                    packageManager: (p: any) => p.package_manager,
+                },
+            },
+            {
+                id: "build",
+                component: VueBuildPanel,
+                props: {
+                    packageManager: (p: any) => p.package_manager,
+                },
+            },
+            { id: "logs", component: VueLogsPanel },
+        ],
     },
     vite: {
         tabs: [
