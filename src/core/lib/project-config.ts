@@ -34,6 +34,11 @@ import { VueShellPanel } from "@/features/projects/components/detail/vue/VueShel
 import { VueDependenciesPanel } from "@/features/projects/components/detail/vue/VueDependenciesPanel";
 import { VueBuildPanel } from "@/features/projects/components/detail/vue/VueBuildPanel";
 import { VueLogsPanel } from "@/features/projects/components/detail/vue/VueLogsPanel";
+import { ViteOverviewPanel } from "@/features/projects/components/detail/vite/ViteOverviewPanel";
+import { ViteShellPanel } from "@/features/projects/components/detail/vite/ViteShellPanel";
+import { ViteBuildPanel } from "@/features/projects/components/detail/vite/ViteBuildPanel";
+import { ViteLogsPanel } from "@/features/projects/components/detail/vite/ViteLogsPanel";
+import { ViteDependenciesPanel } from "@/features/projects/components/detail/vite/ViteDependenciesPanel";
 import type { PanelConfig, ProjectType, TabConfig } from "@/features/projects/types";
 
 interface ProjectConfig {
@@ -180,10 +185,47 @@ export const PROJECT_DETAIL_CONFIG: Record<ProjectType, ProjectConfig> = {
         tabs: [
             { id: "overview", label: "Overview", icon: "📊" },
             { id: "shell", label: "Shell", icon: "💻" },
+            { id: "dependencies", label: "Dependencies", icon: "📦" },
             { id: "build", label: "Build", icon: "🔨" },
             { id: "logs", label: "Logs", icon: "📄" },
         ],
-        panels: [],
+        panels: [
+            {
+                id: "overview",
+                component: ViteOverviewPanel,
+                props: {
+                    packageManager: (p: any) => p.package_manager,
+                    nodeVersion: (p: any) => p.nodeVersion,
+                    host: (p: any) => p.host,
+                    port: (p: any) => p.port,
+                    description: (p: any) => p.description,
+                    github_repo: (p: any) => p.github_repo,
+                    created_at: (p: any) => p.created_at,
+                },
+            },
+            {
+                id: "shell",
+                component: ViteShellPanel,
+                props: {
+                    packageManager: (p: any) => p.package_manager,
+                },
+            },
+            {
+                id: "dependencies",
+                component: ViteDependenciesPanel,
+                props: {
+                    packageManager: (p: any) => p.package_manager,
+                },
+            },
+            {
+                id: "build",
+                component: ViteBuildPanel,
+                props: {
+                    packageManager: (p: any) => p.package_manager,
+                },
+            },
+            { id: "logs", component: ViteLogsPanel },
+        ],
     },
     nodejs: {
         tabs: [
