@@ -28,15 +28,13 @@ export default function ProjectsListPage() {
     // Check if we came from project creation and need to refresh
     useEffect(() => {
         if (location.state?.refreshAfterCreation) {
-            // Clear the state to avoid repeated refreshes
-            setTimeout(() => {
-                window.history.replaceState({}, document.title);
-            }, 100);
-            
-            // Refresh the projects list
-            fetchProjects();
+            // Refresh the projects list first
+            fetchProjects().finally(() => {
+                // Clear the state only after fetch completes to ensure data is loaded
+                navigate("/projects", { replace: true, state: {} });
+            });
         }
-    }, [location.state, fetchProjects]);
+    }, [location.state, fetchProjects, navigate]);
 
     if (loading) {
         return (

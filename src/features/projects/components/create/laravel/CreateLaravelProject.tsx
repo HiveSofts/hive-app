@@ -189,6 +189,7 @@ function TerminalPanel({
     const [isInstalling, setIsInstalling] = useState(true);
     const [isKilling, setIsKilling] = useState(false);
     const [installingDeps, setInstallingDeps] = useState(false);
+    const [retryAttempted, setRetryAttempted] = useState(false);
     const bottomRef = useRef<HTMLDivElement>(null);
     const addedLines = useRef<Set<string>>(new Set());
     const childProcessRef = useRef<any>(
@@ -236,26 +237,64 @@ function TerminalPanel({
         addLine("Installing missing dependencies...", "info");
         
         try {
-            const result: Array<{ step: string; message: string; success: boolean }> = await invoke("check_and_install_dependencies");
-            
-            result.forEach(item => {
-                if (item.success) {
-                    addLine(`✓ ${item.message}`, "success");
+            // Try the new ensure_laravel_dependencies command first
+            let result;
+            try {
+                result = await invoke("ensure_laravel_dependencies");
+            } catch (cmdErr: any) {
+                // If the command doesn't exist, fall back to the old check_and_install_dependencies
+                if (cmdErr.toString().includes("Command ensure_laravel_dependencies not found")) {
+                    addLine("New dependency installer not available, using fallback method...", "info");
+                    result = await invoke("check_and_install_dependencies");
                 } else {
-                    addLine(`✗ ${item.message}`, "error");
+                    throw cmdErr; // Re-throw if it's a different error
                 }
-            });
+            }
             
-            if (result.some(item => !item.success)) {
-                addLine("Some dependencies failed to install. Please try again or install manually.", "error");
-                setInstallingDeps(false);
-                return false;
+            if (Array.isArray(result)) {
+                let hasErrors = false;
+                for (const item of result) {
+                    if (typeof item === 'object' && item !== null) {
+                        const message = item.message || item.step || 'Unknown dependency operation';
+                        const success = item.success;
+                        
+                        if (success) {
+                            addLine(`✓ ${message}`, "success");
+                        } else {
+                            addLine(`✗ ${message}`, "error");
+                            hasErrors = true;
+                        }
+                    } else if (typeof item === 'string') {
+                        // Handle string results
+                        addLine(`• ${item}`, "info");
+                    }
+                }
+                
+                if (hasErrors) {
+                    addLine("Some dependencies failed to install. Please try again or install manually.", "error");
+                    setInstallingDeps(false);
+                    return false;
+                }
+            } else if (typeof result === 'string') {
+                // Handle simple string result
+                addLine(`✓ ${result}`, "success");
+            } else if (Array.isArray(result) && result.length === 0) {
+                // Empty array means success
+                addLine("Dependencies checked/installed successfully.", "success");
+            } else if (result === null || result === undefined) {
+                // Handle null/undefined result
+                addLine("Dependencies checked, no changes needed.", "success");
+            } else {
+                // Handle unexpected result types
+                addLine(`Dependencies processed: ${JSON.stringify(result)}`, "info");
             }
             
             addLine("Dependencies installed successfully. Retrying Laravel project creation...", "info");
+            setInstallingDeps(false);
             return true;
         } catch (err: any) {
-            addLine(`Failed to install dependencies: ${err}`, "error");
+            const errorMessage = typeof err === 'string' ? err : (err?.message || err?.toString?.() || 'Unknown error occurred');
+            addLine(`Failed to install dependencies: ${errorMessage}`, "error");
             setInstallingDeps(false);
             return false;
         }
@@ -310,15 +349,36 @@ function TerminalPanel({
             } else if (payload.type === "error") {
                 const errorMessage = payload.data;
                 
-                // Check if the error is related to missing Laravel installer
+                // Check if the error is related to missing Laravel installer or exit code 100
                 if (errorMessage.includes("Laravel installer not found") || 
                     errorMessage.includes("not found") || 
-                    errorMessage.includes("exit code: Some(100)")) {
+                    errorMessage.includes("exit code: 100") ||
+                    errorMessage.includes("exit code: Some(100)") ||
+                    errorMessage.includes("exit code: Some(-1)") ||
+                    errorMessage.includes("exit code: -1")) {
                     
                     addLine(`Error: ${errorMessage}`, "error");
                     
+                    // Provide specific guidance for exit code 100
+                    // if (errorMessage.includes("exit code: 100") || errorMessage.includes("exit code: Some(100)")) {
+                    //     addLine("This error typically indicates the Laravel installer is missing or not working properly.", "info");
+                    //     addLine("Attempting to install/reinstall the Laravel installer and dependencies...", "info");
+                    // }
+                    
+                    // Prevent multiple retry attempts
+                    if (retryAttempted) {
+                        addLine("Retry already attempted. Please check your system setup.", "error");
+                        setError(errorMessage);
+                        setIsInstalling(false);
+                        setInstallingDeps(false);
+                        setActiveInstallation(null);
+                        startedInstalls.delete(`${projectsPath}/${data.name}`);
+                        return;
+                    }
+                    
                     // Attempt to install dependencies automatically
                     const attemptInstallDeps = async () => {
+                        setRetryAttempted(true);
                         const depsInstalled = await installDependencies();
                         
                         if (depsInstalled) {
@@ -348,20 +408,38 @@ function TerminalPanel({
                                             addLine("Project likely created successfully after dependency installation.", "success");
                                             
                                             // Mark as complete since the project exists
+                                            setError(null);
                                             setDone(true);
                                             setIsInstalling(false);
                                             setActiveInstallation(null);
                                             startedInstalls.delete(`${projectsPath}/${data.name}`);
                                             
-                                            // Call onDone to complete the process
-                                            onDone({
-                                                name: data.name,
-                                                type: "laravel",
-                                                path: `${projectsPath}/${data.name}`,
-                                                description: `Laravel · ${data.database}${data.starterKit !== "none" ? ` · ${data.starterKit}` : ""}`,
-                                                port: 8000,
-                                            });
+                                            // Ensure the project metadata file is created by calling the backend
+                                            // This ensures the project will appear in the project list
+                                            try {
+                                                let args: string[] = [];
+                                                if (data.starterKit !== "none" && data.starterKit !== "custom")
+                                                    args.push(`--${data.starterKit}`);
+                                                if (data.starterKit === "custom" && data.customRepo)
+                                                    args.push(`--using=${data.customRepo}`);
+                                                if (data.auth === "workos") args.push("--workos");
+                                                if (data.auth === "none") args.push("--no-authentication");
+                                                args.push(`--database=${data.database}`, `--${data.testing}`);
+                                                if (!data.boost) args.push("--no-boost");
+                                                
+                                                await invoke<any>("create_laravel_project", {
+                                                    projectPath: projectsPath,
+                                                    name: data.name,
+                                                    args,
+                                                    runId,
+                                                });
+                                            } catch (creationErr) {
+                                                console.error("Error ensuring project metadata creation:", creationErr);
+                                                // Even if metadata creation fails, we still show the project as done
+                                                // since the directory exists and user can access it
+                                            }
                                             
+                                            // DO NOT call onDone here - user must click the green button
                                             return;
                                         }
                                     } catch (checkErr) {
@@ -381,19 +459,11 @@ function TerminalPanel({
                                     // Handle the case where project already exists after dependency installation
                                     if (message.includes("Project already exists")) {
                                         addLine(`Project already exists: ${data.name}. Process completed successfully.`, "success");
+                                        setError(null); // Clear any previous error state
                                         setDone(true);
                                         setIsInstalling(false);
                                         setActiveInstallation(null);
                                         startedInstalls.delete(`${projectsPath}/${data.name}`);
-                                        
-                                        // Call onDone to complete the process
-                                        onDone({
-                                            name: data.name,
-                                            type: "laravel",
-                                            path: `${projectsPath}/${data.name}`,
-                                            description: `Laravel · ${data.database}${data.starterKit !== "none" ? ` · ${data.starterKit}` : ""}`,
-                                            port: 8000,
-                                        });
                                     } else {
                                         addLine(`Retry failed: ${message}`, "error");
                                         setError(message);
@@ -405,6 +475,11 @@ function TerminalPanel({
                                 }
                             }, 1000);
                         } else {
+                            addLine("Automatic dependency installation failed. You may need to install Laravel manually:", "error");
+                            addLine("  1. Make sure PHP is installed and available in your PATH", "error");
+                            addLine("  2. Run: composer global require laravel/installer", "error");
+                            addLine("  3. Try creating the project again", "error");
+                            
                             setError(errorMessage);
                             setIsInstalling(false);
                             setInstallingDeps(false);
@@ -501,6 +576,7 @@ function TerminalPanel({
         setDone(false);
         setIsInstalling(true);
         setInstallingDeps(false);
+        setRetryAttempted(false);
         setLines([
             { text: `Creating Laravel project: ${data.name}`, type: "info" },
             { text: `Location: ${projectsPath}/${data.name}`, type: "info" },
@@ -690,7 +766,7 @@ export function CreateLaravelProject({ onSuccess }: CreateLaravelProjectProps) {
         }, 500);
 
         return () => clearInterval(interval);
-    }, []);
+    }, [activeInstallation]);
 
     const loadProjectsPath = async () => {
         try {
@@ -758,6 +834,8 @@ export function CreateLaravelProject({ onSuccess }: CreateLaravelProjectProps) {
     };
 
     const handleDone = (project: any) => {
+        // Ensure the project is properly registered before calling onSuccess
+        // The onSuccess callback is called from the green "Open Project" button
         onSuccess(project);
     };
 

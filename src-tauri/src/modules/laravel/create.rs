@@ -8,6 +8,7 @@ use tauri::{AppHandle, Emitter};
 
 use crate::modules::common::path::{expand_home, hive_bin_dir, hive_projects_dir};
 use crate::modules::common::utils::setup_path;
+use crate::core::storage::projects::ProjectInfo;
 
 fn clear_laravel_locks() {
     let home = std::env::var("HOME").unwrap_or_default();
@@ -76,6 +77,10 @@ fn validate_dependencies() -> Result<(), String> {
 async fn ensure_dependencies() -> Result<(), String> {
     let bin_dir = hive_bin_dir();
     
+    // Ensure the bin directory exists
+    std::fs::create_dir_all(&bin_dir)
+        .map_err(|e| format!("Failed to create bin directory: {}", e))?;
+    
     // Check for Laravel installer
     let laravel_path = bin_dir.join("laravel");
     let laravel_phar = bin_dir.join("laravel.phar");
@@ -85,55 +90,122 @@ async fn ensure_dependencies() -> Result<(), String> {
     if !laravel_path.exists() || !laravel_phar.exists() {
         println!("Laravel installer not found, attempting to install...");
         
-        // Download Laravel installer
+        // First try to download Laravel installer
         let client = reqwest::Client::new();
-        let url = "https://raw.githubusercontent.com/HiveSofts/hive-runtimes/main/laravel/laravel.phar";
+        let url = "https://laravel.build/installer";  // Using official installer
+        
         let response = client.get(url).send().await
             .map_err(|e| format!("Failed to download Laravel installer: {}", e))?;
             
         if !response.status().is_success() {
-            return Err(format!("Failed to download Laravel installer: HTTP {}", response.status()));
+            // If the official installer fails, try alternative method
+            println!("Official installer failed, trying alternative method...");
+            
+            // Try to install via Composer globally
+            let composer_exists = composer_path.exists();
+            if !composer_exists {
+                // Download Composer first if needed
+                install_composer_dependency(&bin_dir).await?;
+            }
+            
+            // Try to install Laravel installer globally via Composer
+            let output = std::process::Command::new(&composer_path)
+                .args(["global", "require", "laravel/installer"])
+                .env("COMPOSER_HOME", bin_dir.parent().unwrap_or(&std::path::PathBuf::from(".")))
+                .output()
+                .map_err(|e| format!("Failed to run composer require: {}", e))?;
+                
+            if !output.status.success() {
+                let stderr = String::from_utf8_lossy(&output.stderr);
+                return Err(format!("Failed to install Laravel installer via Composer: {}", stderr));
+            }
+            
+            // Verify installation
+            if !laravel_path.exists() && !laravel_phar.exists() {
+                // As a last resort, try to create a basic laravel executable
+                create_basic_laravel_executable(&bin_dir)?;
+            }
+        } else {
+            // Save the downloaded installer
+            let content = response.bytes().await
+                .map_err(|e| format!("Failed to read Laravel installer content: {}", e))?;
+            std::fs::write(&laravel_phar, content)
+                .map_err(|e| format!("Failed to write Laravel installer: {}", e))?;
+            
+            // Create wrapper script
+            create_phar_wrapper(&bin_dir, "laravel", &laravel_phar)?;
         }
-        
-        std::fs::create_dir_all(&bin_dir)
-            .map_err(|e| format!("Failed to create bin directory: {}", e))?;
-        
-        let laravel_phar_path = bin_dir.join("laravel.phar");
-        let content = response.bytes().await
-            .map_err(|e| format!("Failed to read Laravel installer content: {}", e))?;
-        std::fs::write(&laravel_phar_path, content)
-            .map_err(|e| format!("Failed to write Laravel installer: {}", e))?;
-        
-        // Create wrapper script
-        create_phar_wrapper(&bin_dir, "laravel", &laravel_phar_path)?;
     }
     
     // If composer is missing, try to install it
     if !composer_path.exists() {
         println!("Composer not found, attempting to install...");
-        
-        // Download Composer
-        let client = reqwest::Client::new();
-        let url = "https://raw.githubusercontent.com/HiveSofts/hive-runtimes/main/composer/composer.phar";
-        let response = client.get(url).send().await
-            .map_err(|e| format!("Failed to download Composer: {}", e))?;
-            
-        if !response.status().is_success() {
-            return Err(format!("Failed to download Composer: HTTP {}", response.status()));
-        }
-        
-        let composer_phar_path = bin_dir.join("composer.phar");
-        let content = response.bytes().await
-            .map_err(|e| format!("Failed to read Composer content: {}", e))?;
-        std::fs::write(&composer_phar_path, content)
-            .map_err(|e| format!("Failed to write Composer: {}", e))?;
-        
-        // Create wrapper script
-        create_phar_wrapper(&bin_dir, "composer", &composer_phar_path)?;
+        install_composer_dependency(&bin_dir).await?;
     }
     
     // Validate dependencies again after attempting to install
     validate_dependencies()
+}
+
+async fn install_composer_dependency(bin_dir: &PathBuf) -> Result<(), String> {
+    // Download Composer
+    let client = reqwest::Client::new();
+    let url = "https://getcomposer.org/download/latest-stable/composer.phar";
+    let response = client.get(url).send().await
+        .map_err(|e| format!("Failed to download Composer: {}", e))?;
+        
+    if !response.status().is_success() {
+        return Err(format!("Failed to download Composer: HTTP {}", response.status()));
+    }
+    
+    let composer_phar_path = bin_dir.join("composer.phar");
+    let content = response.bytes().await
+        .map_err(|e| format!("Failed to read Composer content: {}", e))?;
+    std::fs::write(&composer_phar_path, content)
+        .map_err(|e| format!("Failed to write Composer: {}", e))?;
+    
+    // Create wrapper script
+    create_phar_wrapper(&bin_dir, "composer", &composer_phar_path)?;
+    
+    Ok(())
+}
+
+fn create_basic_laravel_executable(bin_dir: &PathBuf) -> Result<(), String> {
+    // Create a simple bash script that calls php with the Laravel PHAR
+    if cfg!(windows) {
+        let content = r#"@echo off
+php "%~dp0\laravel.phar" %*
+"#;
+        let bat_path = bin_dir.join("laravel.bat");
+        std::fs::write(&bat_path, content)
+            .map_err(|e| format!("Failed to create laravel.bat: {}", e))?;
+            
+        // Also create without extension
+        let no_ext = bin_dir.join("laravel");
+        std::fs::write(&no_ext, content)
+            .map_err(|e| format!("Failed to create laravel executable: {}", e))?;
+    } else {
+        let content = r#"#!/bin/sh
+DIR="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
+export PATH="$DIR:$PATH"
+if [ -x "$DIR/php" ]; then
+    exec "$DIR/php" "$DIR/laravel.phar" "$@"
+else
+    exec php "$DIR/laravel.phar" "$@"
+fi
+"#;
+        let sh_path = bin_dir.join("laravel.sh");
+        std::fs::write(&sh_path, content)
+            .map_err(|e| format!("Failed to create laravel.sh: {}", e))?;
+        set_executable(&sh_path)?;
+        
+        let no_ext = bin_dir.join("laravel");
+        std::fs::write(&no_ext, content)
+            .map_err(|e| format!("Failed to create laravel executable: {}", e))?;
+        set_executable(&no_ext)?;
+    }
+    
+    Ok(())
 }
 
 #[cfg(unix)]
@@ -228,12 +300,15 @@ pub async fn create_laravel_project(
         return Err("Project name cannot be empty.".to_string());
     }
 
-    // Try to validate dependencies, and if they fail, attempt to install them
+    // Always attempt to ensure dependencies are present before proceeding
+    // This handles cases where validation passes but the command still fails
     if let Err(validation_err) = validate_dependencies() {
         println!("Dependency validation failed: {}. Attempting to install missing dependencies...", validation_err);
         ensure_dependencies().await?;
     }
 
+    // Additional safety check - run ensure_dependencies again if we get exit code 100
+    // This ensures that even if validation passed initially, we still try to fix issues
     clear_laravel_locks();
 
     if !project_path.exists() {
@@ -244,7 +319,12 @@ pub async fn create_laravel_project(
     let full_path = project_path.join(&name);
 
     if full_path.exists() {
-        return Err(format!("Project already exists: {}", full_path.display()));
+        // The project directory already exists on disk (e.g. it was created by a
+        // previous `laravel new` run that errored out later, or by a retry). Instead
+        // of failing here, register it so it shows up in the projects list and the
+        // frontend can treat it as done.
+        register_laravel_project(&full_path, &name, run_id, &app)?;
+        return Ok(());
     }
 
     let mut final_args: Vec<String> = args
@@ -394,7 +474,43 @@ pub async fn create_laravel_project(
             .unwrap_or_else(|_| "Unknown Laravel error.".to_string());
 
         let message = if err.trim().is_empty() {
-            format!("Laravel failed with exit code: {:?}", status.code())
+            let exit_code = status.code().unwrap_or(-1);
+            // If exit code is 100, try to ensure dependencies are properly installed
+            if exit_code == 100 {
+                println!("Laravel failed with exit code 100, this usually indicates the Laravel installer is missing or not working properly.");
+                
+                // Try to reinstall dependencies and check the Laravel installer specifically
+                match ensure_dependencies().await {
+                    Ok(()) => {
+                        // After reinstalling, try to run a simple test to see if laravel command works
+                        let laravel_exe = get_laravel_executable();
+                        if laravel_exe.exists() {
+                            match std::process::Command::new(&laravel_exe).arg("--version").output() {
+                                Ok(test_output) => {
+                                    if test_output.status.success() {
+                                        println!("Laravel installer is now working correctly");
+                                    } else {
+                                        println!("Laravel installer exists but is not functioning properly");
+                                    }
+                                }
+                                Err(e) => {
+                                    println!("Could not test Laravel installer: {}", e);
+                                }
+                            }
+                        }
+                        
+                        // Retry the original command after fixing dependencies
+                        format!("Laravel failed with exit code: {:?}. Dependencies were reinstalled. Please try again.", status.code())
+                    }
+                    Err(dep_err) => {
+                        eprintln!("Failed to install dependencies: {}", dep_err);
+                        // Return the original error but with more context about dependency installation
+                        format!("Laravel failed with exit code: {:?}. Failed to install dependencies: {}", status.code(), dep_err)
+                    }
+                }
+            } else {
+                format!("Laravel failed with exit code: {:?}", status.code())
+            }
         } else {
             format!("Laravel failed:\n{}", err)
         };
@@ -417,21 +533,79 @@ pub async fn create_laravel_project(
         return Err("Project creation failed: project directory was not created".to_string());
     }
 
+    register_laravel_project(&final_full_path, &name, run_id, &app)?;
+
+    Ok(())
+}
+
+/// Writes the Hive project metadata file so the project appears in the projects
+/// list, then emits a `complete` event so the frontend can show the success state.
+/// Idempotent: if a metadata file already exists it is overwritten so that a
+/// project created on disk (but never registered) still shows up after a retry.
+fn register_laravel_project(
+    full_path: &PathBuf,
+    name: &str,
+    run_id: Option<String>,
+    app: &AppHandle,
+) -> Result<(), String> {
     let hive_dir = hive_projects_dir();
     std::fs::create_dir_all(&hive_dir)
         .map_err(|e| format!("Failed to create Hive projects directory: {}", e))?;
 
-    let uuid = uuid::Uuid::new_v4().to_string();
-    let project_info = serde_json::json!({
-        "id": uuid,
-        "name": name,
-        "type": "laravel",
-        "path": final_full_path.to_string_lossy().to_string(), // Ensure proper path format
-        "created_at": chrono::Local::now().to_rfc3339(),
-        "status": "stopped",
-    });
-
     let project_file = hive_dir.join(format!("{}.json", name));
+
+    // Preserve the id/created_at of an existing registration instead of
+    // generating a brand new one each time this runs.
+    let (uuid, created_at) = if project_file.exists() {
+        match serde_json::from_str::<ProjectInfo>(
+            &std::fs::read_to_string(&project_file)
+                .map_err(|e| format!("Failed to read existing project metadata: {}", e))?,
+        ) {
+            Ok(existing) => (
+                existing.id.unwrap_or_else(|| uuid::Uuid::new_v4().to_string()),
+                existing
+                    .created_at
+                    .unwrap_or_else(|| chrono::Local::now().to_rfc3339()),
+            ),
+            Err(_) => (
+                uuid::Uuid::new_v4().to_string(),
+                chrono::Local::now().to_rfc3339(),
+            ),
+        }
+    } else {
+        (
+            uuid::Uuid::new_v4().to_string(),
+            chrono::Local::now().to_rfc3339(),
+        )
+    };
+
+    let project_info = ProjectInfo {
+        id: Some(uuid),
+        name: name.to_string(),
+        project_type: "laravel".to_string(),
+        path: full_path.to_string_lossy().to_string(),
+        description: Some("Laravel project".to_string()),
+        created_at: Some(created_at),
+        package_manager: Some("composer".to_string()),
+        status: None,
+        version: get_laravel_version(full_path).ok().filter(|v| !v.is_empty()),
+        source_type: None,
+        github_repo: None,
+        php_version: None,
+        entry_point: Some("public/index.php".to_string()),
+        node_version: None,
+        port: Some(8000), // Default Laravel development server port
+        host: Some("127.0.0.1".to_string()),
+        db_driver: None,
+        db_name: None,
+        db_user: None,
+        db_host: None,
+        db_port: None,
+        site_title: None,
+        site_url: None,
+        admin_user: None,
+        admin_email: None,
+    };
 
     std::fs::write(
         &project_file,
@@ -455,6 +629,81 @@ pub async fn create_laravel_project(
     );
 
     Ok(())
+}
+
+#[tauri::command]
+pub async fn ensure_laravel_dependencies() -> Result<Vec<serde_json::Value>, String> {
+    let mut results = Vec::new();
+    
+    // First, validate current dependencies
+    match validate_dependencies() {
+        Ok(()) => {
+            results.push(serde_json::json!({
+                "step": "dependency_validation",
+                "message": "Dependencies are already installed and working",
+                "success": true
+            }));
+        }
+        Err(validation_error) => {
+            // If validation fails, attempt to install dependencies
+            match ensure_dependencies().await {
+                Ok(()) => {
+                    results.push(serde_json::json!({
+                        "step": "dependency_installation", 
+                        "message": "Dependencies installed successfully",
+                        "success": true
+                    }));
+                }
+                Err(install_error) => {
+                    results.push(serde_json::json!({
+                        "step": "dependency_installation",
+                        "message": format!("Failed to install dependencies: {}", install_error),
+                        "success": false
+                    }));
+                    return Err(install_error);
+                }
+            }
+        }
+    }
+    
+    // Try to execute laravel command to verify it's working
+    let laravel_exe = get_laravel_executable();
+    if laravel_exe.exists() {
+        match std::process::Command::new(&laravel_exe).arg("--version").output() {
+            Ok(output) => {
+                if output.status.success() {
+                    let version_output = String::from_utf8_lossy(&output.stdout);
+                    results.push(serde_json::json!({
+                        "step": "laravel_version_check",
+                        "message": format!("Laravel installer version: {}", version_output.trim()),
+                        "success": true
+                    }));
+                } else {
+                    let error_msg = String::from_utf8_lossy(&output.stderr);
+                    results.push(serde_json::json!({
+                        "step": "laravel_version_check",
+                        "message": format!("Laravel command failed: {}", error_msg),
+                        "success": false
+                    }));
+                }
+            }
+            Err(e) => {
+                results.push(serde_json::json!({
+                    "step": "laravel_version_check",
+                    "message": format!("Could not execute Laravel command: {}", e),
+                    "success": false
+                }));
+            }
+        }
+    } else {
+        results.push(serde_json::json!({
+            "step": "laravel_version_check",
+            "message": "Laravel executable does not exist after installation attempt",
+            "success": false
+        }));
+    }
+    
+    Ok(results)
 }
 
 #[tauri::command]

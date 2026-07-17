@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use std::path::Path;
 use std::process::Command;
 use tauri::command;
 
@@ -23,6 +24,16 @@ pub struct ScheduleRunResult {
 }
 
 fn run_artisan(project_path: &str, args: &[&str]) -> Result<(String, String, bool), String> {
+    // Composer dependencies must be installed for artisan to boot. Detect the
+    // missing vendor/autoload.php early and return a clear, actionable error
+    // instead of surfacing the raw PHP fatal ("Failed opening required .../vendor/autoload.php").
+    let autoload = Path::new(project_path).join("vendor").join("autoload.php");
+    if !autoload.exists() {
+        return Err(
+            "Composer dependencies are not installed. Run `composer install` in the project directory to use this feature.".to_string(),
+        );
+    }
+
     let output = Command::new("php")
         .arg("artisan")
         .args(args)

@@ -58,6 +58,7 @@ pub fn run() {
             check_package_manager,
             install_package_manager,
             create_laravel_project,
+            ensure_laravel_dependencies,  // Add the new command here
             create_nextjs_project,
             create_nodejs_project,
             create_php_project,

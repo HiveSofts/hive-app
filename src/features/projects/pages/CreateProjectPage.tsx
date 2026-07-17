@@ -24,6 +24,7 @@ export default function CreateProjectPage() {
 
     const handleProjectCreated = () => {
         // Navigate to projects list with state indicating a refresh is needed
+        // This will be called when the user clicks the green "Open Project" button
         navigate("/projects", { state: { refreshAfterCreation: true } });
     };
 

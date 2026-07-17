@@ -325,4 +325,3 @@ export function ReactBuildPanel({ projectPath, packageManager }: ReactBuildPanel
         </div>
     );
 }
-
