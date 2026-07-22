@@ -3,7 +3,6 @@ import { UserConfig } from "@/features/onboarding/types";
 import { useEffect, useState } from "react";
 
 import {
-    IconCpu2,
     IconDashboard,
     IconDatabase,
     IconFolder,
@@ -12,6 +11,7 @@ import {
     IconShare,
 } from "@tabler/icons-react";
 import { invoke } from "@tauri-apps/api/core";
+import { openUrl } from "@tauri-apps/plugin-opener";
 import { motion } from "framer-motion";
 import { SiDocker } from "react-icons/si";
 
@@ -33,14 +33,18 @@ const navMainItems = [
     { title: "Dashboard", url: "/", icon: IconDashboard },
     { title: "Projects", url: "/projects", icon: IconFolder },
     { title: "Docker", url: "/docker", icon: SiDocker },
-    { title: "Runtimes", url: "/runtimes", icon: IconCpu2 },
+    // { title: "Runtimes", url: "/runtimes", icon: IconCpu2 },
     { title: "Databases", url: "/databases", icon: IconDatabase },
     { title: "Tunnel", url: "/tunnel", icon: IconShare },
 ];
 
 const navSecondaryItems = [
     { title: "Settings", url: "/settings", icon: IconSettings },
-    { title: "Help", url: "/help", icon: IconHelp },
+    {
+        title: "Help",
+        onClick: () => openUrl("https://USERNAME.github.io/hive-app/"),
+        icon: IconHelp,
+    },
 ];
 
 const defaultUser = {

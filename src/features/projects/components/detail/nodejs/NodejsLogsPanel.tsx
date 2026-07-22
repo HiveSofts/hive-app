@@ -83,19 +83,12 @@ export function NodejsLogsPanel({ projectPath }: NodejsLogsPanelProps) {
         return (
             <div className="rounded-xl border bg-card p-8 text-center">
                 <FileWarning className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
-                <p className="text-sm text-muted-foreground">
-                    No log files found in this project
-                </p>
+                <p className="text-sm text-muted-foreground">No log files found in this project</p>
                 <p className="text-xs text-muted-foreground/70 mt-1">
-                    Node.js writes debug logs (npm-debug.log, yarn-error.log,
-                    pnpm-debug.log) when a command fails.
+                    Node.js writes debug logs (npm-debug.log, yarn-error.log, pnpm-debug.log) when a
+                    command fails.
                 </p>
-                <Button
-                    variant="outline"
-                    size="sm"
-                    className="mt-4"
-                    onClick={scan}
-                >
+                <Button variant="outline" size="sm" className="mt-4" onClick={scan}>
                     <RefreshCw className="w-3.5 h-3.5 mr-1.5" />
                     Rescan
                 </Button>
@@ -119,12 +112,7 @@ export function NodejsLogsPanel({ projectPath }: NodejsLogsPanelProps) {
                         {file}
                     </button>
                 ))}
-                <Button
-                    variant="outline"
-                    size="sm"
-                    className="ml-auto"
-                    onClick={scan}
-                >
+                <Button variant="outline" size="sm" className="ml-auto" onClick={scan}>
                     <RefreshCw className="w-3.5 h-3.5 mr-1.5" />
                     Rescan
                 </Button>
@@ -132,9 +120,7 @@ export function NodejsLogsPanel({ projectPath }: NodejsLogsPanelProps) {
 
             <div className="rounded-xl border border-zinc-700/60 bg-zinc-950 shadow-xl overflow-hidden">
                 <div className="px-4 py-2.5 border-b border-zinc-800 bg-zinc-900/80">
-                    <span className="text-[11px] text-zinc-500 font-mono">
-                        {active}
-                    </span>
+                    <span className="text-[11px] text-zinc-500 font-mono">{active}</span>
                 </div>
                 <div className="p-4 font-mono text-xs max-h-[460px] overflow-y-auto">
                     <pre className="whitespace-pre-wrap leading-relaxed text-zinc-300">

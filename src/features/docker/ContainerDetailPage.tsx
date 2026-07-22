@@ -51,14 +51,7 @@ import * as dockerService from "./services/docker.service";
 import { ContainerDetails, ContainerInfo, ContainerStats } from "./services/types";
 
 type TabKey =
-    | "overview"
-    | "logs"
-    | "shell"
-    | "inspect"
-    | "network"
-    | "volumes"
-    | "env"
-    | "processes";
+    "overview" | "logs" | "shell" | "inspect" | "network" | "volumes" | "env" | "processes";
 
 function formatBytes(mb: number): string {
     if (mb >= 1024) return `${(mb / 1024).toFixed(1)} GB`;

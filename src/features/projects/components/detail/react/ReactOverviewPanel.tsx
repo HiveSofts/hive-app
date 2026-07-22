@@ -1,14 +1,6 @@
 import { memo } from "react";
 
-import {
-    Calendar,
-    ExternalLink,
-    FileCode2,
-    FolderOpen,
-    Globe,
-    Package,
-    Tag,
-} from "lucide-react";
+import { Calendar, ExternalLink, FileCode2, FolderOpen, Globe, Package, Tag } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 
@@ -83,21 +75,15 @@ export const ReactOverviewPanel = memo(function ReactOverviewPanel({
                         </div>
 
                         <div className="flex flex-col gap-0.5">
-                            <span className="text-[11px] text-muted-foreground">
-                                Node Version
-                            </span>
+                            <span className="text-[11px] text-muted-foreground">Node Version</span>
                             <span className="font-mono font-medium">
                                 {nodeVersion ? `Node ${nodeVersion}` : "—"}
                             </span>
                         </div>
 
                         <div className="flex flex-col gap-0.5">
-                            <span className="text-[11px] text-muted-foreground">
-                                Project Path
-                            </span>
-                            <span className="font-mono font-medium truncate">
-                                {projectPath}
-                            </span>
+                            <span className="text-[11px] text-muted-foreground">Project Path</span>
+                            <span className="font-mono font-medium truncate">{projectPath}</span>
                         </div>
 
                         {serverUrl && (
@@ -119,9 +105,7 @@ export const ReactOverviewPanel = memo(function ReactOverviewPanel({
 
                         {formattedDate && (
                             <div className="flex flex-col gap-0.5">
-                                <span className="text-[11px] text-muted-foreground">
-                                    Created
-                                </span>
+                                <span className="text-[11px] text-muted-foreground">Created</span>
                                 <span className="font-medium">{formattedDate}</span>
                             </div>
                         )}

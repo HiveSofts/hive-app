@@ -32,12 +32,7 @@ const QUICK_GROUPS = [
     },
     {
         label: "Package Management",
-        items: [
-            "npm install",
-            "npm update",
-            "npm outdated",
-            "npx npm-check-updates -u",
-        ],
+        items: ["npm install", "npm update", "npm outdated", "npx npm-check-updates -u"],
     },
     {
         label: "Git",
@@ -118,10 +113,7 @@ export function ViteShellPanel({
                 if (event.payload.is_done) {
                     unlisten();
                     setRunning(false);
-                    if (
-                        event.payload.exit_code !== 0 &&
-                        event.payload.exit_code !== null
-                    ) {
+                    if (event.payload.exit_code !== 0 && event.payload.exit_code !== null) {
                         appendLine({
                             type: "err",
                             text: `Process exited with code ${event.payload.exit_code}`,

@@ -1,5 +1,3 @@
-use std::thread::sleep;
-use std::time::Duration;
 use tauri::command;
 
 #[command]

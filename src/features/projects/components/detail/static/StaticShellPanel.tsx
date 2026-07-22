@@ -1,7 +1,8 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
+
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -25,7 +26,7 @@ export const StaticShellPanel = function StaticShellPanel({
     const [lines, setLines] = useState<Line[]>([
         {
             type: "info",
-            text: `Hive Shell · ${projectName || 'Static'}\nType a command or use the shortcuts above.\n`,
+            text: `Hive Shell · ${projectName || "Static"}\nType a command or use the shortcuts above.\n`,
         },
     ]);
     const [input, setInput] = useState("");
@@ -86,10 +87,7 @@ export const StaticShellPanel = function StaticShellPanel({
                 if (event.payload.is_done) {
                     unlisten();
                     setRunning(false);
-                    if (
-                        event.payload.exit_code !== 0 &&
-                        event.payload.exit_code !== null
-                    ) {
+                    if (event.payload.exit_code !== 0 && event.payload.exit_code !== null) {
                         appendLine({
                             type: "err",
                             text: `Process exited with code ${event.payload.exit_code}`,
@@ -139,11 +137,7 @@ export const StaticShellPanel = function StaticShellPanel({
                     >
                         List Files
                     </Button>
-                    <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => handlePresetCommand("pwd")}
-                    >
+                    <Button size="sm" variant="outline" onClick={() => handlePresetCommand("pwd")}>
                         Current Directory
                     </Button>
                     <Button
@@ -171,7 +165,7 @@ export const StaticShellPanel = function StaticShellPanel({
                         <span className="w-3 h-3 rounded-full bg-yellow-500/80" />
                         <span className="w-3 h-3 rounded-full bg-emerald-500/80" />
                         <span className="ml-3 text-[11px] text-muted-foreground font-mono">
-                            hive — {projectName || 'static'} — bash
+                            hive — {projectName || "static"} — bash
                         </span>
                         {running && (
                             <span className="ml-auto text-[10px] text-amber-400 font-mono animate-pulse">

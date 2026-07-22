@@ -26,10 +26,7 @@ const LOCKFILES: Record<string, string> = {
     "package-lock.json": "npm",
 };
 
-export function NodejsPackagesPanel({
-    projectPath,
-    packageManager,
-}: NodejsPackagesPanelProps) {
+export function NodejsPackagesPanel({ projectPath, packageManager }: NodejsPackagesPanelProps) {
     const [pm, setPm] = useState(packageManager || "npm");
     const [deps, setDeps] = useState<Dep[]>([]);
     const [loading, setLoading] = useState(true);
@@ -168,9 +165,7 @@ export function NodejsPackagesPanel({
         await loadDependencies();
     };
 
-    const filtered = deps.filter((d) =>
-        d.name.toLowerCase().includes(searchQuery.toLowerCase())
-    );
+    const filtered = deps.filter((d) => d.name.toLowerCase().includes(searchQuery.toLowerCase()));
 
     if (loading) {
         return (
@@ -191,9 +186,7 @@ export function NodejsPackagesPanel({
                         <Package className="w-3 h-3" />
                         <span className="capitalize">{pm}</span>
                     </Badge>
-                    <span className="text-xs text-muted-foreground">
-                        {deps.length} packages
-                    </span>
+                    <span className="text-xs text-muted-foreground">{deps.length} packages</span>
                 </div>
                 <div className="relative w-48">
                     <Search className="absolute left-2.5 top-2 w-3.5 h-3.5 text-muted-foreground" />
@@ -248,9 +241,7 @@ export function NodejsPackagesPanel({
                                                     : "text-blue-500 border-blue-500/30"
                                             }`}
                                         >
-                                            {dep.type === "devDependency"
-                                                ? "dev"
-                                                : "prod"}
+                                            {dep.type === "devDependency" ? "dev" : "prod"}
                                         </Badge>
                                     </td>
                                     <td className="px-4 py-2.5 text-right">
@@ -318,10 +309,7 @@ export function NodejsPackagesPanel({
             {output.length > 0 && (
                 <div className="rounded-xl border border-zinc-700 bg-zinc-950 p-4 font-mono text-xs max-h-64 overflow-y-auto space-y-0.5">
                     {output.map((line, i) => (
-                        <pre
-                            key={i}
-                            className="whitespace-pre-wrap leading-relaxed text-zinc-300"
-                        >
+                        <pre key={i} className="whitespace-pre-wrap leading-relaxed text-zinc-300">
                             {line}
                         </pre>
                     ))}

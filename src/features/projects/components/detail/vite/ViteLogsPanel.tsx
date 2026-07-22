@@ -1,11 +1,11 @@
-import { memo, useState, useEffect, useRef } from "react";
+import { memo, useEffect, useRef, useState } from "react";
 
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+import { AlertCircle, CheckCircle, FileText, Info, Play, RotateCcw, Square } from "lucide-react";
+
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
-
-import { Play, Square, RotateCcw, FileText, AlertCircle, CheckCircle, Info } from "lucide-react";
 
 interface LogEntry {
     id: string;
@@ -19,9 +19,7 @@ interface ViteLogsPanelProps {
     projectPath: string;
 }
 
-export const ViteLogsPanel = memo(function ViteLogsPanel({
-    projectPath,
-}: ViteLogsPanelProps) {
+export const ViteLogsPanel = memo(function ViteLogsPanel({ projectPath }: ViteLogsPanelProps) {
     const [logs, setLogs] = useState<LogEntry[]>([]);
     const [isStreaming, setIsStreaming] = useState(false);
     const scrollAreaRef = useRef<HTMLDivElement>(null);
@@ -101,7 +99,9 @@ export const ViteLogsPanel = memo(function ViteLogsPanel({
     // Auto-scroll to bottom when new logs are added
     useEffect(() => {
         if (scrollAreaRef.current) {
-            const scrollElement = scrollAreaRef.current.querySelector('[data-radix-scroll-area-viewport]');
+            const scrollElement = scrollAreaRef.current.querySelector(
+                "[data-radix-scroll-area-viewport]"
+            );
             if (scrollElement) {
                 scrollElement.scrollTop = scrollElement.scrollHeight;
             }
@@ -144,28 +144,17 @@ export const ViteLogsPanel = memo(function ViteLogsPanel({
                     Build & Development Logs
                 </CardTitle>
                 <div className="flex gap-2">
-                    <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={clearLogs}
-                    >
+                    <Button size="sm" variant="outline" onClick={clearLogs}>
                         <RotateCcw className="w-4 h-4 mr-2" />
                         Clear
                     </Button>
                     {isStreaming ? (
-                        <Button
-                            size="sm"
-                            variant="destructive"
-                            onClick={stopStream}
-                        >
+                        <Button size="sm" variant="destructive" onClick={stopStream}>
                             <Square className="w-4 h-4 mr-2" />
                             Stop
                         </Button>
                     ) : (
-                        <Button
-                            size="sm"
-                            onClick={startStream}
-                        >
+                        <Button size="sm" onClick={startStream}>
                             <Play className="w-4 h-4 mr-2" />
                             Stream
                         </Button>

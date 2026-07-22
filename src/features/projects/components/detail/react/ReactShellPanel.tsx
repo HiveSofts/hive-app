@@ -6,10 +6,5 @@ interface ReactShellPanelProps {
 }
 
 export function ReactShellPanel({ projectPath, packageManager }: ReactShellPanelProps) {
-    return (
-        <TerminalShell 
-            projectPath={projectPath} 
-            packageManager={packageManager} 
-        />
-    );
+    return <TerminalShell projectPath={projectPath} packageManager={packageManager} />;
 }

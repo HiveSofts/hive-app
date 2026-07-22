@@ -13,38 +13,38 @@ import { NextjsDeployPanel } from "@/features/projects/components/detail/nextjs/
 import { NextjsLogsPanel } from "@/features/projects/components/detail/nextjs/NextjsLogsPanel";
 import { NextjsOverviewPanel } from "@/features/projects/components/detail/nextjs/NextjsOverviewPanel";
 import { NextjsShellPanel } from "@/features/projects/components/detail/nextjs/NextjsShellPanel";
-import { NodejsOverviewPanel } from "@/features/projects/components/detail/nodejs/NodejsOverviewPanel";
-import { NodejsShellPanel } from "@/features/projects/components/detail/nodejs/NodejsShellPanel";
-import { NodejsPackagesPanel } from "@/features/projects/components/detail/nodejs/NodejsPackagesPanel";
 import { NodejsLogsPanel } from "@/features/projects/components/detail/nodejs/NodejsLogsPanel";
+import { NodejsOverviewPanel } from "@/features/projects/components/detail/nodejs/NodejsOverviewPanel";
+import { NodejsPackagesPanel } from "@/features/projects/components/detail/nodejs/NodejsPackagesPanel";
+import { NodejsShellPanel } from "@/features/projects/components/detail/nodejs/NodejsShellPanel";
 import { PhpComposerPanel } from "@/features/projects/components/detail/php/PhpComposerPanel";
 import { PhpExtensionsPanel } from "@/features/projects/components/detail/php/PhpExtensionsPanel";
 import { PhpLogsPanel } from "@/features/projects/components/detail/php/PhpLogsPanel";
 import { PhpOverviewPanel } from "@/features/projects/components/detail/php/PhpOverviewPanel";
 import { PhpShellPanel } from "@/features/projects/components/detail/php/PhpShellPanel";
+import { ReactBuildPanel } from "@/features/projects/components/detail/react/ReactBuildPanel";
+import { ReactDependenciesPanel } from "@/features/projects/components/detail/react/ReactDependenciesPanel";
+import { ReactDeployPanel } from "@/features/projects/components/detail/react/ReactDeployPanel";
+import { ReactLogsPanel } from "@/features/projects/components/detail/react/ReactLogsPanel";
+import { ReactOverviewPanel } from "@/features/projects/components/detail/react/ReactOverviewPanel";
+import { ReactShellPanel } from "@/features/projects/components/detail/react/ReactShellPanel";
 import { StaticOverviewPanel } from "@/features/projects/components/detail/static/StaticOverviewPanel";
 import { StaticShellPanel } from "@/features/projects/components/detail/static/StaticShellPanel";
+import { ViteBuildPanel } from "@/features/projects/components/detail/vite/ViteBuildPanel";
+import { ViteDependenciesPanel } from "@/features/projects/components/detail/vite/ViteDependenciesPanel";
+import { ViteLogsPanel } from "@/features/projects/components/detail/vite/ViteLogsPanel";
+import { ViteOverviewPanel } from "@/features/projects/components/detail/vite/ViteOverviewPanel";
+import { ViteShellPanel } from "@/features/projects/components/detail/vite/ViteShellPanel";
+import { VueBuildPanel } from "@/features/projects/components/detail/vue/VueBuildPanel";
+import { VueDependenciesPanel } from "@/features/projects/components/detail/vue/VueDependenciesPanel";
+import { VueLogsPanel } from "@/features/projects/components/detail/vue/VueLogsPanel";
+import { VueOverviewPanel } from "@/features/projects/components/detail/vue/VueOverviewPanel";
+import { VueShellPanel } from "@/features/projects/components/detail/vue/VueShellPanel";
+import { WordPressDatabasePanel } from "@/features/projects/components/detail/wordpress/WordPressDatabasePanel";
+import { WordPressLogsPanel } from "@/features/projects/components/detail/wordpress/WordPressLogsPanel";
 import { WordPressOverviewPanel } from "@/features/projects/components/detail/wordpress/WordPressOverviewPanel";
 import { WordPressPluginsPanel } from "@/features/projects/components/detail/wordpress/WordPressPluginsPanel";
 import { WordPressThemesPanel } from "@/features/projects/components/detail/wordpress/WordPressThemesPanel";
-import { WordPressDatabasePanel } from "@/features/projects/components/detail/wordpress/WordPressDatabasePanel";
-import { WordPressLogsPanel } from "@/features/projects/components/detail/wordpress/WordPressLogsPanel";
-import { VueOverviewPanel } from "@/features/projects/components/detail/vue/VueOverviewPanel";
-import { VueShellPanel } from "@/features/projects/components/detail/vue/VueShellPanel";
-import { VueDependenciesPanel } from "@/features/projects/components/detail/vue/VueDependenciesPanel";
-import { VueBuildPanel } from "@/features/projects/components/detail/vue/VueBuildPanel";
-import { VueLogsPanel } from "@/features/projects/components/detail/vue/VueLogsPanel";
-import { ViteOverviewPanel } from "@/features/projects/components/detail/vite/ViteOverviewPanel";
-import { ViteShellPanel } from "@/features/projects/components/detail/vite/ViteShellPanel";
-import { ViteBuildPanel } from "@/features/projects/components/detail/vite/ViteBuildPanel";
-import { ViteLogsPanel } from "@/features/projects/components/detail/vite/ViteLogsPanel";
-import { ViteDependenciesPanel } from "@/features/projects/components/detail/vite/ViteDependenciesPanel";
-import { ReactOverviewPanel } from "@/features/projects/components/detail/react/ReactOverviewPanel";
-import { ReactShellPanel } from "@/features/projects/components/detail/react/ReactShellPanel";
-import { ReactDependenciesPanel } from "@/features/projects/components/detail/react/ReactDependenciesPanel";
-import { ReactBuildPanel } from "@/features/projects/components/detail/react/ReactBuildPanel";
-import { ReactLogsPanel } from "@/features/projects/components/detail/react/ReactLogsPanel";
-import { ReactDeployPanel } from "@/features/projects/components/detail/react/ReactDeployPanel";
 import type { PanelConfig, ProjectType, TabConfig } from "@/features/projects/types";
 
 interface ProjectConfig {
@@ -120,9 +120,9 @@ export const PROJECT_DETAIL_CONFIG: Record<ProjectType, ProjectConfig> = {
                     packageManager: (p: any) => p.package_manager,
                 },
             },
-            { 
-                id: "logs", 
-                component: ReactLogsPanel 
+            {
+                id: "logs",
+                component: ReactLogsPanel,
             },
             {
                 id: "deploy",

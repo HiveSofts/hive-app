@@ -2,7 +2,9 @@
     "$schema": "../gen/schemas/desktop-schema.json",
     "identifier": "default",
     "description": "Capability for the main window",
-    "windows": ["main"],
+    "windows": [
+        "main"
+    ],
     "permissions": [
         "core:default",
         "opener:default",
@@ -31,6 +33,20 @@
         "core:tray:allow-set-menu",
         "core:tray:allow-set-tooltip",
         "core:tray:allow-set-visible",
-        "core:tray:allow-set-title"
+        "core:tray:allow-set-title",
+        {
+            "identifier": "opener:allow-open-url",
+            "allow": [
+                {
+                    "url": "https://github.com/*"
+                },
+                {
+                    "url": "https://*.github.io/*"
+                },
+                {
+                    "url": "https://hivesofts.dev/*"
+                }
+            ]
+        }
     ]
 }

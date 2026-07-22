@@ -57,7 +57,7 @@ export function useProjects() {
         error,
         deleteDialog,
         runningCount,
-        fetchProjects,  // This is already exposed, which serves as the refresh function
+        fetchProjects, // This is already exposed, which serves as the refresh function
         openDeleteDialog,
         closeDeleteDialog,
         confirmDelete,

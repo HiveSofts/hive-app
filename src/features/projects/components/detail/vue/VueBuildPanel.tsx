@@ -1,12 +1,14 @@
 import { useState } from "react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+
+import { invoke } from "@tauri-apps/api/core";
+import { Package, Play, RotateCcw, Settings, Terminal } from "lucide-react";
+
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Play, RotateCcw, Package, Settings, Terminal } from "lucide-react";
-import { invoke } from "@tauri-apps/api/core";
 
 interface VueBuildPanelProps {
     projectPath: string;
@@ -15,36 +17,36 @@ interface VueBuildPanelProps {
     packageManager?: string;
 }
 
-export const VueBuildPanel = ({ 
-    projectPath, 
-    projectName, 
-    packageManager = 'npm' 
+export const VueBuildPanel = ({
+    projectPath,
+    projectName,
+    packageManager = "npm",
 }: VueBuildPanelProps) => {
-    const [buildMode, setBuildMode] = useState<'development' | 'production'>('production');
-    const [buildOutput, setBuildOutput] = useState<string>('');
+    const [buildMode, setBuildMode] = useState<"development" | "production">("production");
+    const [buildOutput, setBuildOutput] = useState<string>("");
     const [isBuilding, setIsBuilding] = useState(false);
     const [lastBuildTime, setLastBuildTime] = useState<string | null>(null);
 
     const handleBuild = async () => {
         setIsBuilding(true);
-        setBuildOutput('');
-        
+        setBuildOutput("");
+
         try {
             const startTime = new Date().toLocaleTimeString();
             setBuildOutput(`Starting ${buildMode} build at ${startTime}\n`);
-            
+
             // In a real implementation, this would call the backend:
             const result = await invoke<string>("build_vue_project", {
                 projectPath,
                 buildMode,
-                packageManager
+                packageManager,
             });
-            
-            setBuildOutput(prev => prev + result);
+
+            setBuildOutput((prev) => prev + result);
             setLastBuildTime(new Date().toLocaleString());
         } catch (error) {
             console.error("Build failed:", error);
-            setBuildOutput(prev => prev + `\nError: ${(error as Error).message}`);
+            setBuildOutput((prev) => prev + `\nError: ${(error as Error).message}`);
         } finally {
             setIsBuilding(false);
         }
@@ -54,7 +56,7 @@ export const VueBuildPanel = ({
         try {
             await invoke("preview_vue_build", {
                 projectPath,
-                packageManager
+                packageManager,
             });
         } catch (error) {
             console.error("Preview failed:", error);
@@ -69,17 +71,17 @@ export const VueBuildPanel = ({
                         <Package className="h-6 w-6 text-orange-600" />
                         <span>Build Configuration</span>
                     </CardTitle>
-                    <CardDescription>
-                        Configure and run builds for your Vue project
-                    </CardDescription>
+                    <CardDescription>Configure and run builds for your Vue project</CardDescription>
                 </CardHeader>
                 <CardContent>
                     <div className="grid gap-6">
                         <div>
                             <Label>Build Mode</Label>
-                            <RadioGroup 
-                                value={buildMode} 
-                                onValueChange={(value: 'development' | 'production') => setBuildMode(value)}
+                            <RadioGroup
+                                value={buildMode}
+                                onValueChange={(value: "development" | "production") =>
+                                    setBuildMode(value)
+                                }
                                 className="grid grid-cols-2 gap-4 mt-2"
                             >
                                 <div className="flex items-center space-x-2">
@@ -94,8 +96,8 @@ export const VueBuildPanel = ({
                         </div>
 
                         <div className="flex flex-wrap gap-3">
-                            <Button 
-                                onClick={handleBuild} 
+                            <Button
+                                onClick={handleBuild}
                                 disabled={isBuilding}
                                 className="flex items-center gap-2"
                             >
@@ -111,9 +113,9 @@ export const VueBuildPanel = ({
                                     </>
                                 )}
                             </Button>
-                            
-                            <Button 
-                                onClick={handlePreview} 
+
+                            <Button
+                                onClick={handlePreview}
                                 variant="outline"
                                 className="flex items-center gap-2"
                             >
@@ -138,9 +140,7 @@ export const VueBuildPanel = ({
                         <Terminal className="h-5 w-5" />
                         <span>Build Output</span>
                     </CardTitle>
-                    <CardDescription>
-                        Real-time output from build processes
-                    </CardDescription>
+                    <CardDescription>Real-time output from build processes</CardDescription>
                 </CardHeader>
                 <CardContent>
                     <ScrollArea className="h-96 w-full rounded-md border p-4 font-mono text-sm bg-muted">
@@ -148,8 +148,8 @@ export const VueBuildPanel = ({
                             <pre className="whitespace-pre-wrap break-words">{buildOutput}</pre>
                         ) : (
                             <div className="h-full flex items-center justify-center text-muted-foreground">
-                                {isBuilding 
-                                    ? "Build in progress..." 
+                                {isBuilding
+                                    ? "Build in progress..."
                                     : "Click 'Build Project' to start building your Vue application"}
                             </div>
                         )}

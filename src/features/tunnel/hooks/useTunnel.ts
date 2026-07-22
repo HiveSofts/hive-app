@@ -21,13 +21,7 @@ import {
 } from "../services/tunnelService";
 
 export type TunnelStep =
-    | "idle"
-    | "checking"
-    | "installing"
-    | "connecting"
-    | "active"
-    | "error"
-    | "stopped";
+    "idle" | "checking" | "installing" | "connecting" | "active" | "error" | "stopped";
 
 interface UseTunnelOptions {
     projectPath?: string;

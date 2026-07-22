@@ -376,7 +376,8 @@ export function Step1Intro({ onNext }: Step1IntroProps) {
                                 Welcome to Hive 🐝
                             </CardTitle>
                             <CardDescription className="text-lg mt-2 text-foreground/70">
-                                Your local development environment, perfected.
+                                Everything you need to build, run and manage local development
+                                projects.
                             </CardDescription>
                         </motion.div>
                     </CardHeader>
@@ -384,10 +385,10 @@ export function Step1Intro({ onNext }: Step1IntroProps) {
                     <CardContent className="space-y-6">
                         <div className="space-y-4 text-center text-muted-foreground">
                             {[
-                                "⚡ Built with Tauri — Blazing fast and lightweight",
-                                "📦 Zero dependencies. Zero headaches.",
-                                "🚀 One-click PHP, Node.js, and Database management",
-                                "🔗 Automatic `.test` domains for all your projects",
+                                "⚡ Fast, lightweight and built for developers.",
+                                "📦 Manage projects, runtimes and services from one workspace.",
+                                "🔧 Works seamlessly with PHP, Node.js, Docker, React, Vue, Next.js and more.",
+                                "🚀 Spend less time configuring and more time shipping.",
                             ].map((text, i) => (
                                 <p key={i}>{text}</p>
                             ))}

@@ -1,12 +1,5 @@
-import {
-    Calendar,
-    ExternalLink,
-    FileCode2,
-    FolderOpen,
-    Globe,
-    Package,
-    Tag,
-} from "lucide-react";
+import { Calendar, ExternalLink, FileCode2, FolderOpen, Globe, Package, Tag } from "lucide-react";
+
 import { Badge } from "@/components/ui/badge";
 
 interface VueOverviewPanelProps {
@@ -75,30 +68,20 @@ export const VueOverviewPanel = ({
                         </div>
 
                         <div className="flex flex-col gap-0.5">
-                            <span className="text-[11px] text-muted-foreground">
-                                Node Version
-                            </span>
+                            <span className="text-[11px] text-muted-foreground">Node Version</span>
                             <span className="font-mono font-medium">
                                 {nodeVersion ? `Node ${nodeVersion}` : "—"}
                             </span>
                         </div>
 
                         <div className="flex flex-col gap-0.5">
-                            <span className="text-[11px] text-muted-foreground">
-                                Project Type
-                            </span>
-                            <span className="font-mono font-medium">
-                                Vue.js
-                            </span>
+                            <span className="text-[11px] text-muted-foreground">Project Type</span>
+                            <span className="font-mono font-medium">Vue.js</span>
                         </div>
 
                         <div className="flex flex-col gap-0.5">
-                            <span className="text-[11px] text-muted-foreground">
-                                Project Path
-                            </span>
-                            <span className="font-mono font-medium truncate">
-                                {projectPath}
-                            </span>
+                            <span className="text-[11px] text-muted-foreground">Project Path</span>
+                            <span className="font-mono font-medium truncate">{projectPath}</span>
                         </div>
 
                         {serverUrl && (
@@ -120,9 +103,7 @@ export const VueOverviewPanel = ({
 
                         {formattedDate && (
                             <div className="flex flex-col gap-0.5">
-                                <span className="text-[11px] text-muted-foreground">
-                                    Created
-                                </span>
+                                <span className="text-[11px] text-muted-foreground">Created</span>
                                 <span className="font-medium">{formattedDate}</span>
                             </div>
                         )}

@@ -22,12 +22,7 @@ const QUICK_GROUPS = [
     },
     {
         label: "Node",
-        items: [
-            "node --version",
-            "npm --version",
-            "npx npm-check-updates -u",
-            "npm audit",
-        ],
+        items: ["node --version", "npm --version", "npx npm-check-updates -u", "npm audit"],
     },
     {
         label: "Git",
@@ -107,10 +102,7 @@ export function NodejsShellPanel({
                 if (event.payload.is_done) {
                     unlisten();
                     setRunning(false);
-                    if (
-                        event.payload.exit_code !== 0 &&
-                        event.payload.exit_code !== null
-                    ) {
+                    if (event.payload.exit_code !== 0 && event.payload.exit_code !== null) {
                         appendLine({
                             type: "err",
                             text: `Process exited with code ${event.payload.exit_code}`,

@@ -1,9 +1,10 @@
 import { useState } from "react";
-import { Cloud, Upload, Settings, CheckCircle, XCircle, Clock, Package } from "lucide-react";
 
+import { CheckCircle, Clock, Cloud, Package, Settings, Upload, XCircle } from "lucide-react";
+
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -16,13 +17,15 @@ interface ReactDeployPanelProps {
 
 export function ReactDeployPanel({ projectPath }: ReactDeployPanelProps) {
     const [deploymentTarget, setDeploymentTarget] = useState("vercel");
-    const [deploymentStatus, setDeploymentStatus] = useState<"idle" | "building" | "uploading" | "deploying" | "success" | "error">("idle");
+    const [deploymentStatus, setDeploymentStatus] = useState<
+        "idle" | "building" | "uploading" | "deploying" | "success" | "error"
+    >("idle");
     const [buildLog, setBuildLog] = useState<string[]>([]);
     const [environmentVariables, setEnvironmentVariables] = useState([
         { key: "NODE_ENV", value: "production", enabled: true },
         { key: "PUBLIC_URL", value: "", enabled: true },
     ]);
-    
+
     const deploymentTargets = [
         { id: "vercel", name: "Vercel", icon: Cloud },
         { id: "netlify", name: "Netlify", icon: Cloud },
@@ -33,21 +36,21 @@ export function ReactDeployPanel({ projectPath }: ReactDeployPanelProps) {
     const handleDeploy = async () => {
         setDeploymentStatus("building");
         setBuildLog(["Starting deployment process...", "Detecting project configuration..."]);
-        
+
         // Simulate deployment process
         setTimeout(() => {
-            setBuildLog(prev => [...prev, "Installing dependencies...", "Building project..."]);
+            setBuildLog((prev) => [...prev, "Installing dependencies...", "Building project..."]);
             setDeploymentStatus("uploading");
         }, 1500);
-        
+
         setTimeout(() => {
-            setBuildLog(prev => [...prev, "Upload complete", "Deploying to production..."]);
+            setBuildLog((prev) => [...prev, "Upload complete", "Deploying to production..."]);
             setDeploymentStatus("deploying");
         }, 3000);
-        
+
         setTimeout(() => {
             setDeploymentStatus("success");
-            setBuildLog(prev => [...prev, "Deployment successful!", "Application is now live"]);
+            setBuildLog((prev) => [...prev, "Deployment successful!", "Application is now live"]);
         }, 5000);
     };
 
@@ -55,7 +58,11 @@ export function ReactDeployPanel({ projectPath }: ReactDeployPanelProps) {
         setEnvironmentVariables([...environmentVariables, { key: "", value: "", enabled: true }]);
     };
 
-    const updateEnvironmentVariable = (index: number, field: 'key' | 'value' | 'enabled', value: string | boolean) => {
+    const updateEnvironmentVariable = (
+        index: number,
+        field: "key" | "value" | "enabled",
+        value: string | boolean
+    ) => {
         const newEnvVars = [...environmentVariables];
         (newEnvVars[index] as any)[field] = value;
         setEnvironmentVariables(newEnvVars);
@@ -73,7 +80,9 @@ export function ReactDeployPanel({ projectPath }: ReactDeployPanelProps) {
                         <Cloud className="w-4 h-4" />
                         Deployment Configuration
                     </CardTitle>
-                    <CardDescription>Configure and deploy your React application to various platforms</CardDescription>
+                    <CardDescription>
+                        Configure and deploy your React application to various platforms
+                    </CardDescription>
                 </CardHeader>
                 <CardContent>
                     <Tabs defaultValue="config" className="w-full">
@@ -82,7 +91,7 @@ export function ReactDeployPanel({ projectPath }: ReactDeployPanelProps) {
                             <TabsTrigger value="env">Environment</TabsTrigger>
                             <TabsTrigger value="deploy">Deploy</TabsTrigger>
                         </TabsList>
-                        
+
                         <TabsContent value="config" className="space-y-4">
                             <div className="space-y-4">
                                 <div>
@@ -93,7 +102,11 @@ export function ReactDeployPanel({ projectPath }: ReactDeployPanelProps) {
                                             return (
                                                 <Button
                                                     key={target.id}
-                                                    variant={deploymentTarget === target.id ? "default" : "outline"}
+                                                    variant={
+                                                        deploymentTarget === target.id
+                                                            ? "default"
+                                                            : "outline"
+                                                    }
                                                     className="flex flex-col items-center justify-center h-20"
                                                     onClick={() => setDeploymentTarget(target.id)}
                                                 >
@@ -104,7 +117,7 @@ export function ReactDeployPanel({ projectPath }: ReactDeployPanelProps) {
                                         })}
                                     </div>
                                 </div>
-                                
+
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                     <div>
                                         <Label htmlFor="build-script">Build Script</Label>
@@ -117,35 +130,60 @@ export function ReactDeployPanel({ projectPath }: ReactDeployPanelProps) {
                                 </div>
                             </div>
                         </TabsContent>
-                        
+
                         <TabsContent value="env" className="space-y-4">
                             <div className="space-y-4">
                                 <div className="flex justify-between items-center">
                                     <h3 className="font-medium">Environment Variables</h3>
-                                    <Button variant="outline" size="sm" onClick={addEnvironmentVariable}>
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={addEnvironmentVariable}
+                                    >
                                         <Package className="w-4 h-4 mr-2" />
                                         Add Variable
                                     </Button>
                                 </div>
-                                
+
                                 {environmentVariables.map((envVar, index) => (
-                                    <div key={index} className="flex items-center gap-2 p-3 border rounded-lg">
+                                    <div
+                                        key={index}
+                                        className="flex items-center gap-2 p-3 border rounded-lg"
+                                    >
                                         <input
                                             type="checkbox"
                                             checked={envVar.enabled}
-                                            onChange={(e) => updateEnvironmentVariable(index, 'enabled', e.target.checked)}
+                                            onChange={(e) =>
+                                                updateEnvironmentVariable(
+                                                    index,
+                                                    "enabled",
+                                                    e.target.checked
+                                                )
+                                            }
                                             className="h-4 w-4"
                                         />
                                         <Input
                                             placeholder="KEY"
                                             value={envVar.key}
-                                            onChange={(e) => updateEnvironmentVariable(index, 'key', e.target.value)}
+                                            onChange={(e) =>
+                                                updateEnvironmentVariable(
+                                                    index,
+                                                    "key",
+                                                    e.target.value
+                                                )
+                                            }
                                             className="flex-1"
                                         />
                                         <Input
                                             placeholder="Value"
                                             value={envVar.value}
-                                            onChange={(e) => updateEnvironmentVariable(index, 'value', e.target.value)}
+                                            onChange={(e) =>
+                                                updateEnvironmentVariable(
+                                                    index,
+                                                    "value",
+                                                    e.target.value
+                                                )
+                                            }
                                             className="flex-1"
                                         />
                                         <Button
@@ -159,17 +197,25 @@ export function ReactDeployPanel({ projectPath }: ReactDeployPanelProps) {
                                 ))}
                             </div>
                         </TabsContent>
-                        
+
                         <TabsContent value="deploy" className="space-y-4">
                             <Card>
                                 <CardHeader>
-                                    <CardTitle className="text-lg">Deploy to {deploymentTargets.find(t => t.id === deploymentTarget)?.name}</CardTitle>
-                                    <CardDescription>Prepare and deploy your application</CardDescription>
+                                    <CardTitle className="text-lg">
+                                        Deploy to{" "}
+                                        {
+                                            deploymentTargets.find((t) => t.id === deploymentTarget)
+                                                ?.name
+                                        }
+                                    </CardTitle>
+                                    <CardDescription>
+                                        Prepare and deploy your application
+                                    </CardDescription>
                                 </CardHeader>
                                 <CardContent>
                                     <div className="space-y-4">
                                         <div className="flex flex-col sm:flex-row gap-4">
-                                            <Button 
+                                            <Button
                                                 onClick={handleDeploy}
                                                 disabled={deploymentStatus !== "idle"}
                                                 className="flex-1"
@@ -181,17 +227,21 @@ export function ReactDeployPanel({ projectPath }: ReactDeployPanelProps) {
                                                     </>
                                                 ) : (
                                                     <>
-                                                        {deploymentStatus === "building" && "Building..."}
-                                                        {deploymentStatus === "uploading" && "Uploading..."}
-                                                        {deploymentStatus === "deploying" && "Deploying..."}
-                                                        {deploymentStatus === "success" && "Success!"}
+                                                        {deploymentStatus === "building" &&
+                                                            "Building..."}
+                                                        {deploymentStatus === "uploading" &&
+                                                            "Uploading..."}
+                                                        {deploymentStatus === "deploying" &&
+                                                            "Deploying..."}
+                                                        {deploymentStatus === "success" &&
+                                                            "Success!"}
                                                     </>
                                                 )}
                                             </Button>
-                                            
+
                                             {deploymentStatus !== "idle" && (
-                                                <Button 
-                                                    variant="outline" 
+                                                <Button
+                                                    variant="outline"
                                                     onClick={() => setDeploymentStatus("idle")}
                                                     disabled={deploymentStatus !== "success"}
                                                 >
@@ -199,7 +249,7 @@ export function ReactDeployPanel({ projectPath }: ReactDeployPanelProps) {
                                                 </Button>
                                             )}
                                         </div>
-                                        
+
                                         {deploymentStatus !== "idle" && (
                                             <div className="space-y-3">
                                                 <div className="flex items-center gap-2">
@@ -212,14 +262,19 @@ export function ReactDeployPanel({ projectPath }: ReactDeployPanelProps) {
                                                     {deploymentStatus === "error" && (
                                                         <XCircle className="w-5 h-5 text-red-500" />
                                                     )}
-                                                    {(deploymentStatus === "building" || deploymentStatus === "uploading" || deploymentStatus === "deploying") && (
+                                                    {(deploymentStatus === "building" ||
+                                                        deploymentStatus === "uploading" ||
+                                                        deploymentStatus === "deploying") && (
                                                         <Clock className="w-5 h-5 text-blue-500 animate-pulse" />
                                                     )}
                                                 </div>
-                                                
+
                                                 <div className="border rounded-lg p-4 font-mono text-sm h-40 overflow-y-auto">
                                                     {buildLog.map((log, index) => (
-                                                        <div key={index} className="py-1 border-b border-transparent last:border-0">
+                                                        <div
+                                                            key={index}
+                                                            className="py-1 border-b border-transparent last:border-0"
+                                                        >
                                                             {log}
                                                         </div>
                                                     ))}

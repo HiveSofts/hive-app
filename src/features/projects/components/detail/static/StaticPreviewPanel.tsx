@@ -1,11 +1,12 @@
-import { memo, useState, useEffect, useRef } from "react";
+import { memo, useEffect, useRef, useState } from "react";
 
 import { invoke } from "@tauri-apps/api/core";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { ExternalLink, FileText, Globe, RefreshCw } from "lucide-react";
+
 import { Badge } from "@/components/ui/badge";
-import { Globe, RefreshCw, ExternalLink, FileText } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
 interface StaticPreviewPanelProps {
@@ -30,7 +31,7 @@ export const StaticPreviewPanel = memo(function StaticPreviewPanel({
     const [availableFiles, setAvailableFiles] = useState<string[]>([]);
     const [selectedFile, setSelectedFile] = useState<string>(index_path || "index.html");
     const [isLoadingFiles, setIsLoadingFiles] = useState(false);
-    
+
     const serverUrl = host && port ? `http://${host}:${port}` : null;
     const fallbackServerUrl = serverUrl || `file://${projectPath}`;
 
@@ -42,28 +43,29 @@ export const StaticPreviewPanel = memo(function StaticPreviewPanel({
             const files: string[] = await invoke("list_directory_contents", {
                 path: projectPath,
             });
-            
+
             // Filter for HTML files
-            const htmlFiles = files.filter(file => 
-                file.toLowerCase().endsWith('.html') || file.toLowerCase().endsWith('.htm')
+            const htmlFiles = files.filter(
+                (file) =>
+                    file.toLowerCase().endsWith(".html") || file.toLowerCase().endsWith(".htm")
             );
-            
+
             setAvailableFiles(htmlFiles);
-            
+
             // If index.html exists, use it as default
-            if (htmlFiles.includes('index.html')) {
-                setSelectedFile('index.html');
+            if (htmlFiles.includes("index.html")) {
+                setSelectedFile("index.html");
             } else if (htmlFiles.length > 0) {
                 setSelectedFile(htmlFiles[0]);
             } else {
                 // If no HTML files found, still default to index.html
-                setSelectedFile('index.html');
+                setSelectedFile("index.html");
             }
         } catch (error) {
             console.error("Error scanning directory:", error);
             // Fallback to index.html if scanning fails
-            setAvailableFiles(['index.html']);
-            setSelectedFile('index.html');
+            setAvailableFiles(["index.html"]);
+            setSelectedFile("index.html");
         } finally {
             setIsLoadingFiles(false);
         }
@@ -76,9 +78,10 @@ export const StaticPreviewPanel = memo(function StaticPreviewPanel({
     useEffect(() => {
         if (serverUrl) {
             // Construct URL with the selected file
-            const url = selectedFile && selectedFile !== 'index.html' 
-                ? `${serverUrl}/${selectedFile}`
-                : serverUrl;
+            const url =
+                selectedFile && selectedFile !== "index.html"
+                    ? `${serverUrl}/${selectedFile}`
+                    : serverUrl;
             setIframeSrc(url);
         } else if (projectPath && selectedFile) {
             // For file:// protocol, construct the path to the specific file
@@ -90,7 +93,7 @@ export const StaticPreviewPanel = memo(function StaticPreviewPanel({
     const handleRefresh = () => {
         setIsLoaded(false);
         if (iframeSrc) {
-            setIframeSrc(prev => `${prev}?t=${Date.now()}`);
+            setIframeSrc((prev) => `${prev}?t=${Date.now()}`);
         }
     };
 
@@ -99,7 +102,9 @@ export const StaticPreviewPanel = memo(function StaticPreviewPanel({
         if (customUrl) {
             try {
                 // Ensure URL has proper protocol
-                const normalizedUrl = customUrl.startsWith('http') ? customUrl : `http://${customUrl}`;
+                const normalizedUrl = customUrl.startsWith("http")
+                    ? customUrl
+                    : `http://${customUrl}`;
                 setIframeSrc(normalizedUrl);
                 setIsLoaded(false);
             } catch (err) {
@@ -110,7 +115,7 @@ export const StaticPreviewPanel = memo(function StaticPreviewPanel({
 
     const openInBrowser = () => {
         if (iframeSrc) {
-            window.open(iframeSrc, '_blank');
+            window.open(iframeSrc, "_blank");
         }
     };
 
@@ -128,7 +133,7 @@ export const StaticPreviewPanel = memo(function StaticPreviewPanel({
                     </CardTitle>
                     <div className="flex gap-2">
                         <Button size="sm" variant="outline" onClick={handleRefresh}>
-                            <RefreshCw className={`w-4 h-4 ${!isLoaded ? 'animate-spin' : ''}`} />
+                            <RefreshCw className={`w-4 h-4 ${!isLoaded ? "animate-spin" : ""}`} />
                             <span className="ml-2">Refresh</span>
                         </Button>
                         <Button size="sm" variant="outline" onClick={openInBrowser}>
@@ -155,9 +160,9 @@ export const StaticPreviewPanel = memo(function StaticPreviewPanel({
                                 <Badge variant="secondary" className="font-mono">
                                     {serverUrl}
                                 </Badge>
-                                <Button 
-                                    size="sm" 
-                                    variant="ghost" 
+                                <Button
+                                    size="sm"
+                                    variant="ghost"
                                     onClick={() => setCustomUrl(`${host}:${port}`)}
                                 >
                                     Use this
@@ -172,7 +177,7 @@ export const StaticPreviewPanel = memo(function StaticPreviewPanel({
                             <FileText className="w-4 h-4" />
                             <h3 className="font-medium">HTML Files in Project</h3>
                         </div>
-                        
+
                         {isLoadingFiles ? (
                             <div className="flex items-center gap-2 text-muted-foreground">
                                 <RefreshCw className="w-4 h-4 animate-spin" />
@@ -183,14 +188,16 @@ export const StaticPreviewPanel = memo(function StaticPreviewPanel({
                                 <p className="text-sm text-muted-foreground">
                                     Select an HTML file to preview:
                                 </p>
-                                
+
                                 <div className="flex flex-wrap gap-2">
                                     {availableFiles.length > 0 ? (
                                         availableFiles.map((file) => (
                                             <Button
                                                 key={file}
                                                 size="sm"
-                                                variant={selectedFile === file ? "default" : "outline"}
+                                                variant={
+                                                    selectedFile === file ? "default" : "outline"
+                                                }
                                                 onClick={() => handleFileSelect(file)}
                                                 className="font-mono"
                                             >
@@ -203,9 +210,10 @@ export const StaticPreviewPanel = memo(function StaticPreviewPanel({
                                         </p>
                                     )}
                                 </div>
-                                
+
                                 <div className="mt-3 p-2 bg-background rounded border text-sm font-mono">
-                                    Selected: <span className="text-primary font-medium">{selectedFile}</span>
+                                    Selected:{" "}
+                                    <span className="text-primary font-medium">{selectedFile}</span>
                                 </div>
                             </div>
                         )}
@@ -236,8 +244,8 @@ export const StaticPreviewPanel = memo(function StaticPreviewPanel({
                                     <Globe className="w-12 h-12 mx-auto mb-3 opacity-50" />
                                     <p>No file selected for preview.</p>
                                     <p className="text-sm mt-2">
-                                        {availableFiles.length > 0 
-                                            ? `Select a file from the list above.` 
+                                        {availableFiles.length > 0
+                                            ? `Select a file from the list above.`
                                             : "Add some HTML files to your project directory."}
                                     </p>
                                 </div>

@@ -1,5 +1,4 @@
 use serde::{Deserialize, Serialize};
-use std::env;
 use std::fs;
 use std::path::PathBuf;
 
@@ -17,81 +16,100 @@ pub struct ProjectInfo {
     pub version: Option<String>,
     pub source_type: Option<String>,
     pub github_repo: Option<String>,
-    // PHP-specific fields (stored as php_version / entry_point by create_php_project,
-    // serialized as phpVersion / entryPoint so the frontend Project type receives them)
+
     #[serde(rename = "phpVersion", alias = "php_version", default)]
     pub php_version: Option<String>,
+
     #[serde(rename = "entryPoint", alias = "entry_point", default)]
     pub entry_point: Option<String>,
-    // Next.js-specific field (serialized as nodeVersion so the frontend Project type receives it)
+
     #[serde(rename = "nodeVersion", alias = "node_version", default)]
     pub node_version: Option<String>,
+
     #[serde(default)]
     pub port: Option<u16>,
+
     #[serde(default)]
     pub host: Option<String>,
-    // WordPress-specific fields (serialized with camelCase keys so the frontend
-    // Project type receives them directly)
+
     #[serde(rename = "dbDriver", default)]
     pub db_driver: Option<String>,
+
     #[serde(rename = "dbName", default)]
     pub db_name: Option<String>,
+
     #[serde(rename = "dbUser", default)]
     pub db_user: Option<String>,
+
     #[serde(rename = "dbHost", default)]
     pub db_host: Option<String>,
+
     #[serde(rename = "dbPort", default)]
     pub db_port: Option<u16>,
+
     #[serde(rename = "siteTitle", default)]
     pub site_title: Option<String>,
+
     #[serde(rename = "siteUrl", default)]
     pub site_url: Option<String>,
+
     #[serde(rename = "adminUser", default)]
     pub admin_user: Option<String>,
+
     #[serde(rename = "adminEmail", default)]
     pub admin_email: Option<String>,
 }
 
 fn get_hive_projects_dir() -> PathBuf {
-    if let Ok(home) = env::var("HOME") {
-        PathBuf::from(home).join(".hive").join("projects")
-    } else {
-        PathBuf::from(".")
-    }
+    crate::modules::common::path::hive_projects_dir()
 }
 
 #[tauri::command]
 pub fn list_all_projects() -> Result<Vec<ProjectInfo>, String> {
-    let hive_dir = get_hive_projects_dir();
+    let projects_dir = get_hive_projects_dir();
 
-    if !hive_dir.exists() {
-        return Ok(vec![]);
+    if !projects_dir.exists() {
+        return Ok(Vec::new());
     }
+
+    let entries =
+        fs::read_dir(&projects_dir).map_err(|e| format!("Failed to read projects directory: {e}"))?;
 
     let mut projects = Vec::new();
 
-    for entry in fs::read_dir(&hive_dir).map_err(|e| format!("Failed to read directory: {}", e))? {
-        let entry = entry.map_err(|e| format!("Failed to read entry: {}", e))?;
+    for entry in entries.flatten() {
         let path = entry.path();
 
-        if path.extension().and_then(|ext| ext.to_str()) == Some("json") {
-            let content = fs::read_to_string(&path)
-                .map_err(|e| format!("Failed to read file {}: {}", path.display(), e))?;
-
-            match serde_json::from_str::<ProjectInfo>(&content) {
-                Ok(mut project) => {
-                    if project.project_type.is_empty() {
-                        project.project_type = "unknown".to_string();
-                    }
-                    projects.push(project);
-                }
-                Err(e) => {
-                    eprintln!("Failed to parse project file {}: {}", path.display(), e);
-                }
-            }
+        if !path.is_file() {
+            continue;
         }
+
+        if path.extension().and_then(|e| e.to_str()) != Some("json") {
+            continue;
+        }
+
+        let Ok(content) = fs::read_to_string(&path) else {
+            eprintln!("Failed to read {}", path.display());
+            continue;
+        };
+
+        let Ok(mut project) = serde_json::from_str::<ProjectInfo>(&content) else {
+            eprintln!("Failed to parse {}", path.display());
+            continue;
+        };
+
+        if project.project_type.trim().is_empty() {
+            project.project_type = "unknown".to_string();
+        }
+
+        projects.push(project);
     }
 
-    projects.sort_by(|a, b| a.name.cmp(&b.name));
+    projects.sort_by(|a, b| {
+        a.name
+            .to_ascii_lowercase()
+            .cmp(&b.name.to_ascii_lowercase())
+    });
+
     Ok(projects)
 }

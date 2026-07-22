@@ -117,7 +117,9 @@ pub async fn start_wordpress_project(
     project_path: String,
 ) -> Result<WordPressServerStatus, String> {
     let project_path = expand_home(&project_path);
-    let existing = models::get_server(&project_path).map_err(|e| e.to_string())?;
+    let project_path_str = project_path.to_string_lossy().to_string();
+    
+    let existing = models::get_server(&project_path_str).map_err(|e| e.to_string())?;
 
     if let Some(rec) = existing.clone() {
         if rec.is_running && server_alive(rec.pid, rec.port) {
@@ -125,9 +127,9 @@ pub async fn start_wordpress_project(
         }
     }
 
-    let _ = stop_wordpress_project(project_path.clone()).await;
+    let _ = stop_wordpress_project(project_path_str.clone()).await;
 
-    let project_name = std::path::Path::new(&project_path)
+    let project_name = project_path
         .file_name()
         .unwrap_or_default()
         .to_string_lossy()
@@ -151,8 +153,6 @@ pub async fn start_wordpress_project(
         let _ = writeln!(f, "[{ts}] === WordPress server starting on port {port} ===");
     }
 
-    // Serve the WordPress root with PHP's built-in development server.
-    // WordPress' index.php lives at the project root and acts as the router.
     let mut child = Command::new("php")
         .args(["-S", &format!("0.0.0.0:{}", port), "index.php"])
         .current_dir(&project_path)
@@ -168,7 +168,7 @@ pub async fn start_wordpress_project(
 
     let url = format!("http://localhost:{}", port);
     models::upsert_server(
-        &project_path,
+        &project_path_str,
         &project_name,
         "wordpress",
         port,
@@ -182,10 +182,10 @@ pub async fn start_wordpress_project(
     WORDPRESS_PROCESSES
         .lock()
         .unwrap()
-        .insert(project_path.clone(), child);
+        .insert(project_path_str.clone(), child);
 
     Ok(WordPressServerStatus {
-        project_path,
+        project_path: project_path_str,
         project_name,
         project_type: "wordpress".into(),
         port,
@@ -199,21 +199,22 @@ pub async fn start_wordpress_project(
 #[command]
 pub async fn stop_wordpress_project(project_path: String) -> Result<String, String> {
     let project_path = expand_home(&project_path);
+    let project_path_str = project_path.to_string_lossy().to_string();
 
-    if let Some(mut child) = WORDPRESS_PROCESSES.lock().unwrap().remove(&project_path) {
+    if let Some(mut child) = WORDPRESS_PROCESSES.lock().unwrap().remove(&project_path_str) {
         let _ = child.kill();
         let _ = child.wait();
     }
 
-    if let Ok(Some(rec)) = models::get_server(&project_path) {
+    if let Ok(Some(rec)) = models::get_server(&project_path_str) {
         if rec.is_running {
             kill_pid(rec.pid);
         }
     }
 
-    models::mark_stopped(&project_path).map_err(|e| e.to_string())?;
+    models::mark_stopped(&project_path_str).map_err(|e| e.to_string())?;
     std::thread::sleep(std::time::Duration::from_millis(300));
-    Ok(format!("stopped: {}", project_path))
+    Ok(format!("stopped: {}", project_path_str))
 }
 
 #[command]
@@ -221,9 +222,10 @@ pub async fn restart_wordpress_project(
     project_path: String,
 ) -> Result<WordPressServerStatus, String> {
     let project_path = expand_home(&project_path);
-    stop_wordpress_project(project_path.clone()).await?;
+    let project_path_str = project_path.to_string_lossy().to_string();
+    stop_wordpress_project(project_path_str.clone()).await?;
     std::thread::sleep(std::time::Duration::from_millis(600));
-    start_wordpress_project(project_path).await
+    start_wordpress_project(project_path_str).await
 }
 
 #[command]
@@ -231,11 +233,13 @@ pub async fn get_wordpress_server_status(
     project_path: String,
 ) -> Result<Option<WordPressServerStatus>, String> {
     let project_path = expand_home(&project_path);
-    match models::get_server(&project_path).map_err(|e| e.to_string())? {
+    let project_path_str = project_path.to_string_lossy().to_string();
+    
+    match models::get_server(&project_path_str).map_err(|e| e.to_string())? {
         None => Ok(None),
         Some(mut rec) => {
             if rec.is_running && !server_alive(rec.pid, rec.port) {
-                models::mark_stopped(&project_path).ok();
+                models::mark_stopped(&project_path_str).ok();
                 rec.is_running = false;
             }
             if !rec.is_running && port_is_open(rec.port) {

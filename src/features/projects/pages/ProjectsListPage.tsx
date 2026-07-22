@@ -1,5 +1,6 @@
-import { FolderOpen, Loader2, Plus } from "lucide-react";
 import { useEffect } from "react";
+
+import { FolderOpen, Loader2, Plus } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
 
 import { Button } from "@/components/ui/button";
@@ -17,7 +18,7 @@ export default function ProjectsListPage() {
         error,
         deleteDialog,
         runningCount,
-        fetchProjects,  // Using the fetchProjects function to refresh
+        fetchProjects, // Using the fetchProjects function to refresh
         openDeleteDialog,
         closeDeleteDialog,
         confirmDelete,

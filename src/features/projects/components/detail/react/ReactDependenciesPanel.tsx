@@ -1,11 +1,12 @@
-import { useState, useEffect } from "react";
-import { invoke } from "@tauri-apps/api/core";
-import { Package, Search, Plus, Trash2 } from "lucide-react";
+import { useEffect, useState } from "react";
 
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
+import { invoke } from "@tauri-apps/api/core";
+import { Package, Plus, Search, Trash2 } from "lucide-react";
+
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 
 interface ReactDependenciesPanelProps {
     projectPath: string;
@@ -18,7 +19,10 @@ interface Dependency {
     type: "dependency" | "devDependency";
 }
 
-export function ReactDependenciesPanel({ projectPath, packageManager }: ReactDependenciesPanelProps) {
+export function ReactDependenciesPanel({
+    projectPath,
+    packageManager,
+}: ReactDependenciesPanelProps) {
     const [dependencies, setDependencies] = useState<Dependency[]>([]);
     const [devDependencies, setDevDependencies] = useState<Dependency[]>([]);
     const [loading, setLoading] = useState(true);
@@ -38,19 +42,23 @@ export function ReactDependenciesPanel({ projectPath, packageManager }: ReactDep
                 fileName: "package.json",
             });
             const json = JSON.parse(raw);
-            
-            const deps: Dependency[] = Object.entries(json.dependencies || {}).map(([name, version]) => ({
-                name,
-                version: version as string,
-                type: "dependency",
-            }));
-            
-            const devDeps: Dependency[] = Object.entries(json.devDependencies || {}).map(([name, version]) => ({
-                name,
-                version: version as string,
-                type: "devDependency",
-            }));
-            
+
+            const deps: Dependency[] = Object.entries(json.dependencies || {}).map(
+                ([name, version]) => ({
+                    name,
+                    version: version as string,
+                    type: "dependency",
+                })
+            );
+
+            const devDeps: Dependency[] = Object.entries(json.devDependencies || {}).map(
+                ([name, version]) => ({
+                    name,
+                    version: version as string,
+                    type: "devDependency",
+                })
+            );
+
             setDependencies(deps);
             setDevDependencies(devDeps);
         } catch (error) {
@@ -64,13 +72,13 @@ export function ReactDependenciesPanel({ projectPath, packageManager }: ReactDep
 
     const handleInstall = async () => {
         if (!packageName.trim()) return;
-        
+
         setInstalling(true);
         try {
             // This would call a Tauri command to install the package
             // For now, simulating the installation
             console.log(`Installing ${packageName} using ${packageManager || "npm"}`);
-            await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate API call
+            await new Promise((resolve) => setTimeout(resolve, 1000)); // Simulate API call
             setPackageName("");
             loadDependencies(); // Reload dependencies after installation
         } catch (error) {
@@ -84,18 +92,18 @@ export function ReactDependenciesPanel({ projectPath, packageManager }: ReactDep
         try {
             // This would call a Tauri command to uninstall the package
             console.log(`Uninstalling ${depName} using ${packageManager || "npm"}`);
-            await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate API call
+            await new Promise((resolve) => setTimeout(resolve, 1000)); // Simulate API call
             loadDependencies(); // Reload dependencies after removal
         } catch (error) {
             console.error("Failed to uninstall package:", error);
         }
     };
 
-    const filteredDependencies = dependencies.filter(dep =>
+    const filteredDependencies = dependencies.filter((dep) =>
         dep.name.toLowerCase().includes(searchTerm.toLowerCase())
     );
 
-    const filteredDevDependencies = devDependencies.filter(dep =>
+    const filteredDevDependencies = devDependencies.filter((dep) =>
         dep.name.toLowerCase().includes(searchTerm.toLowerCase())
     );
 
@@ -114,8 +122,17 @@ export function ReactDependenciesPanel({ projectPath, packageManager }: ReactDep
                             onChange={(e) => setPackageName(e.target.value)}
                             className="max-w-md"
                         />
-                        <Button onClick={handleInstall} disabled={installing || !packageName.trim()}>
-                            {installing ? "Installing..." : <><Plus className="w-4 h-4 mr-2" /> Install</>}
+                        <Button
+                            onClick={handleInstall}
+                            disabled={installing || !packageName.trim()}
+                        >
+                            {installing ? (
+                                "Installing..."
+                            ) : (
+                                <>
+                                    <Plus className="w-4 h-4 mr-2" /> Install
+                                </>
+                            )}
                         </Button>
                     </div>
                 </CardContent>
@@ -153,13 +170,15 @@ export function ReactDependenciesPanel({ projectPath, packageManager }: ReactDep
                         ) : filteredDependencies.length > 0 ? (
                             <ul className="space-y-2">
                                 {filteredDependencies.map((dep) => (
-                                    <li 
-                                        key={dep.name} 
+                                    <li
+                                        key={dep.name}
                                         className="flex items-center justify-between p-2 border rounded-lg"
                                     >
                                         <div>
                                             <div className="font-medium">{dep.name}</div>
-                                            <div className="text-sm text-muted-foreground">{dep.version}</div>
+                                            <div className="text-sm text-muted-foreground">
+                                                {dep.version}
+                                            </div>
                                         </div>
                                         <Button
                                             variant="ghost"
@@ -197,13 +216,15 @@ export function ReactDependenciesPanel({ projectPath, packageManager }: ReactDep
                         ) : filteredDevDependencies.length > 0 ? (
                             <ul className="space-y-2">
                                 {filteredDevDependencies.map((dep) => (
-                                    <li 
-                                        key={dep.name} 
+                                    <li
+                                        key={dep.name}
                                         className="flex items-center justify-between p-2 border rounded-lg"
                                     >
                                         <div>
                                             <div className="font-medium">{dep.name}</div>
-                                            <div className="text-sm text-muted-foreground">{dep.version}</div>
+                                            <div className="text-sm text-muted-foreground">
+                                                {dep.version}
+                                            </div>
                                         </div>
                                         <Button
                                             variant="ghost"

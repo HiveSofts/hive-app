@@ -1,20 +1,29 @@
-use std::process::Command;
+use std::{
+    env,
+    path::PathBuf,
+    process::Command,
+};
 
-/// Sets up the PATH environment variable for a command
+/// Adds Hive's binary directory to the PATH of the spawned process.
+/// This only affects the current command and does not modify the user's system PATH.
 pub fn setup_path(cmd: &mut Command) {
     let hive_bin = crate::modules::common::path::hive_bin_dir();
-    let current_path = std::env::var("PATH").unwrap_or_default();
-    let separator = if cfg!(windows) { ";" } else { ":" };
-    let new_path = format!(
-        "{}{}{}",
-        hive_bin.to_string_lossy(),
-        separator,
-        current_path
-    );
-    cmd.env("PATH", new_path);
+
+    let mut paths: Vec<PathBuf> = vec![hive_bin];
+
+    if let Some(current_path) = env::var_os("PATH") {
+        paths.extend(env::split_paths(&current_path));
+    }
+
+    if let Ok(joined) = env::join_paths(paths) {
+        cmd.env("PATH", joined);
+    }
 }
 
-/// Checks if a package manager is valid
+/// Returns true if the package manager is supported by Hive.
 pub fn is_valid_package_manager(manager: &str) -> bool {
-    matches!(manager, "npm" | "yarn" | "pnpm" | "bun")
+    matches!(
+        manager.trim().to_ascii_lowercase().as_str(),
+        "npm" | "yarn" | "pnpm" | "bun"
+    )
 }

@@ -1,6 +1,7 @@
 use serde::{Deserialize, Serialize};
 use std::process::Command;
 use tauri::Emitter;
+use crate::modules::docker::DockerInfo;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DockerInfo {

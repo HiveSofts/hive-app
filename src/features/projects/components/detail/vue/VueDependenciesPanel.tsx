@@ -1,12 +1,23 @@
-import { useState, useEffect } from "react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { useEffect, useState } from "react";
+
+import { invoke } from "@tauri-apps/api/core";
+import {
+    Download,
+    Package,
+    PackageCheck,
+    PackageX,
+    Plus,
+    RefreshCw,
+    Search,
+    Trash2,
+} from "lucide-react";
+
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Package, Search, Download, Trash2, RefreshCw, Plus, PackageCheck, PackageX } from "lucide-react";
-import { invoke } from "@tauri-apps/api/core";
 
 interface Dependency {
     name: string;
@@ -22,10 +33,10 @@ interface VueDependenciesPanelProps {
     packageManager?: string;
 }
 
-export const VueDependenciesPanel = ({ 
-    projectPath, 
-    projectName, 
-    packageManager = 'npm' 
+export const VueDependenciesPanel = ({
+    projectPath,
+    projectName,
+    packageManager = "npm",
 }: VueDependenciesPanelProps) => {
     const [dependencies, setDependencies] = useState<Dependency[]>([]);
     const [devDependencies, setDevDependencies] = useState<Dependency[]>([]);
@@ -46,34 +57,74 @@ export const VueDependenciesPanel = ({
             // In a real implementation, this would call the backend:
             const depsResult = await invoke<any>("get_project_dependencies", {
                 projectPath,
-                packageManager
+                packageManager,
             });
-            
+
             if (depsResult.dependencies) {
                 setDependencies(depsResult.dependencies);
             }
-            
+
             if (depsResult.devDependencies) {
                 setDevDependencies(depsResult.devDependencies);
             }
         } catch (error) {
             console.error("Error loading dependencies:", error);
-            
+
             // For demo purposes, populate with sample Vue dependencies
             const sampleDeps: Dependency[] = [
-                { name: "vue", version: "^3.4.21", description: "The progressive JavaScript framework", isDev: false },
-                { name: "vue-router", version: "^4.3.0", description: "Official router for Vue.js", isDev: false },
-                { name: "@vueuse/core", version: "^10.9.0", description: "Collection of essential Vue Composition Utilities", isDev: false },
+                {
+                    name: "vue",
+                    version: "^3.4.21",
+                    description: "The progressive JavaScript framework",
+                    isDev: false,
+                },
+                {
+                    name: "vue-router",
+                    version: "^4.3.0",
+                    description: "Official router for Vue.js",
+                    isDev: false,
+                },
+                {
+                    name: "@vueuse/core",
+                    version: "^10.9.0",
+                    description: "Collection of essential Vue Composition Utilities",
+                    isDev: false,
+                },
             ];
-            
+
             const sampleDevDeps: Dependency[] = [
-                { name: "@vitejs/plugin-vue", version: "^5.0.4", description: "Vite plugin for Vue 3 single-file components", isDev: true },
-                { name: "@vue/cli-service", version: "^5.0.8", description: "CLI service for Vue projects", isDev: true },
-                { name: "typescript", version: "~5.3.0", description: "TypeScript enables JavaScript to scale", isDev: true },
-                { name: "@types/node", version: "^20.11.30", description: "TypeScript definitions for Node.js", isDev: true },
-                { name: "eslint", version: "^8.57.0", description: "Tool for identifying and reporting on patterns in JavaScript", isDev: true },
+                {
+                    name: "@vitejs/plugin-vue",
+                    version: "^5.0.4",
+                    description: "Vite plugin for Vue 3 single-file components",
+                    isDev: true,
+                },
+                {
+                    name: "@vue/cli-service",
+                    version: "^5.0.8",
+                    description: "CLI service for Vue projects",
+                    isDev: true,
+                },
+                {
+                    name: "typescript",
+                    version: "~5.3.0",
+                    description: "TypeScript enables JavaScript to scale",
+                    isDev: true,
+                },
+                {
+                    name: "@types/node",
+                    version: "^20.11.30",
+                    description: "TypeScript definitions for Node.js",
+                    isDev: true,
+                },
+                {
+                    name: "eslint",
+                    version: "^8.57.0",
+                    description: "Tool for identifying and reporting on patterns in JavaScript",
+                    isDev: true,
+                },
             ];
-            
+
             setDependencies(sampleDeps);
             setDevDependencies(sampleDevDeps);
         } finally {
@@ -83,16 +134,16 @@ export const VueDependenciesPanel = ({
 
     const installDependency = async () => {
         if (!newPackage.trim()) return;
-        
+
         setInstalling(true);
         try {
             await invoke("install_dependency", {
                 projectPath,
                 packageName: newPackage.trim(),
                 packageManager,
-                isDev: false
+                isDev: false,
             });
-            
+
             setNewPackage("");
             loadDependencies(); // Reload dependencies after installation
         } catch (error) {
@@ -108,9 +159,9 @@ export const VueDependenciesPanel = ({
             await invoke("remove_dependency", {
                 projectPath,
                 packageName,
-                packageManager
+                packageManager,
             });
-            
+
             loadDependencies(); // Reload dependencies after removal
         } catch (error) {
             console.error("Error removing dependency:", error);
@@ -119,11 +170,11 @@ export const VueDependenciesPanel = ({
         }
     };
 
-    const filteredDeps = dependencies.filter(dep =>
+    const filteredDeps = dependencies.filter((dep) =>
         dep.name.toLowerCase().includes(searchTerm.toLowerCase())
     );
 
-    const filteredDevDeps = devDependencies.filter(dep =>
+    const filteredDevDeps = devDependencies.filter((dep) =>
         dep.name.toLowerCase().includes(searchTerm.toLowerCase())
     );
 
@@ -149,10 +200,10 @@ export const VueDependenciesPanel = ({
                                     placeholder="e.g., vue-router, axios, pinia..."
                                     value={newPackage}
                                     onChange={(e) => setNewPackage(e.target.value)}
-                                    onKeyPress={(e) => e.key === 'Enter' && installDependency()}
+                                    onKeyPress={(e) => e.key === "Enter" && installDependency()}
                                 />
-                                <Button 
-                                    onClick={installDependency} 
+                                <Button
+                                    onClick={installDependency}
                                     disabled={installing || !newPackage.trim()}
                                     className="flex items-center gap-2"
                                 >
@@ -207,13 +258,15 @@ export const VueDependenciesPanel = ({
                             {loading ? (
                                 <div className="flex items-center justify-center h-64">
                                     <RefreshCw className="h-6 w-6 animate-spin text-muted-foreground" />
-                                    <span className="ml-2 text-muted-foreground">Loading dependencies...</span>
+                                    <span className="ml-2 text-muted-foreground">
+                                        Loading dependencies...
+                                    </span>
                                 </div>
                             ) : activeTab === "prod" ? (
                                 filteredDeps.length > 0 ? (
                                     filteredDeps.map((dep, index) => (
-                                        <div 
-                                            key={`prod-${index}`} 
+                                        <div
+                                            key={`prod-${index}`}
                                             className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/50 transition-colors"
                                         >
                                             <div className="flex items-center gap-3">
@@ -237,7 +290,9 @@ export const VueDependenciesPanel = ({
                                                 <Button
                                                     size="sm"
                                                     variant="outline"
-                                                    onClick={() => removeDependency(dep.name, false)}
+                                                    onClick={() =>
+                                                        removeDependency(dep.name, false)
+                                                    }
                                                     disabled={removing}
                                                 >
                                                     <Trash2 className="h-4 w-4" />
@@ -249,66 +304,70 @@ export const VueDependenciesPanel = ({
                                     <div className="flex flex-col items-center justify-center h-64 text-muted-foreground">
                                         <PackageX className="h-12 w-12 mb-3 opacity-50" />
                                         <p>No production dependencies found</p>
-                                        {searchTerm && <p className="text-sm mt-1">No matches for "{searchTerm}"</p>}
+                                        {searchTerm && (
+                                            <p className="text-sm mt-1">
+                                                No matches for "{searchTerm}"
+                                            </p>
+                                        )}
                                     </div>
                                 )
-                            ) : (
-                                filteredDevDeps.length > 0 ? (
-                                    filteredDevDeps.map((dep, index) => (
-                                        <div 
-                                            key={`dev-${index}`} 
-                                            className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/50 transition-colors"
-                                        >
-                                            <div className="flex items-center gap-3">
-                                                <PackageCheck className="h-5 w-5 text-blue-500" />
-                                                <div>
-                                                    <h4 className="font-medium">{dep.name}</h4>
-                                                    <p className="text-sm text-muted-foreground">
-                                                        Version: {dep.version}
+                            ) : filteredDevDeps.length > 0 ? (
+                                filteredDevDeps.map((dep, index) => (
+                                    <div
+                                        key={`dev-${index}`}
+                                        className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/50 transition-colors"
+                                    >
+                                        <div className="flex items-center gap-3">
+                                            <PackageCheck className="h-5 w-5 text-blue-500" />
+                                            <div>
+                                                <h4 className="font-medium">{dep.name}</h4>
+                                                <p className="text-sm text-muted-foreground">
+                                                    Version: {dep.version}
+                                                </p>
+                                                {dep.description && (
+                                                    <p className="text-xs text-muted-foreground mt-1 max-w-md">
+                                                        {dep.description}
                                                     </p>
-                                                    {dep.description && (
-                                                        <p className="text-xs text-muted-foreground mt-1 max-w-md">
-                                                            {dep.description}
-                                                        </p>
-                                                    )}
-                                                </div>
-                                            </div>
-                                            <div className="flex items-center gap-2">
-                                                <Badge variant="secondary" className="capitalize">
-                                                    dev
-                                                </Badge>
-                                                <Button
-                                                    size="sm"
-                                                    variant="outline"
-                                                    onClick={() => removeDependency(dep.name, true)}
-                                                    disabled={removing}
-                                                >
-                                                    <Trash2 className="h-4 w-4" />
-                                                </Button>
+                                                )}
                                             </div>
                                         </div>
-                                    ))
-                                ) : (
-                                    <div className="flex flex-col items-center justify-center h-64 text-muted-foreground">
-                                        <PackageX className="h-12 w-12 mb-3 opacity-50" />
-                                        <p>No development dependencies found</p>
-                                        {searchTerm && <p className="text-sm mt-1">No matches for "{searchTerm}"</p>}
+                                        <div className="flex items-center gap-2">
+                                            <Badge variant="secondary" className="capitalize">
+                                                dev
+                                            </Badge>
+                                            <Button
+                                                size="sm"
+                                                variant="outline"
+                                                onClick={() => removeDependency(dep.name, true)}
+                                                disabled={removing}
+                                            >
+                                                <Trash2 className="h-4 w-4" />
+                                            </Button>
+                                        </div>
                                     </div>
-                                )
+                                ))
+                            ) : (
+                                <div className="flex flex-col items-center justify-center h-64 text-muted-foreground">
+                                    <PackageX className="h-12 w-12 mb-3 opacity-50" />
+                                    <p>No development dependencies found</p>
+                                    {searchTerm && (
+                                        <p className="text-sm mt-1">
+                                            No matches for "{searchTerm}"
+                                        </p>
+                                    )}
+                                </div>
                             )}
                         </div>
                     </ScrollArea>
-                    
+
                     <div className="flex items-center justify-between mt-4">
-                        <Button 
-                            variant="outline" 
-                            onClick={loadDependencies}
-                            disabled={loading}
-                        >
-                            <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
+                        <Button variant="outline" onClick={loadDependencies} disabled={loading}>
+                            <RefreshCw
+                                className={`h-4 w-4 mr-2 ${loading ? "animate-spin" : ""}`}
+                            />
                             Refresh Dependencies
                         </Button>
-                        
+
                         <div className="text-sm text-muted-foreground">
                             Using {packageManager} package manager
                         </div>

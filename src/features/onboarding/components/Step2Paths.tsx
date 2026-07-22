@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
+import { invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
 import { motion } from "framer-motion";
 import { ArrowLeft, ArrowRight, Check, FolderOpen, Home } from "lucide-react";
@@ -17,6 +18,7 @@ interface Step2PathsProps {
 
 export function Step2Paths({ onNext, onBack }: Step2PathsProps) {
     const [projectsPath, setProjectsPath] = useState("");
+    const [hivePath, setHivePath] = useState("");
     const [isValid, setIsValid] = useState(false);
 
     const selectFolder = async () => {
@@ -36,7 +38,22 @@ export function Step2Paths({ onNext, onBack }: Step2PathsProps) {
         setProjectsPath(value);
         setIsValid(value.trim().length > 0);
     };
+    useEffect(() => {
+        const loadPaths = async () => {
+            try {
+                const hive = await invoke<string>("get_hive_base_path_string");
+                const projects = await invoke<string>("get_hive_projects_path");
 
+                setHivePath(hive);
+                setProjectsPath(projects);
+                setIsValid(true);
+            } catch (err) {
+                console.error(err);
+            }
+        };
+
+        loadPaths();
+    }, []);
     return (
         <motion.div
             initial={{ opacity: 0 }}
@@ -92,7 +109,9 @@ export function Step2Paths({ onNext, onBack }: Step2PathsProps) {
                             <Label className="text-sm font-medium">Hive Installation Path</Label>
                             <div className="flex items-center gap-2 p-3 bg-muted/50 rounded-lg border">
                                 <Home className="w-4 h-4 text-muted-foreground" />
-                                <code className="text-sm font-mono text-foreground">~/.hive</code>
+                                <code className="text-sm font-mono text-foreground">
+                                    {hivePath}
+                                </code>
                                 <span className="ml-auto text-xs text-muted-foreground">
                                     (auto-configured)
                                 </span>
@@ -117,7 +136,7 @@ export function Step2Paths({ onNext, onBack }: Step2PathsProps) {
                                     <Input
                                         value={projectsPath}
                                         onChange={(e) => handleInputChange(e.target.value)}
-                                        placeholder="~/Projects or /path/to/your/projects"
+                                        placeholder="Select a projects directory..."
                                         className={`pr-10 ${isValid ? "border-green-500 focus-visible:ring-green-500" : ""}`}
                                     />
                                     {isValid && (
