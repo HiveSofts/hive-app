@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 
-import { invoke } from "@tauri-apps/api/core";
-import { AlertCircle, CheckCircle, FileText, Info, RotateCcw, XCircle } from "lucide-react";
+import { AlertCircle, FileText, Info, RotateCcw, XCircle } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";

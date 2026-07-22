@@ -1,0 +1,139 @@
+name: Bug Report
+description: Report a bug or unexpected behavior in Hive.
+title: "[Bug]: "
+labels:
+  - bug
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ## 🐝 Thanks for reporting a bug!
+
+        Please provide as much information as possible so we can reproduce and fix the issue quickly.
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Before submitting
+      options:
+        - label: I searched existing issues and couldn't find a duplicate.
+          required: true
+        - label: I am using the latest version of Hive.
+          required: true
+        - label: I can consistently reproduce this issue.
+          required: true
+
+  - type: dropdown
+    id: operating_system
+    attributes:
+      label: Operating System
+      description: Which operating system are you using?
+      options:
+        - Windows
+        - Linux
+        - macOS
+        - Other
+    validations:
+      required: true
+
+  - type: dropdown
+    id: hive_version
+    attributes:
+      label: Hive Version
+      description: Which version of Hive are you using?
+      options:
+        - Latest Release
+        - Latest Nightly
+        - Development Build
+        - Other
+    validations:
+      required: true
+
+  - type: dropdown
+    id: category
+    attributes:
+      label: Affected Area
+      options:
+        - Projects
+        - PHP Runtime
+        - Node.js Runtime
+        - Docker
+        - WordPress
+        - Laravel
+        - React
+        - Vue
+        - Next.js
+        - Vite
+        - Terminal
+        - Tunnel
+        - Dashboard
+        - Settings
+        - Installer
+        - Onboarding
+        - UI
+        - Performance
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Bug Description
+      description: Describe what happened.
+      placeholder: A clear and concise description of the issue...
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Steps to Reproduce
+      placeholder: |
+        1. Open...
+        2. Click...
+        3. Run...
+        4. See error...
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected Behavior
+      placeholder: What did you expect to happen?
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual Behavior
+      placeholder: What actually happened?
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs / Error Messages
+      description: Paste any logs, stack traces or terminal output.
+      render: shell
+
+  - type: textarea
+    id: screenshots
+    attributes:
+      label: Screenshots
+      description: Drag & drop screenshots if applicable.
+
+  - type: input
+    id: runtime
+    attributes:
+      label: Runtime Version (Optional)
+      placeholder: PHP 8.4.8 / Node 24.5.0 / Docker 28...
+
+  - type: textarea
+    id: additional
+    attributes:
+      label: Additional Information
+      placeholder: Anything else that might help us investigate.

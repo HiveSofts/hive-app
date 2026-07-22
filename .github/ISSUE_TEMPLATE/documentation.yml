@@ -1,0 +1,64 @@
+name: Documentation
+description: Report missing, incorrect, or unclear documentation.
+title: "[Docs]: "
+labels:
+  - documentation
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for helping improve Hive's documentation.
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Documentation Area
+      description: Which part of the documentation needs attention?
+      options:
+        - Installation
+        - Getting Started
+        - Runtime Management
+        - Project Creation
+        - Docker
+        - WordPress
+        - Laravel
+        - React / Vue / Next.js
+        - Settings
+        - CLI / Commands
+        - API
+        - README
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: issue
+    attributes:
+      label: What's wrong?
+      description: Describe the missing or incorrect documentation.
+      placeholder: |
+        Example:
+        The installation guide doesn't explain how Hive stores runtimes inside ~/.hive.
+    validations:
+      required: true
+
+  - type: textarea
+    id: suggestion
+    attributes:
+      label: Suggested Improvement
+      description: How should the documentation be updated?
+      placeholder: |
+        Add a section explaining:
+        - Hive directory structure
+        - Runtime locations
+        - Project directory behavior
+    validations:
+      required: true
+
+  - type: textarea
+    id: additional
+    attributes:
+      label: Additional Notes
+      description: Anything else that could help?
+      placeholder: Screenshots, links, examples...

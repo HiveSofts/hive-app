@@ -8,7 +8,8 @@
 
 ## ✨ About
 
-**Hive** is a lightweight, powerful desktop application that streamlines local web development. No more complex configurations or juggling different tools.
+**Hive** is a lightweight, powerfulss
+ desktop application that streamlines local web development. No more complex configurations or juggling different tools.
 
 Add any project — Laravel, Next.js, React, Node.js — and Hive gives you a clean `your-project.test` domain instantly. Built for speed and simplicity.
 

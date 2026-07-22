@@ -1,0 +1,14 @@
+blank_issues_enabled: false
+
+contact_links:
+  - name: 💬 GitHub Discussions
+    url: https://github.com/LaraPire/hive/discussions
+    about: Ask questions, share ideas, or discuss Hive with the community.
+
+  - name: 📖 Documentation
+    url: https://github.com/LaraPire/hive#readme
+    about: Read the official documentation before opening an issue.
+
+  - name: 🔒 Security Vulnerability
+    url: https://github.com/LaraPire/hive/security/advisories/new
+    about: Please report security vulnerabilities privately. Do not create a public issue.
