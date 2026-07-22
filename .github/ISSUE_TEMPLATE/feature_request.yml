@@ -1,0 +1,121 @@
+name: Feature Request
+description: Suggest an idea or improvement for Hive.
+title: "[Feature]: "
+labels:
+  - enhancement
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ## 🚀 Feature Request
+
+        Thanks for helping improve Hive!
+
+        Please describe your idea as clearly as possible. Well-described feature requests are much easier to evaluate and implement.
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Before submitting
+      options:
+        - label: I searched existing feature requests.
+          required: true
+        - label: This is not a duplicate request.
+          required: true
+        - label: I believe this feature would benefit other Hive users.
+          required: true
+
+  - type: dropdown
+    id: category
+    attributes:
+      label: Feature Category
+      description: Which part of Hive does this feature belong to?
+      options:
+        - Projects
+        - PHP Runtime
+        - Node.js Runtime
+        - Docker
+        - WordPress
+        - Laravel
+        - React
+        - Vue
+        - Next.js
+        - Vite
+        - Terminal
+        - Tunnel
+        - Dashboard
+        - Settings
+        - Installer
+        - Onboarding
+        - UI / UX
+        - Performance
+        - Security
+        - API
+        - CLI
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem Statement
+      description: What problem are you trying to solve?
+      placeholder: |
+        Describe the limitation or frustration you're experiencing...
+    validations:
+      required: true
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed Solution
+      description: Describe your ideal solution.
+      placeholder: |
+        Explain how Hive should work...
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives Considered
+      description: Have you considered any other approaches?
+      placeholder: |
+        Describe any workarounds or alternative solutions...
+
+  - type: dropdown
+    id: priority
+    attributes:
+      label: Importance
+      options:
+        - Nice to have
+        - Useful
+        - Important
+        - Critical
+
+  - type: dropdown
+    id: impact
+    attributes:
+      label: Who would benefit?
+      options:
+        - Myself
+        - Most users
+        - All users
+        - Developers
+        - Contributors
+
+  - type: textarea
+    id: mockups
+    attributes:
+      label: Mockups / Examples
+      description: Attach screenshots, sketches or links if available.
+
+  - type: textarea
+    id: additional
+    attributes:
+      label: Additional Context
+      description: Anything else you'd like to add?
+      placeholder: |
+        References, links, implementation ideas, etc.

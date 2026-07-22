@@ -1,4 +1,4 @@
-import { memo, useEffect, useRef, useState } from "react";
+import { memo, useEffect, useState } from "react";
 
 import { invoke } from "@tauri-apps/api/core";
 import { ExternalLink, FileText, Globe, RefreshCw } from "lucide-react";
@@ -7,7 +7,6 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { ScrollArea } from "@/components/ui/scroll-area";
 
 interface StaticPreviewPanelProps {
     projectPath: string;
@@ -22,7 +21,6 @@ export const StaticPreviewPanel = memo(function StaticPreviewPanel({
     projectPath,
     host,
     port,
-    description,
     index_path,
 }: StaticPreviewPanelProps) {
     const [iframeSrc, setIframeSrc] = useState<string | null>(null);
@@ -33,7 +31,6 @@ export const StaticPreviewPanel = memo(function StaticPreviewPanel({
     const [isLoadingFiles, setIsLoadingFiles] = useState(false);
 
     const serverUrl = host && port ? `http://${host}:${port}` : null;
-    const fallbackServerUrl = serverUrl || `file://${projectPath}`;
 
     // Function to scan project directory for HTML files
     const scanProjectDirectory = async () => {

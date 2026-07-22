@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 
-import { invoke } from "@tauri-apps/api/core";
-import { Monitor, Package, Play, RotateCcw, Square, Terminal } from "lucide-react";
+import { Monitor, Package, Play, RotateCcw, Terminal } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
