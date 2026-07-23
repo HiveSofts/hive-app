@@ -1,11 +1,11 @@
 import { cn } from "@/core/lib/utils";
 
-import { Globe, Layers, Server } from "lucide-react";
+import { Globe, Layers } from "lucide-react";
 
-export function QuickStats({ projects, services }: { projects: any[]; services: any[] }) {
+import { Project } from "../types";
+
+export function QuickStats({ projects }: { projects: Project[] }) {
     const running = projects.filter((p) => p.status === "running").length;
-    const svcUp = services.filter((s) => s.status === "running").length;
-    const svcErr = services.filter((s) => s.status === "error").length;
 
     const stats = [
         {
@@ -15,14 +15,6 @@ export function QuickStats({ projects, services }: { projects: any[]; services: 
             color: "text-amber-500",
             bg: "bg-amber-500/10",
             icon: <Layers className="w-4 h-4" />,
-        },
-        {
-            label: "Services",
-            value: services.length,
-            sub: `${svcUp} up · ${svcErr} error`,
-            color: svcErr > 0 ? "text-red-500" : "text-emerald-500",
-            bg: svcErr > 0 ? "bg-red-500/10" : "bg-emerald-500/10",
-            icon: <Server className="w-4 h-4" />,
         },
         {
             label: "PHP Version",
@@ -43,7 +35,7 @@ export function QuickStats({ projects, services }: { projects: any[]; services: 
     ];
 
     return (
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
             {stats.map((s) => (
                 <div
                     key={s.label}

@@ -25,6 +25,14 @@ export const projectService = {
         await invoke(`create_${type}_project`, rest);
     },
 
+    async start(type: string, projectPath: string): Promise<void> {
+        await invoke(`start_${type}_project`, { projectPath });
+    },
+
+    async stop(type: string, projectPath: string): Promise<void> {
+        await invoke(`stop_${type}_project`, { projectPath });
+    },
+
     async update(project: Project): Promise<void> {
         await invoke("update_project", { project });
     },

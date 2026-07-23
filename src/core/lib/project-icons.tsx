@@ -1,8 +1,12 @@
 import {
+    DjangoIcon,
+    DockerIcon,
+    FastApiIcon,
     Html5Icon,
     LaravelIcon,
     NextjsIcon,
     NodejsIcon,
+    NginxIcon,
     PhpIcon,
     ReactIcon,
     ViteIcon,
@@ -21,6 +25,10 @@ export const getProjectIcon = (type: string) => {
         php: PhpIcon,
         html5: Html5Icon,
         wordpress: WordpressIcon,
+        docker: DockerIcon,
+        django: DjangoIcon,
+        fastapi: FastApiIcon,
+        nginx: NginxIcon,
     };
     return icons[type] || null;
 };

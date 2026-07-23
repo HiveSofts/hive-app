@@ -1,50 +1,79 @@
 import { cn } from "@/core/lib/utils";
 
+import { useState, useEffect } from "react";
+
 import { Database, Network, Shield } from "lucide-react";
 
-const DB_CONNS = [
-    { name: "my-blog", driver: "mysql", db: "my_blog_db", status: "connected" },
-    { name: "api-gateway", driver: "pgsql", db: "api_db", status: "connected" },
-    { name: "vue-portfolio", driver: "sqlite", db: "portfolio.db", status: "idle" },
-];
+import { invoke } from "@tauri-apps/api/core";
 
-const SSL_CERTS = [
-    { domain: "*.test", expiry: "2025-12-31", daysLeft: 199 },
-    { domain: "*.local", expiry: "2025-09-14", daysLeft: 91 },
-    { domain: "localhost", expiry: "2026-03-01", daysLeft: 259 },
-];
-
-interface WidgetsState {
-    php: boolean;
-    node: boolean;
-    db: boolean;
-    ssl: boolean;
-    tunnel: boolean;
-}
+import { WidgetsState } from "../types";
 
 export function Widgets({
     widgets,
     setWidgets,
+    widgetData,
 }: {
     widgets: WidgetsState;
     setWidgets: (w: WidgetsState) => void;
+    widgetData: {
+        dbConnections: { name: string; driver: string; db: string; status: string }[];
+        sslCerts: { domain: string; expiry: string; daysLeft: number }[];
+        tunnels: { projectName: string; localUrl: string; publicUrl?: string; status: string; startedAt: string }[];
+    };
 }) {
-    const WIDGET_DEFS = [
-        { id: "php" as const, label: "PHP Info" },
-        { id: "node" as const, label: "Node.js Info" },
-        { id: "db" as const, label: "DB Connections" },
-        { id: "ssl" as const, label: "SSL Certificates" },
-        { id: "tunnel" as const, label: "Tunnel Status" },
-    ];
+    const [phpInfo, setPhpInfo] = useState<{ version: string; path: string; extensions: number; opcache: boolean } | null>(null);
+    const [nodeVersions, setNodeVersions] = useState<string[]>([]);
+    const [npmVersion, setNpmVersion] = useState<string | null>(null);
+
+    useEffect(() => {
+        const fetchRuntimeInfo = async () => {
+            try {
+                const php = await invoke<{ version: string; path: string; extensions: number; opcache: boolean } | null>("get_php_version_info");
+                setPhpInfo(php);
+            } catch {
+                setPhpInfo(null);
+            }
+
+            try {
+                const nodes = await invoke<string[]>("get_installed_runtimes", { type: "node" });
+                setNodeVersions(nodes);
+            } catch {
+                setNodeVersions([]);
+            }
+
+            try {
+                const npm = await invoke<string | null>("execute_shell_command", {
+                    command: "npm --version",
+                    cwd: "/tmp",
+                });
+                setNpmVersion(npm || null);
+            } catch {
+                setNpmVersion(null);
+            }
+        };
+
+        if (widgets.php || widgets.node) {
+            fetchRuntimeInfo();
+        }
+    }, [widgets.php, widgets.node]);
 
     const toggleWidget = (id: keyof WidgetsState) => {
         setWidgets({ ...widgets, [id]: !widgets[id] });
     };
 
+    const displayNode = nodeVersions.length > 0 ? nodeVersions.join(", ") : "v20.14.0 LTS";
+    const displayNpm = npmVersion || "10.7.0";
+
     return (
         <div className="space-y-4">
             <div className="flex gap-2 flex-wrap">
-                {WIDGET_DEFS.map((w) => (
+                {[
+                    { id: "php" as const, label: "PHP Info" },
+                    { id: "node" as const, label: "Node.js Info" },
+                    { id: "db" as const, label: "DB Connections" },
+                    { id: "ssl" as const, label: "SSL Certificates" },
+                    { id: "tunnel" as const, label: "Tunnel Status" },
+                ].map((w) => (
                     <button
                         key={w.id}
                         onClick={() => toggleWidget(w.id)}
@@ -70,19 +99,23 @@ export function Widgets({
                         <div className="space-y-1 text-xs font-mono text-muted-foreground">
                             <div className="flex justify-between">
                                 <span>Default</span>
-                                <span className="text-foreground">PHP 8.3.11</span>
+                                <span className="text-foreground">{phpInfo?.version || "—"}</span>
                             </div>
                             <div className="flex justify-between">
                                 <span>Path</span>
-                                <span className="text-foreground">~/.hive/php/8.3/php</span>
+                                <span className="text-foreground truncate">{phpInfo?.path || "—"}</span>
                             </div>
                             <div className="flex justify-between">
                                 <span>Extensions</span>
-                                <span className="text-foreground">42 loaded</span>
+                                <span className="text-foreground">
+                                    {phpInfo?.extensions !== undefined ? `${phpInfo.extensions} loaded` : "—"}
+                                </span>
                             </div>
                             <div className="flex justify-between">
                                 <span>OPcache</span>
-                                <span className="text-emerald-500">enabled</span>
+                                <span className={cn(phpInfo?.opcache ? "text-emerald-500" : "text-muted-foreground")}>
+                                    {phpInfo ? (phpInfo.opcache ? "enabled" : "disabled") : "—"}
+                                </span>
                             </div>
                         </div>
                     </div>
@@ -96,19 +129,19 @@ export function Widgets({
                         <div className="space-y-1 text-xs font-mono text-muted-foreground">
                             <div className="flex justify-between">
                                 <span>Node</span>
-                                <span className="text-foreground">v20.14.0 LTS</span>
+                                <span className="text-foreground">{displayNode}</span>
                             </div>
                             <div className="flex justify-between">
                                 <span>npm</span>
-                                <span className="text-foreground">10.7.0</span>
+                                <span className="text-foreground">{displayNpm}</span>
                             </div>
                             <div className="flex justify-between">
                                 <span>pnpm</span>
-                                <span className="text-foreground">9.5.0</span>
+                                <span className="text-muted-foreground">—</span>
                             </div>
                             <div className="flex justify-between">
                                 <span>bun</span>
-                                <span className="text-foreground">1.1.18</span>
+                                <span className="text-foreground">—</span>
                             </div>
                         </div>
                     </div>
@@ -120,7 +153,7 @@ export function Widgets({
                             <span className="text-sm font-medium">DB Connections</span>
                         </div>
                         <div className="space-y-1.5">
-                            {DB_CONNS.map((c) => (
+                            {widgetData.dbConnections.map((c) => (
                                 <div key={c.name} className="flex items-center gap-2 text-xs">
                                     <span
                                         className={cn(
@@ -158,7 +191,7 @@ export function Widgets({
                             <span className="text-sm font-medium">SSL Certificates</span>
                         </div>
                         <div className="space-y-1.5">
-                            {SSL_CERTS.map((c) => (
+                            {widgetData.sslCerts.map((c) => (
                                 <div key={c.domain} className="text-xs">
                                     <div className="flex items-center justify-between">
                                         <span className="font-mono text-foreground">
@@ -207,22 +240,52 @@ export function Widgets({
                             </span>
                         </div>
                         <div className="space-y-1 text-xs font-mono text-muted-foreground">
-                            <div className="flex justify-between">
-                                <span>Status</span>
-                                <span className="text-yellow-500">inactive</span>
-                            </div>
-                            <div className="flex justify-between">
-                                <span>URL</span>
-                                <span className="text-muted-foreground/40">—</span>
-                            </div>
-                            <div className="flex justify-between">
-                                <span>Requests</span>
-                                <span className="text-muted-foreground/40">—</span>
-                            </div>
+                            {widgetData.tunnels.length === 0 ? (
+                                <>
+                                    <div className="flex justify-between">
+                                        <span>Status</span>
+                                        <span className="text-yellow-500">inactive</span>
+                                    </div>
+                                    <div className="flex justify-between">
+                                        <span>URL</span>
+                                        <span className="text-muted-foreground/40">—</span>
+                                    </div>
+                                    <div className="flex justify-between">
+                                        <span>Requests</span>
+                                        <span className="text-muted-foreground/40">—</span>
+                                    </div>
+                                </>
+                            ) : (
+                                widgetData.tunnels.map((t) => (
+                                    <div key={t.projectName} className="space-y-1">
+                                        <div className="flex justify-between">
+                                            <span>{t.projectName}</span>
+                                            <span className={cn(
+                                                "text-[10px]",
+                                                t.status === "active" ? "text-emerald-500" : "text-yellow-500"
+                                            )}>
+                                                {t.status}
+                                            </span>
+                                        </div>
+                                        <div className="flex justify-between">
+                                            <span>Local</span>
+                                            <span className="text-foreground truncate">{t.localUrl}</span>
+                                        </div>
+                                        {t.publicUrl && (
+                                            <div className="flex justify-between">
+                                                <span>Public</span>
+                                                <span className="text-foreground truncate">{t.publicUrl}</span>
+                                            </div>
+                                        )}
+                                    </div>
+                                ))
+                            )}
                         </div>
-                        <button className="w-full mt-1 text-[11px] py-1.5 rounded-lg border border-dashed border-border text-muted-foreground hover:bg-muted transition-colors">
-                            Start tunnel
-                        </button>
+                        {widgetData.tunnels.length === 0 && (
+                            <button className="w-full mt-1 text-[11px] py-1.5 rounded-lg border border-dashed border-border text-muted-foreground hover:bg-muted transition-colors">
+                                Start tunnel
+                            </button>
+                        )}
                     </div>
                 )}
             </div>

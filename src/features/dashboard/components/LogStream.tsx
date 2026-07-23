@@ -2,45 +2,9 @@ import { cn } from "@/core/lib/utils";
 
 import { useState } from "react";
 
-type LogLevel = "error" | "warn" | "info";
+import type { LogEntry } from "../types";
 
-const LOG_STREAM = [
-    {
-        id: 1,
-        level: "error" as LogLevel,
-        project: "my-blog",
-        msg: "SQLSTATE[42S02]: Base table not found: posts",
-        ts: "23:41:02",
-    },
-    {
-        id: 2,
-        level: "warn" as LogLevel,
-        project: "api-gateway",
-        msg: "High memory usage: 487 MB (threshold: 512 MB)",
-        ts: "23:38:47",
-    },
-    {
-        id: 3,
-        level: "info" as LogLevel,
-        project: "my-blog",
-        msg: "Cache cleared via artisan",
-        ts: "23:35:11",
-    },
-    {
-        id: 4,
-        level: "error" as LogLevel,
-        project: "dashboard-app",
-        msg: "Unhandled promise rejection: fetch failed",
-        ts: "23:30:05",
-    },
-    {
-        id: 5,
-        level: "warn" as LogLevel,
-        project: "my-blog",
-        msg: "Rate limit exceeded for 10.0.0.5",
-        ts: "23:22:58",
-    },
-];
+type LogLevel = "error" | "warn" | "info";
 
 const logColor: Record<LogLevel, { dot: string; text: string; bg: string }> = {
     error: { dot: "bg-red-500", text: "text-red-500", bg: "bg-red-500/8 border-red-500/20" },
@@ -52,11 +16,11 @@ const logColor: Record<LogLevel, { dot: string; text: string; bg: string }> = {
     info: { dot: "bg-blue-400", text: "text-blue-400", bg: "bg-blue-500/8 border-blue-500/20" },
 };
 
-export function LogStream() {
+export function LogStream({ logs }: { logs: LogEntry[] }) {
     const [filter, setFilter] = useState<"all" | LogLevel>("all");
     const [projectFilter, setProjectFilter] = useState("all");
-    const projects = ["all", ...Array.from(new Set(LOG_STREAM.map((l) => l.project)))];
-    const filtered = LOG_STREAM.filter(
+    const projects = ["all", ...Array.from(new Set(logs.map((l) => l.project)))];
+    const filtered = logs.filter(
         (l) =>
             (filter === "all" || l.level === filter) &&
             (projectFilter === "all" || l.project === projectFilter)
@@ -94,6 +58,11 @@ export function LogStream() {
                 </select>
             </div>
             <div className="space-y-1.5 max-h-[260px] overflow-y-auto pr-1">
+                {filtered.length === 0 && (
+                    <div className="text-center py-6 text-sm text-muted-foreground">
+                        No logs available
+                    </div>
+                )}
                 {filtered.map((log) => {
                     const c = logColor[log.level];
                     return (
