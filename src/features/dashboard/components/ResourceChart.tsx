@@ -1,4 +1,3 @@
-// src/pages/dashboard/components/ResourceChart.tsx
 import { cn } from "@/core/lib/utils";
 
 import { useState } from "react";
@@ -13,9 +12,11 @@ import {
     YAxis,
 } from "recharts";
 
+import { Metric } from "../types";
+
 const CHART_RANGES = ["1 min", "15 min", "1 hr"] as const;
 
-export function ResourceChart({ metrics }: { metrics: any[] }) {
+export function ResourceChart({ metrics }: { metrics: Metric[] }) {
     const [range, setRange] = useState<(typeof CHART_RANGES)[number]>("1 min");
     const [active, setActive] = useState({ cpu: true, ram: true, net_in: false, net_out: false });
     const series = [
@@ -24,6 +25,14 @@ export function ResourceChart({ metrics }: { metrics: any[] }) {
         { key: "net_in", name: "Net In", color: "#10b981", unit: " KB/s" },
         { key: "net_out", name: "Net Out", color: "#8b5cf6", unit: " KB/s" },
     ];
+
+    if (metrics.length === 0) {
+        return (
+            <div className="flex items-center justify-center h-[200px] text-xs text-muted-foreground">
+                No metrics available
+            </div>
+        );
+    }
 
     return (
         <div className="space-y-3">

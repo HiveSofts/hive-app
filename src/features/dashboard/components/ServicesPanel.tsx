@@ -4,21 +4,24 @@ import { useState } from "react";
 
 import { Play, RotateCcw, Square } from "lucide-react";
 
-type ServiceStatus = "running" | "stopped" | "error";
+import { Service } from "../types";
 
-const serviceColor: Record<ServiceStatus, string> = {
+const serviceColor: Record<Service["status"], string> = {
     running: "bg-emerald-500",
     stopped: "bg-zinc-400",
     error: "bg-red-500",
 };
 
-export function ServicesPanel({ services: initial }: { services: any[] }) {
+export function ServicesPanel({ services: initial }: { services: Service[] }) {
     const [services, setServices] = useState(initial);
     const toggle = (id: string) =>
         setServices((s) =>
-            s.map((x) =>
-                x.id === id ? { ...x, status: x.status === "running" ? "stopped" : "running" } : x
-            )
+            s.map((x) => {
+                if (x.id !== id) return x;
+                if (x.status === "running") return { ...x, status: "stopped" as const };
+                if (x.status === "stopped") return { ...x, status: "running" as const };
+                return { ...x, status: "stopped" as const };
+            })
         );
 
     return (
@@ -31,7 +34,7 @@ export function ServicesPanel({ services: initial }: { services: any[] }) {
                     <span
                         className={cn(
                             "w-2 h-2 rounded-full shrink-0",
-                            serviceColor[svc.status as ServiceStatus],
+                            serviceColor[svc.status],
                             svc.status === "running" ? "animate-pulse" : ""
                         )}
                     />

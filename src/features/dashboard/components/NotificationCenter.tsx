@@ -4,42 +4,9 @@ import { useState } from "react";
 
 import { AlertCircle, AlertTriangle, Info, X } from "lucide-react";
 
-type LogLevel = "error" | "warn" | "info";
+import { NotificationItem } from "../types";
 
-const NOTIFICATIONS = [
-    {
-        id: 1,
-        level: "info" as LogLevel,
-        title: "PHP 8.4.1 installed",
-        body: "Updated successfully via Hive PHP Manager.",
-        time: "2 min ago",
-        action: null,
-    },
-    {
-        id: 2,
-        level: "warn" as LogLevel,
-        title: "php.ini changed",
-        body: "Restart PHP-FPM to apply new memory_limit.",
-        time: "8 min ago",
-        action: "Restart Now",
-    },
-    {
-        id: 3,
-        level: "info" as LogLevel,
-        title: "my-blog created",
-        body: "Laravel project scaffolded at ~/Projects/my-blog.",
-        time: "1 hr ago",
-        action: "Open Project",
-    },
-    {
-        id: 4,
-        level: "error" as LogLevel,
-        title: "MinIO service crashed",
-        body: "Process exited with code 1. Check logs for details.",
-        time: "2 hr ago",
-        action: "View Logs",
-    },
-];
+type LogLevel = "error" | "warn" | "info";
 
 const notifIcon: Record<LogLevel, React.ReactNode> = {
     error: <AlertCircle className="w-4 h-4 text-red-500 shrink-0" />,
@@ -53,18 +20,18 @@ const logColor: Record<LogLevel, { bg: string }> = {
     info: { bg: "bg-blue-500/8 border-blue-500/20" },
 };
 
-export function NotificationCenter() {
-    const [notifs, setNotifs] = useState(NOTIFICATIONS);
-    const dismiss = (id: number) => setNotifs((n) => n.filter((x) => x.id !== id));
+export function NotificationCenter({ notifications }: { notifications: NotificationItem[] }) {
+    const [items, setItems] = useState(notifications);
+    const dismiss = (id: number) => setItems((n) => n.filter((x) => x.id !== id));
 
     return (
         <div className="space-y-2">
-            {notifs.length === 0 && (
+            {items.length === 0 && (
                 <div className="text-center py-6 text-sm text-muted-foreground">
                     No notifications
                 </div>
             )}
-            {notifs.map((n) => (
+            {items.map((n) => (
                 <div
                     key={n.id}
                     className={cn(

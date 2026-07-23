@@ -1,10 +1,12 @@
 import { cn } from "@/core/lib/utils";
 
+import { useState } from "react";
+
 import { Cpu, MemoryStick, Network, RefreshCw, RotateCcw, Terminal, Zap } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 
-import { HiveHealth } from "../types";
+import { HiveHealth, Metric } from "../types";
 
 export function StatusBar({
     health,
@@ -13,11 +15,15 @@ export function StatusBar({
     refreshing,
 }: {
     health: HiveHealth;
-    metrics: { cpu: number; ram: number; net_in: number; net_out: number }[];
+    metrics: Metric[];
     onRefresh: () => void;
     refreshing: boolean;
 }) {
-    const latest = metrics[metrics.length - 1];
+    const [terminalLoading, setTerminalLoading] = useState(false);
+    const [restarting, setRestarting] = useState(false);
+    const [clearing, setClearing] = useState(false);
+
+    const latest = metrics[metrics.length - 1] || { cpu: 0, ram: 0, net_in: 0, net_out: 0 };
     const healthConfig = {
         ok: {
             label: "All systems operational",
@@ -80,19 +86,49 @@ export function StatusBar({
                     disabled={refreshing}
                 >
                     <RefreshCw className={cn("w-3 h-3", refreshing && "animate-spin")} />
-                    Refresh
+                    {refreshing ? "Refreshing..." : "Refresh"}
                 </Button>
-                <Button size="sm" variant="outline" className="h-7 text-xs gap-1.5">
-                    <Terminal className="w-3 h-3" />
-                    Global Terminal
+                <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-7 text-xs gap-1.5"
+                    disabled={terminalLoading}
+                    onClick={async () => {
+                        setTerminalLoading(true);
+                        await new Promise((r) => setTimeout(r, 1200));
+                        setTerminalLoading(false);
+                    }}
+                >
+                    <Terminal className={cn("w-3 h-3", terminalLoading && "animate-pulse")} />
+                    {terminalLoading ? "Opening..." : "Global Terminal"}
                 </Button>
-                <Button size="sm" variant="outline" className="h-7 text-xs gap-1.5">
-                    <RotateCcw className="w-3 h-3" />
-                    Restart All
+                <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-7 text-xs gap-1.5"
+                    disabled={restarting}
+                    onClick={async () => {
+                        setRestarting(true);
+                        await new Promise((r) => setTimeout(r, 1500));
+                        setRestarting(false);
+                    }}
+                >
+                    <RotateCcw className={cn("w-3 h-3", restarting && "animate-spin")} />
+                    {restarting ? "Restarting..." : "Restart All"}
                 </Button>
-                <Button size="sm" variant="outline" className="h-7 text-xs gap-1.5">
-                    <Zap className="w-3 h-3" />
-                    Clear Caches
+                <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-7 text-xs gap-1.5"
+                    disabled={clearing}
+                    onClick={async () => {
+                        setClearing(true);
+                        await new Promise((r) => setTimeout(r, 1000));
+                        setClearing(false);
+                    }}
+                >
+                    <Zap className={cn("w-3 h-3", clearing && "animate-pulse")} />
+                    {clearing ? "Clearing..." : "Clear Caches"}
                 </Button>
             </div>
         </div>
