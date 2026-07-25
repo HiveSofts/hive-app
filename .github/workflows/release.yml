@@ -29,9 +29,6 @@ jobs:
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
 
-      - name: Cache Cargo
-        uses: Swatinem/rust-cache@v2
-
       - name: Install Linux Dependencies
         if: runner.os == 'Linux'
         run: |
@@ -58,9 +55,16 @@ jobs:
           tagName: ${{ github.ref_name }}
           releaseName: Hive ${{ github.ref_name }}
           releaseBody: |
-            ## What's Changed
+            🐝 Hive ${{ github.ref_name }}
 
-            See the commit history for full details.
+            Cross-platform local development environment.
+
+            What's included:
+            - Linux AppImage
+            - Linux Debian package
+            - Windows Installer
+
+            Thanks for supporting Hive ❤️
 
           releaseDraft: false
           prerelease: false
