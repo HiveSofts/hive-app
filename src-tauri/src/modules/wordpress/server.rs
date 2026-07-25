@@ -10,6 +10,7 @@ use std::time::Duration;
 use tauri::command;
 
 use crate::core::database::models;
+use crate::core::database::{Event, EventCategory};
 use crate::modules::common::path::expand_home;
 
 lazy_static::lazy_static! {
@@ -118,22 +119,34 @@ pub async fn start_wordpress_project(
 ) -> Result<WordPressServerStatus, String> {
     let project_path = expand_home(&project_path);
     let project_path_str = project_path.to_string_lossy().to_string();
-    
-    let existing = models::get_server(&project_path_str).map_err(|e| e.to_string())?;
-
-    if let Some(rec) = existing.clone() {
-        if rec.is_running && server_alive(rec.pid, rec.port) {
-            return Ok(rec.into());
-        }
-    }
-
-    let _ = stop_wordpress_project(project_path_str.clone()).await;
-
     let project_name = project_path
         .file_name()
         .unwrap_or_default()
         .to_string_lossy()
         .to_string();
+
+    let _ = Event::info(
+        EventCategory::WordPress,
+        "wordpress.server.starting",
+        "Starting WordPress Server",
+        &format!("Starting WordPress server for project: {}", project_name),
+    );
+    
+    let existing = models::get_server(&project_path_str).map_err(|e| e.to_string())?;
+
+    if let Some(rec) = existing.clone() {
+        if rec.is_running && server_alive(rec.pid, rec.port) {
+            let _ = Event::info(
+                EventCategory::WordPress,
+                "wordpress.server.already_running",
+                "WordPress Server Already Running",
+                &format!("WordPress server for '{}' is already running", project_name),
+            );
+            return Ok(rec.into());
+        }
+    }
+
+    let _ = stop_wordpress_project(project_path_str.clone()).await;
 
     let port = if let Some(rec) = existing {
         if !port_is_open(rec.port) {
@@ -159,7 +172,15 @@ pub async fn start_wordpress_project(
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .spawn()
-        .map_err(|e| format!("Failed to start WordPress server: {}", e))?;
+        .map_err(|e| {
+            let _ = Event::error(
+                EventCategory::WordPress,
+                "wordpress.server.start.failed",
+                "Failed to Start WordPress Server",
+                &format!("Failed to start WordPress server: {}", e),
+            );
+            format!("Failed to start WordPress server: {}", e)
+        })?;
 
     let pid = child.id();
     let stdout = child.stdout.take().unwrap();
@@ -184,6 +205,13 @@ pub async fn start_wordpress_project(
         .unwrap()
         .insert(project_path_str.clone(), child);
 
+    let _ = Event::success(
+        EventCategory::WordPress,
+        "wordpress.server.started",
+        "WordPress Server Started",
+        &format!("WordPress server started for '{}' on port {}", project_name, port),
+    );
+
     Ok(WordPressServerStatus {
         project_path: project_path_str,
         project_name,
@@ -200,6 +228,18 @@ pub async fn start_wordpress_project(
 pub async fn stop_wordpress_project(project_path: String) -> Result<String, String> {
     let project_path = expand_home(&project_path);
     let project_path_str = project_path.to_string_lossy().to_string();
+    let project_name = project_path
+        .file_name()
+        .unwrap_or_default()
+        .to_string_lossy()
+        .to_string();
+
+    let _ = Event::info(
+        EventCategory::WordPress,
+        "wordpress.server.stopping",
+        "Stopping WordPress Server",
+        &format!("Stopping WordPress server for project: {}", project_name),
+    );
 
     if let Some(mut child) = WORDPRESS_PROCESSES.lock().unwrap().remove(&project_path_str) {
         let _ = child.kill();
@@ -214,6 +254,14 @@ pub async fn stop_wordpress_project(project_path: String) -> Result<String, Stri
 
     models::mark_stopped(&project_path_str).map_err(|e| e.to_string())?;
     std::thread::sleep(std::time::Duration::from_millis(300));
+
+    let _ = Event::success(
+        EventCategory::WordPress,
+        "wordpress.server.stopped",
+        "WordPress Server Stopped",
+        &format!("WordPress server stopped for project: {}", project_name),
+    );
+
     Ok(format!("stopped: {}", project_path_str))
 }
 
@@ -223,6 +271,19 @@ pub async fn restart_wordpress_project(
 ) -> Result<WordPressServerStatus, String> {
     let project_path = expand_home(&project_path);
     let project_path_str = project_path.to_string_lossy().to_string();
+    let project_name = project_path
+        .file_name()
+        .unwrap_or_default()
+        .to_string_lossy()
+        .to_string();
+
+    let _ = Event::info(
+        EventCategory::WordPress,
+        "wordpress.server.restarting",
+        "Restarting WordPress Server",
+        &format!("Restarting WordPress server for project: {}", project_name),
+    );
+
     stop_wordpress_project(project_path_str.clone()).await?;
     std::thread::sleep(std::time::Duration::from_millis(600));
     start_wordpress_project(project_path_str).await

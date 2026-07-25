@@ -15,7 +15,6 @@ interface ViteBuildPanelProps {
 }
 
 export const ViteBuildPanel = memo(function ViteBuildPanel({
-    projectPath,
     packageManager = "npm",
 }: ViteBuildPanelProps) {
     const [buildCommand, setBuildCommand] = useState<string>("build");

@@ -22,6 +22,7 @@ interface TerminalShellProps {
     version?: string;
     quickGroups?: { label: string; items: string[] }[];
     shellLabel?: string;
+    packageManager?: string;
 }
 
 function parseInteractivePrompt(lines: string[]): InteractivePrompt | null {

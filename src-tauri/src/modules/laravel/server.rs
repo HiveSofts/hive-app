@@ -10,6 +10,7 @@ use std::time::Duration;
 use tauri::command;
 
 use crate::core::database::models;
+use crate::core::database::{Event, EventCategory};
 
 lazy_static::lazy_static! {
     static ref PROCESSES: Mutex<HashMap<String, Child>> = Mutex::new(HashMap::new());
@@ -56,6 +57,12 @@ pub fn cleanup_orphaned_servers() {
         for s in servers {
             if !server_alive(s.pid, s.port) {
                 let _ = models::mark_stopped(&s.project_path);
+                let _ = Event::warning(
+                    EventCategory::Laravel,
+                    "server.orphaned.cleaned",
+                    "Orphaned Server Cleaned",
+                    &format!("Cleaned up orphaned server for project: {}", s.project_name),
+                );
             }
         }
     }
@@ -123,21 +130,34 @@ fn pipe_to_log(stdout: std::process::ChildStdout, stderr: std::process::ChildStd
 
 #[command]
 pub async fn start_laravel_project(project_path: String) -> Result<ServerStatus, String> {
-    let existing = models::get_server(&project_path).map_err(|e| e.to_string())?;
-
-    if let Some(rec) = existing.clone() {
-        if rec.is_running && server_alive(rec.pid, rec.port) {
-            return Ok(rec.into());
-        }
-    }
-
-    let _ = stop_laravel_project(project_path.clone()).await;
-
     let project_name = std::path::Path::new(&project_path)
         .file_name()
         .unwrap_or_default()
         .to_string_lossy()
         .to_string();
+
+    let _ = Event::info(
+        EventCategory::Laravel,
+        "server.starting",
+        "Starting Laravel Server",
+        &format!("Starting Laravel server for project: {}", project_name),
+    );
+
+    let existing = models::get_server(&project_path).map_err(|e| e.to_string())?;
+
+    if let Some(rec) = existing.clone() {
+        if rec.is_running && server_alive(rec.pid, rec.port) {
+            let _ = Event::info(
+                EventCategory::Laravel,
+                "server.already_running",
+                "Server Already Running",
+                &format!("Laravel server for '{}' is already running", project_name),
+            );
+            return Ok(rec.into());
+        }
+    }
+
+    let _ = stop_laravel_project(project_path.clone()).await;
 
     let port = if let Some(rec) = existing {
         if !port_is_open(rec.port) {
@@ -196,7 +216,15 @@ pub async fn start_laravel_project(project_path: String) -> Result<ServerStatus,
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .spawn()
-        .map_err(|e| e.to_string())?;
+        .map_err(|e| {
+            let _ = Event::error(
+                EventCategory::Laravel,
+                "server.start.failed",
+                "Failed to Start Server",
+                &format!("Failed to start Laravel server: {}", e),
+            );
+            e.to_string()
+        })?;
 
     let pid = child.id();
     let stdout = child.stdout.take().unwrap();
@@ -222,6 +250,13 @@ pub async fn start_laravel_project(project_path: String) -> Result<ServerStatus,
         .unwrap()
         .insert(project_path.clone(), child);
 
+    let _ = Event::success(
+        EventCategory::Laravel,
+        "server.started",
+        "Laravel Server Started",
+        &format!("Laravel server started for '{}' on port {}", project_name, port),
+    );
+
     Ok(ServerStatus {
         project_path,
         project_name,
@@ -236,6 +271,19 @@ pub async fn start_laravel_project(project_path: String) -> Result<ServerStatus,
 
 #[command]
 pub async fn stop_laravel_project(project_path: String) -> Result<String, String> {
+    let project_name = std::path::Path::new(&project_path)
+        .file_name()
+        .unwrap_or_default()
+        .to_string_lossy()
+        .to_string();
+
+    let _ = Event::info(
+        EventCategory::Laravel,
+        "server.stopping",
+        "Stopping Laravel Server",
+        &format!("Stopping Laravel server for project: {}", project_name),
+    );
+
     if let Some(mut child) = PROCESSES.lock().unwrap().remove(&project_path) {
         let _ = child.kill();
         let _ = child.wait();
@@ -249,11 +297,32 @@ pub async fn stop_laravel_project(project_path: String) -> Result<String, String
 
     models::mark_stopped(&project_path).map_err(|e| e.to_string())?;
     std::thread::sleep(std::time::Duration::from_millis(300));
+
+    let _ = Event::success(
+        EventCategory::Laravel,
+        "server.stopped",
+        "Laravel Server Stopped",
+        &format!("Laravel server stopped for project: {}", project_name),
+    );
+
     Ok(format!("stopped: {}", project_path))
 }
 
 #[command]
 pub async fn restart_laravel_project(project_path: String) -> Result<ServerStatus, String> {
+    let project_name = std::path::Path::new(&project_path)
+        .file_name()
+        .unwrap_or_default()
+        .to_string_lossy()
+        .to_string();
+
+    let _ = Event::info(
+        EventCategory::Laravel,
+        "server.restarting",
+        "Restarting Laravel Server",
+        &format!("Restarting Laravel server for project: {}", project_name),
+    );
+
     let _ = Command::new("php")
         .args(["artisan", "optimize:clear"])
         .current_dir(&project_path)
@@ -370,6 +439,12 @@ pub async fn clear_server_logs(project_name: String) -> Result<(), String> {
     let path = log_file_path(&project_name);
     if path.exists() {
         fs::write(&path, "").map_err(|e| e.to_string())?;
+        let _ = Event::info(
+            EventCategory::Laravel,
+            "logs.cleared",
+            "Server Logs Cleared",
+            &format!("Cleared server logs for project: {}", project_name),
+        );
     }
     Ok(())
 }

@@ -1,20 +1,17 @@
 import { useState } from "react";
 
-import { Activity, Bell, Globe, Layers, Package, TrendingUp } from "lucide-react";
+import { Bell, Layers, TrendingUp } from "lucide-react";
 
-import { DnsProxy } from "./components/DnsProxy";
-import { LogStream } from "./components/LogStream";
 import { NotificationCenter } from "./components/NotificationCenter";
 import { ProjectCards } from "./components/ProjectCards";
 import { QuickStats } from "./components/QuickStats";
 import { ResourceChart } from "./components/ResourceChart";
 import { Section } from "./components/Section";
 import { StatusBar } from "./components/StatusBar";
-import { Widgets } from "./components/Widgets";
 import { useDashboard } from "./hooks/useDashboard";
 
 export default function Dashboard() {
-    const { metrics, refreshing, health, widgets, setWidgets, projects, loading, error, refresh, logs, notifications, widgetData, dnsData } =
+    const { metrics, refreshing, health, projects, loading, error, refresh} =
         useDashboard();
 
     const date = new Date().toLocaleDateString("en-US", {
@@ -24,10 +21,7 @@ export default function Dashboard() {
         day: "numeric",
     });
 
-    const [showLogStream, setShowLogStream] = useState(true);
     const [showNotifications, setShowNotifications] = useState(true);
-    const [showDnsProxy, setShowDnsProxy] = useState(true);
-    const [showWidgets, setShowWidgets] = useState(true);
 
     if (loading) {
         return (
@@ -95,21 +89,6 @@ export default function Dashboard() {
                     <Section title="Resource Monitor" icon={<TrendingUp className="w-4 h-4" />}>
                         <ResourceChart metrics={metrics} />
                     </Section>
-
-                    {showLogStream && (
-                        <Section
-                            title="Log Stream"
-                            icon={<Activity className="w-4 h-4" />}
-                            right={
-                                <SectionToggle
-                                    visible={showLogStream}
-                                    onToggle={() => setShowLogStream((v) => !v)}
-                                />
-                            }
-                        >
-                            <LogStream logs={logs} />
-                        </Section>
-                    )}
                 </div>
 
                 {/* Right Column */}
@@ -125,43 +104,11 @@ export default function Dashboard() {
                                 />
                             }
                         >
-                            <NotificationCenter notifications={notifications} />
-                        </Section>
-                    )}
-
-                    {showDnsProxy && (
-                        <Section
-                            title="DNS & Proxy"
-                            icon={<Globe className="w-4 h-4" />}
-                            right={
-                                <SectionToggle
-                                    visible={showDnsProxy}
-                                    onToggle={() => setShowDnsProxy((v) => !v)}
-                                />
-                            }
-                        >
-                            <DnsProxy data={dnsData} />
+                            <NotificationCenter  />
                         </Section>
                     )}
                 </div>
             </div>
-
-            {/* Widgets */}
-            {showWidgets && (
-                <Section
-                    title="Widgets"
-                    icon={<Package className="w-4 h-4" />}
-                    defaultOpen
-                    right={
-                        <SectionToggle
-                            visible={showWidgets}
-                            onToggle={() => setShowWidgets((v) => !v)}
-                        />
-                    }
-                >
-                    <Widgets widgets={widgets} setWidgets={setWidgets} widgetData={widgetData} />
-                </Section>
-            )}
         </div>
     );
 }

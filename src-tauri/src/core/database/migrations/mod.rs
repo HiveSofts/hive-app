@@ -1,4 +1,9 @@
-use rusqlite::{Connection, Result, params};
+use rusqlite::{Connection, Result};
+
+pub trait Migration {
+    fn version(&self) -> &str;
+    fn up(&self, conn: &Connection) -> Result<()>;
+}
 
 mod v1_server_processes;
 mod v2_session_id;
@@ -6,53 +11,70 @@ mod v3_last_activity;
 mod v4_error_count;
 mod v5_metadata;
 mod v6_tunnel;
+mod v7_events;
 
-pub trait Migration {
-    fn version(&self) -> &str;
-    fn up(&self, conn: &Connection) -> Result<()>;
-}
+pub use v1_server_processes::MigrationV1;
+pub use v2_session_id::MigrationV2;
+pub use v3_last_activity::MigrationV3;
+pub use v4_error_count::MigrationV4;
+pub use v5_metadata::MigrationV5;
+pub use v6_tunnel::MigrationV6;
+pub use v7_events::MigrationV7;
 
 pub fn run_migrations(conn: &Connection) -> Result<()> {
     conn.execute_batch(
-        "CREATE TABLE IF NOT EXISTS migrations (
-            id          INTEGER PRIMARY KEY AUTOINCREMENT,
-            version     TEXT NOT NULL UNIQUE,
-            name        TEXT NOT NULL,
-            applied_at  TEXT NOT NULL
-        );",
+        r#"
+        CREATE TABLE IF NOT EXISTS migrations (
+            version TEXT PRIMARY KEY,
+            name TEXT,
+            applied_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+        "#,
     )?;
 
     let migrations: Vec<Box<dyn Migration>> = vec![
-        Box::new(v1_server_processes::MigrationV1),
-        Box::new(v2_session_id::MigrationV2),
-        Box::new(v3_last_activity::MigrationV3),
-        Box::new(v4_error_count::MigrationV4),
-        Box::new(v5_metadata::MigrationV5),
-        Box::new(v6_tunnel::MigrationV6),
+        Box::new(MigrationV1),
+        Box::new(MigrationV2),
+        Box::new(MigrationV3),
+        Box::new(MigrationV4),
+        Box::new(MigrationV5),
+        Box::new(MigrationV6),
+        Box::new(MigrationV7),
     ];
 
     for migration in migrations {
-        if !is_applied(conn, migration.version())? {
-            println!("Applying migration: {}", migration.version());
-            migration.up(conn)?;
-            mark_applied(conn, migration.version(), migration.version())?;
+        let version = migration.version();
+
+        let applied: bool = conn.query_row(
+            "SELECT EXISTS(SELECT 1 FROM migrations WHERE version = ?1)",
+            [version],
+            |row| row.get(0),
+        )?;
+
+        if applied {
+            continue;
         }
+
+        println!("Applying migration {}", version);
+
+        migration.up(conn)?;
+
+        conn.execute(
+            r#"
+            INSERT INTO migrations (
+                version,
+                name,
+                applied_at
+            )
+            VALUES (
+                ?1,
+                ?2,
+                datetime('now')
+            )
+            "#,
+            [version, &format!("Migration {}", version)],
+        )?;
     }
 
-    Ok(())
-}
-
-fn is_applied(conn: &Connection, version: &str) -> Result<bool> {
-    let mut stmt = conn.prepare("SELECT COUNT(*) FROM migrations WHERE version = ?1")?;
-    let count: i64 = stmt.query_row(params![version], |row| row.get(0))?;
-    Ok(count > 0)
-}
-
-fn mark_applied(conn: &Connection, version: &str, name: &str) -> Result<()> {
-    let now = chrono::Utc::now().to_rfc3339();
-    conn.execute(
-        "INSERT INTO migrations (version, name, applied_at) VALUES (?1, ?2, ?3)",
-        params![version, name, now],
-    )?;
     Ok(())
 }

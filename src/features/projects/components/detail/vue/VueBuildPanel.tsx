@@ -18,7 +18,6 @@ interface VueBuildPanelProps {
 
 export const VueBuildPanel = ({
     projectPath,
-    projectName,
     packageManager = "npm",
 }: VueBuildPanelProps) => {
     const [buildMode, setBuildMode] = useState<"development" | "production">("production");

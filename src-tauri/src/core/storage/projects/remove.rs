@@ -3,6 +3,7 @@ use std::fs;
 use std::path::PathBuf;
 
 use super::list::ProjectInfo;
+use crate::core::database::{Event, EventCategory};
 
 fn get_hive_projects_dir() -> PathBuf {
     if let Ok(home) = env::var("HOME") {
@@ -38,11 +39,26 @@ pub fn remove_project(project_path: String, delete_files: bool) -> Result<(), St
                         }
                     }
 
+                    let _ = Event::success(
+                        EventCategory::Project,
+                        "project.removed",
+                        "Project Removed",
+                        &format!("Project '{}' removed successfully", project.name),
+                    );
+
                     return Ok(());
                 }
             }
         }
     }
 
-    Err("Project not found".to_string())
+    let error_msg = format!("Project not found at path: {}", project_path);
+    let _ = Event::error(
+        EventCategory::Project,
+        "project.remove.failed",
+        "Failed to Remove Project",
+        &error_msg,
+    );
+    
+    Err(error_msg)
 }

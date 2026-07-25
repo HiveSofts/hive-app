@@ -1,33 +1,38 @@
+use crate::core::database::{Event, EventCategory};
 use tauri::command;
 
 #[command]
 pub fn kill_process(pid: u32) -> Result<(), String> {
+    let _ = Event::info(
+        EventCategory::System,
+        "process.kill.start",
+        "Killing Process",
+        &format!("Attempting to kill process with PID: {}", pid),
+    );
+
     #[cfg(unix)]
     {
         use std::os::unix::process::CommandExt;
         use std::process::Command;
+        use std::time::Duration;
+        use std::thread::sleep;
 
-        // 1. Kill process group (children)
         let _ = Command::new("kill")
             .arg("-TERM")
             .arg(format!("-{}", pid))
             .output();
 
-        // 2. Kill the main process
         let _ = Command::new("kill")
             .arg("-TERM")
             .arg(pid.to_string())
             .output();
 
-        // Wait for graceful termination
         sleep(Duration::from_millis(200));
 
-        // Check if process still exists
         let check = Command::new("kill").arg("-0").arg(pid.to_string()).output();
 
         if let Ok(output) = check {
             if output.status.success() {
-                // Force kill if still running
                 let _ = Command::new("kill")
                     .arg("-KILL")
                     .arg(format!("-{}", pid))
@@ -41,6 +46,13 @@ pub fn kill_process(pid: u32) -> Result<(), String> {
                 sleep(Duration::from_millis(100));
             }
         }
+
+        let _ = Event::success(
+            EventCategory::System,
+            "process.kill.success",
+            "Process Killed",
+            &format!("Process with PID {} killed successfully (Unix)", pid),
+        );
 
         Ok(())
     }
@@ -57,15 +69,34 @@ pub fn kill_process(pid: u32) -> Result<(), String> {
         if !output.status.success() {
             let stderr = String::from_utf8_lossy(&output.stderr);
             if !stderr.contains("not found") {
+                let _ = Event::error(
+                    EventCategory::System,
+                    "process.kill.failed",
+                    "Failed to Kill Process",
+                    &format!("Failed to kill process {}: {}", pid, stderr),
+                );
                 return Err(format!("Failed to kill process {}: {}", pid, stderr));
             }
         }
+
+        let _ = Event::success(
+            EventCategory::System,
+            "process.kill.success",
+            "Process Killed",
+            &format!("Process with PID {} killed successfully (Windows)", pid),
+        );
 
         Ok(())
     }
 
     #[cfg(not(any(unix, windows)))]
     {
+        let _ = Event::error(
+            EventCategory::System,
+            "process.kill.unsupported",
+            "Unsupported Platform",
+            "kill_process is not supported on this platform",
+        );
         Err("kill_process is not supported on this platform.".to_string())
     }
 }
@@ -102,11 +133,17 @@ pub fn is_process_running(pid: u32) -> Result<bool, String> {
 
 #[command]
 pub fn kill_process_tree(pid: u32) -> Result<(), String> {
+    let _ = Event::info(
+        EventCategory::System,
+        "process.tree.kill.start",
+        "Killing Process Tree",
+        &format!("Attempting to kill process tree with root PID: {}", pid),
+    );
+
     #[cfg(unix)]
     {
         use std::process::Command;
 
-        // Get all child PIDs using pstree
         let output = Command::new("pstree")
             .args(["-p", &pid.to_string()])
             .output();
@@ -115,33 +152,51 @@ pub fn kill_process_tree(pid: u32) -> Result<(), String> {
             let stdout = String::from_utf8_lossy(&output.stdout);
             let mut pids = Vec::new();
 
-            // Parse pstree output to extract PIDs
             for part in stdout.split(&['(', ')', '\n'][..]) {
                 if let Ok(p) = part.parse::<u32>() {
                     pids.push(p);
                 }
             }
 
-            // Kill children first (reverse order)
             for &child_pid in pids.iter().rev() {
                 let _ = kill_process(child_pid);
             }
         }
 
-        // Kill the main process
         kill_process(pid)?;
+
+        let _ = Event::success(
+            EventCategory::System,
+            "process.tree.kill.success",
+            "Process Tree Killed",
+            &format!("Process tree with root PID {} killed successfully", pid),
+        );
+
         Ok(())
     }
 
     #[cfg(windows)]
     {
-        // taskkill /T already kills the process tree
         kill_process(pid)?;
+
+        let _ = Event::success(
+            EventCategory::System,
+            "process.tree.kill.success",
+            "Process Tree Killed",
+            &format!("Process tree with root PID {} killed successfully", pid),
+        );
+
         Ok(())
     }
 
     #[cfg(not(any(unix, windows)))]
     {
+        let _ = Event::error(
+            EventCategory::System,
+            "process.tree.kill.unsupported",
+            "Unsupported Platform",
+            "kill_process_tree is not supported on this platform",
+        );
         Err("kill_process_tree is not supported on this platform.".to_string())
     }
 }

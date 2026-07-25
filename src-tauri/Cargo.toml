@@ -24,6 +24,7 @@ chrono = "0.4"
 reqwest = { version = "0.13.4", features = ["stream", "json"] }
 flate2 = "1.1.9"
 tar = "0.4.46"
+dirs = "6"
 zip = "8.6.0"
 futures-util = "0.3.32"
 liblzma = "0.4.6"
