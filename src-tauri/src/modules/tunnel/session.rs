@@ -4,6 +4,7 @@ use super::db::{
     tunnel_session_get_active, tunnel_session_get_all_active, tunnel_session_history,
     tunnel_session_set_error, tunnel_session_set_url, tunnel_session_stop,
 };
+use crate::core::database::{Event, EventCategory};
 use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -92,7 +93,6 @@ fn get_log_file(session_id: i64) -> PathBuf {
     get_log_dir().join(format!("{}.log", session_id))
 }
 
-/// Write a structured log line:  [RFC3339_TIMESTAMP] [LEVEL] MESSAGE
 fn write_log(session_id: i64, line: &str, is_error: bool) {
     let log_file = get_log_file(session_id);
     if let Ok(mut file) = fs::OpenOptions::new()
@@ -102,35 +102,27 @@ fn write_log(session_id: i64, line: &str, is_error: bool) {
     {
         let timestamp = chrono::Utc::now().to_rfc3339();
         let level = if is_error { "ERR" } else { "INF" };
-        // Format: [2024-01-01T12:00:00Z] [INF] message
         let _ = writeln!(file, "[{}] [{}] {}", timestamp, level, line);
     }
 }
 
-/// Parse a log file line back into (timestamp, level, message).
-/// Line format: [2024-01-01T12:00:00Z] [INF] rest of message
 fn parse_log_line(raw: &str) -> (Option<String>, bool, String) {
-    // Must start with '[' for our structured format
     if !raw.starts_with('[') {
         return (None, false, raw.to_string());
     }
 
-    // Extract timestamp between first [ and ]
     let after_open = &raw[1..];
     let ts_end = match after_open.find(']') {
         Some(i) => i,
         None => return (None, false, raw.to_string()),
     };
     let timestamp_str = &after_open[..ts_end];
-    // Validate it looks like a timestamp
     if !timestamp_str.contains('T') && !timestamp_str.contains('-') {
         return (None, false, raw.to_string());
     }
 
-    // After first '] ' should be '[LEVEL] message'
     let rest = after_open[ts_end + 1..].trim_start();
     if !rest.starts_with('[') {
-        // No level tag – treat whole rest as message
         return (Some(timestamp_str.to_string()), false, rest.to_string());
     }
 
@@ -142,7 +134,6 @@ fn parse_log_line(raw: &str) -> (Option<String>, bool, String) {
     let level = &after_level_open[..level_end];
     let is_error = level.eq_ignore_ascii_case("ERR");
 
-    // Everything after '] ' is the message
     let message = after_level_open[level_end + 1..].trim_start().to_string();
 
     (Some(timestamp_str.to_string()), is_error, message)
@@ -153,6 +144,13 @@ pub async fn start_tunnel(
     window: tauri::Window,
     request: StartTunnelRequest,
 ) -> Result<TunnelSession, String> {
+    let _ = Event::info(
+        EventCategory::Tunnel,
+        "tunnel.starting",
+        "Starting Tunnel",
+        &format!("Starting tunnel for project: {}", request.project_name),
+    );
+
     if let Some(existing) = tunnel_session_get_active(&request.project_path) {
         let _ = stop_tunnel(existing.id).await;
     }
@@ -163,6 +161,12 @@ pub async fn start_tunnel(
     } else {
         let sys = Command::new("cloudflared").arg("--version").output();
         if sys.is_err() || !sys.unwrap().status.success() {
+            let _ = Event::error(
+                EventCategory::Tunnel,
+                "tunnel.cloudflared.missing",
+                "Cloudflared Not Installed",
+                "cloudflared is not installed. Please install it first.",
+            );
             return Err("cloudflared is not installed. Please install it first.".to_string());
         }
         "cloudflared".to_string()
@@ -211,6 +215,12 @@ pub async fn start_tunnel(
         );
         println!("[TUNNEL ERROR] {}", msg);
         write_log(session_id, &msg, true);
+        let _ = Event::error(
+            EventCategory::Tunnel,
+            "tunnel.start.failed",
+            "Failed to Start Tunnel",
+            &msg,
+        );
         msg
     })?;
 
@@ -228,7 +238,6 @@ pub async fn start_tunnel(
 
     TUNNEL_PROCS.lock().unwrap().insert(session_id, child);
 
-    // ── stdout thread ──────────────────────────────────────────────────────
     let window_clone = window.clone();
     let sid = session_id;
     std::thread::spawn(move || {
@@ -258,7 +267,6 @@ pub async fn start_tunnel(
         }
     });
 
-    // ── stderr thread ──────────────────────────────────────────────────────
     let window_clone = window.clone();
     let sid = session_id;
     std::thread::spawn(move || {
@@ -304,12 +312,26 @@ pub async fn start_tunnel(
     let session =
         tunnel_session_get(session_id).ok_or_else(|| "Failed to retrieve session".to_string())?;
 
+    let _ = Event::success(
+        EventCategory::Tunnel,
+        "tunnel.started",
+        "Tunnel Started",
+        &format!("Tunnel started for project: {}", request.project_name),
+    );
+
     Ok(session)
 }
 
 #[tauri::command]
 pub async fn stop_tunnel(session_id: i64) -> Result<(), String> {
     write_log(session_id, "=== Stopping tunnel ===", false);
+
+    let _ = Event::info(
+        EventCategory::Tunnel,
+        "tunnel.stopping",
+        "Stopping Tunnel",
+        &format!("Stopping tunnel session: {}", session_id),
+    );
 
     if let Some(mut child) = TUNNEL_PROCS.lock().unwrap().remove(&session_id) {
         let _ = child.kill();
@@ -324,15 +346,38 @@ pub async fn stop_tunnel(session_id: i64) -> Result<(), String> {
 
     tunnel_session_stop(session_id);
     write_log(session_id, "=== Tunnel stopped successfully ===", false);
+
+    let _ = Event::success(
+        EventCategory::Tunnel,
+        "tunnel.stopped",
+        "Tunnel Stopped",
+        &format!("Tunnel session {} stopped successfully", session_id),
+    );
+
     Ok(())
 }
 
 #[tauri::command]
 pub async fn stop_all_tunnels() -> Result<(), String> {
+    let _ = Event::info(
+        EventCategory::Tunnel,
+        "tunnel.stopping_all",
+        "Stopping All Tunnels",
+        "Stopping all active tunnels",
+    );
+
     let active = tunnel_session_get_all_active();
     for session in active {
         let _ = stop_tunnel(session.id).await;
     }
+
+    let _ = Event::success(
+        EventCategory::Tunnel,
+        "tunnel.all_stopped",
+        "All Tunnels Stopped",
+        "All tunnels stopped successfully",
+    );
+
     Ok(())
 }
 
@@ -366,7 +411,6 @@ pub fn get_tunnel_session(session_id: i64) -> Option<TunnelSession> {
 
 #[tauri::command]
 pub fn get_tunnel_logs(session_id: i64, limit: Option<usize>) -> Result<Vec<TunnelLog>, String> {
-    // Verify session exists
     tunnel_session_get(session_id).ok_or_else(|| format!("Session {} not found", session_id))?;
 
     let log_file = get_log_file(session_id);
@@ -378,7 +422,6 @@ pub fn get_tunnel_logs(session_id: i64, limit: Option<usize>) -> Result<Vec<Tunn
     let content =
         fs::read_to_string(&log_file).map_err(|e| format!("Failed to read log file: {}", e))?;
 
-    // Collect non-empty lines
     let all_lines: Vec<&str> = content.lines().filter(|l| !l.trim().is_empty()).collect();
 
     let limit = limit.unwrap_or(200);
@@ -405,6 +448,12 @@ pub fn clear_tunnel_logs(session_id: i64) -> Result<(), String> {
     let log_file = get_log_file(session_id);
     if log_file.exists() {
         fs::write(&log_file, "").map_err(|e| format!("Failed to clear logs: {}", e))?;
+        let _ = Event::info(
+            EventCategory::Tunnel,
+            "tunnel.logs.cleared",
+            "Tunnel Logs Cleared",
+            &format!("Cleared logs for tunnel session: {}", session_id),
+        );
     }
     Ok(())
 }

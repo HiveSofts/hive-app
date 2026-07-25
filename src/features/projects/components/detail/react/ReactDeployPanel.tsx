@@ -9,12 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
-interface ReactDeployPanelProps {
-    projectPath: string;
-    packageManager?: string;
-}
-
-export function ReactDeployPanel({ projectPath }: ReactDeployPanelProps) {
+export function ReactDeployPanel() {
     const [deploymentTarget, setDeploymentTarget] = useState("vercel");
     const [deploymentStatus, setDeploymentStatus] = useState<
         "idle" | "building" | "uploading" | "deploying" | "success" | "error"

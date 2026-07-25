@@ -1,10 +1,14 @@
+mod migrations;
+pub mod models;  
+pub mod commands;
+
 use once_cell::sync::Lazy;
 use rusqlite::{Connection, Result};
 use std::path::PathBuf;
 use std::sync::{Mutex, MutexGuard};
 
-pub mod migrations;
-pub mod models;
+pub use models::*;
+pub use commands::*;
 
 pub static DB: Lazy<Mutex<Connection>> = Lazy::new(|| {
     let conn = open_db().expect("Failed to open Hive.sqlite");
@@ -31,4 +35,11 @@ fn open_db() -> Result<Connection> {
 
 pub fn get_connection() -> MutexGuard<'static, Connection> {
     DB.lock().expect("Failed to lock database")
+}
+
+// Re-export everything for easy access
+pub mod prelude {
+    pub use super::models::event::*;
+    pub use super::models::server::*;
+    pub use super::commands::*;
 }

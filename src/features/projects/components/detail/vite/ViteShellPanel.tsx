@@ -45,7 +45,6 @@ export function ViteShellPanel({
     projectName,
     projectType = "Vite",
     version,
-    packageManager = "npm",
 }: ViteShellPanelProps) {
     const [lines, setLines] = useState<Line[]>([
         {

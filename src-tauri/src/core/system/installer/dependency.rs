@@ -1,3 +1,4 @@
+use crate::core::database::{Event, EventCategory};
 use crate::core::system::os::{get_hive_base_path, get_hive_bin_path, get_runtimes_path};
 use std::{fs, path::PathBuf};
 use tauri::AppHandle;
@@ -106,6 +107,13 @@ async fn download_file(url: &str, output_path: &PathBuf) -> Result<(), String> {
 
 #[tauri::command]
 pub async fn check_and_install_dependencies(_app: AppHandle) -> Result<Vec<InstallStatus>, String> {
+    let _ = Event::info(
+        EventCategory::System,
+        "dependencies.check.start",
+        "Checking Dependencies",
+        "Starting dependency check and installation",
+    );
+
     let mut statuses = Vec::new();
     let bin_path = get_hive_bin_path();
     let base_path = get_hive_base_path();
@@ -142,6 +150,14 @@ pub async fn check_and_install_dependencies(_app: AppHandle) -> Result<Vec<Insta
                 progress: Some(100.0),
                 success: true,
             });
+            
+            let _ = Event::info(
+                EventCategory::Runtime,
+                &format!("{}.already_installed", name),
+                &format!("{} Already Installed", name),
+                &format!("{} is already installed and ready to use", name),
+            );
+            
             continue;
         }
 
@@ -151,6 +167,13 @@ pub async fn check_and_install_dependencies(_app: AppHandle) -> Result<Vec<Insta
             progress: Some(0.0),
             success: true,
         });
+
+        let _ = Event::info(
+            EventCategory::Runtime,
+            &format!("{}.downloading", name),
+            &format!("Downloading {}", name),
+            &format!("Downloading {} from {}", name, url),
+        );
 
         match download_file(url, &phar_path).await {
             Ok(_) => {
@@ -164,6 +187,13 @@ pub async fn check_and_install_dependencies(_app: AppHandle) -> Result<Vec<Insta
                             progress: Some(100.0),
                             success: true,
                         });
+
+                        let _ = Event::success(
+                            EventCategory::Runtime,
+                            &format!("{}.installed", name),
+                            &format!("{} Installed", name),
+                            &format!("{} version installed successfully", name),
+                        );
                     }
                     Err(e) => {
                         statuses.push(InstallStatus {
@@ -172,6 +202,13 @@ pub async fn check_and_install_dependencies(_app: AppHandle) -> Result<Vec<Insta
                             progress: Some(50.0),
                             success: false,
                         });
+
+                        let _ = Event::error(
+                            EventCategory::Runtime,
+                            &format!("{}.wrapper.failed", name),
+                            &format!("{} Wrapper Creation Failed", name),
+                            &format!("Failed to create wrappers for {}: {}", name, e),
+                        );
                     }
                 }
             }
@@ -182,11 +219,19 @@ pub async fn check_and_install_dependencies(_app: AppHandle) -> Result<Vec<Insta
                     progress: Some(0.0),
                     success: false,
                 });
+
+                let _ = Event::error(
+                    EventCategory::Runtime,
+                    &format!("{}.download.failed", name),
+                    &format!("{} Download Failed", name),
+                    &format!("Failed to download {}: {}", name, e),
+                );
             }
         }
     }
 
     let all_ok = statuses.iter().all(|s| s.success);
+    
     statuses.push(InstallStatus {
         step: if all_ok {
             "finished".to_string()
@@ -201,6 +246,22 @@ pub async fn check_and_install_dependencies(_app: AppHandle) -> Result<Vec<Insta
         progress: Some(100.0),
         success: all_ok,
     });
+
+    if all_ok {
+        let _ = Event::success(
+            EventCategory::System,
+            "dependencies.install.complete",
+            "All Dependencies Installed",
+            "All dependencies installed successfully",
+        );
+    } else {
+        let _ = Event::warning(
+            EventCategory::System,
+            "dependencies.install.incomplete",
+            "Some Dependencies Failed",
+            "Some dependencies failed to install. Check logs for details",
+        );
+    }
 
     Ok(statuses)
 }

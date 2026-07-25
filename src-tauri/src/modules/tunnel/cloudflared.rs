@@ -1,3 +1,4 @@
+use crate::core::database::{Event, EventCategory};
 use crate::core::system::os::get_hive_bin_path;
 use futures_util::StreamExt;
 use serde::{Deserialize, Serialize};
@@ -93,6 +94,12 @@ pub fn detect_cloudflared() -> CloudflaredInfo {
     let bin = cloudflared_bin_path();
     if bin.exists() {
         let version = get_cloudflared_version(&bin);
+        let _ = Event::info(
+            EventCategory::Tunnel,
+            "cloudflared.detected",
+            "Cloudflared Detected",
+            &format!("Cloudflared found at: {}", bin.to_string_lossy()),
+        );
         return CloudflaredInfo {
             installed: true,
             version,
@@ -100,7 +107,6 @@ pub fn detect_cloudflared() -> CloudflaredInfo {
         };
     }
 
-    // Check system PATH
     let sys_result = std::process::Command::new("cloudflared")
         .arg("--version")
         .output();
@@ -109,6 +115,12 @@ pub fn detect_cloudflared() -> CloudflaredInfo {
         if out.status.success() {
             let ver = String::from_utf8_lossy(&out.stdout).to_string()
                 + &String::from_utf8_lossy(&out.stderr);
+            let _ = Event::info(
+                EventCategory::Tunnel,
+                "cloudflared.detected.system",
+                "Cloudflared Detected (System)",
+                "Cloudflared found in system PATH",
+            );
             return CloudflaredInfo {
                 installed: true,
                 version: ver.lines().next().map(|l| l.trim().to_string()),
@@ -116,6 +128,13 @@ pub fn detect_cloudflared() -> CloudflaredInfo {
             };
         }
     }
+
+    let _ = Event::warning(
+        EventCategory::Tunnel,
+        "cloudflared.not_found",
+        "Cloudflared Not Found",
+        "Cloudflared is not installed",
+    );
 
     CloudflaredInfo {
         installed: false,
@@ -126,6 +145,13 @@ pub fn detect_cloudflared() -> CloudflaredInfo {
 
 #[tauri::command]
 pub async fn install_cloudflared(window: tauri::Window) -> Result<CloudflaredInfo, String> {
+    let _ = Event::info(
+        EventCategory::Tunnel,
+        "cloudflared.install.start",
+        "Installing Cloudflared",
+        "Starting Cloudflared installation",
+    );
+
     let bin_dir = get_hive_bin_path();
     fs::create_dir_all(&bin_dir).map_err(|e| e.to_string())?;
 
@@ -146,16 +172,29 @@ pub async fn install_cloudflared(window: tauri::Window) -> Result<CloudflaredInf
         .get(&url)
         .send()
         .await
-        .map_err(|e| format!("Download failed: {}", e))?;
+        .map_err(|e| {
+            let _ = Event::error(
+                EventCategory::Tunnel,
+                "cloudflared.download.failed",
+                "Cloudflared Download Failed",
+                &format!("Failed to download Cloudflared: {}", e),
+            );
+            format!("Download failed: {}", e)
+        })?;
 
     if !resp.status().is_success() {
+        let _ = Event::error(
+            EventCategory::Tunnel,
+            "cloudflared.download.http_error",
+            "Cloudflared Download HTTP Error",
+            &format!("HTTP {}: {}", resp.status(), url),
+        );
         return Err(format!("HTTP {}: {}", resp.status(), url));
     }
 
     let total = resp.content_length().unwrap_or(0);
     let mut downloaded: u64 = 0;
 
-    // For macOS tgz, write to temp first
     let is_tgz = url.ends_with(".tgz");
     let write_path = if is_tgz {
         bin_dir.join("cloudflared.tgz")
@@ -182,7 +221,6 @@ pub async fn install_cloudflared(window: tauri::Window) -> Result<CloudflaredInf
     file.flush().map_err(|e| e.to_string())?;
     drop(file);
 
-    // Extract tgz on macOS
     if is_tgz {
         let f = fs::File::open(&write_path).map_err(|e| e.to_string())?;
         let gz = flate2::read::GzDecoder::new(f);
@@ -190,7 +228,6 @@ pub async fn install_cloudflared(window: tauri::Window) -> Result<CloudflaredInf
         arch.unpack(&bin_dir).map_err(|e| e.to_string())?;
         let _ = fs::remove_file(&write_path);
 
-        // The binary is extracted as "cloudflared" inside the tgz
         let extracted = bin_dir.join("cloudflared");
         if extracted.exists() && extracted != dest {
             fs::rename(&extracted, &dest).map_err(|e| e.to_string())?;
@@ -205,6 +242,14 @@ pub async fn install_cloudflared(window: tauri::Window) -> Result<CloudflaredInf
     );
 
     let version = get_cloudflared_version(&dest);
+
+    let _ = Event::success(
+        EventCategory::Tunnel,
+        "cloudflared.installed",
+        "Cloudflared Installed",
+        &format!("Cloudflared installed successfully at: {}", dest.to_string_lossy()),
+    );
+
     Ok(CloudflaredInfo {
         installed: true,
         version,
@@ -220,22 +265,40 @@ pub fn get_tunnel_config() -> TunnelConfig {
         cloudflared_installed: info.installed,
         cloudflared_version: info.version,
         has_auth: token.is_some(),
-        auth_token: None, // never expose token to frontend
+        auth_token: None,
     }
 }
 
 #[tauri::command]
 pub fn save_tunnel_auth_token(token: String) -> Result<(), String> {
     if token.trim().is_empty() {
+        let _ = Event::error(
+            EventCategory::Tunnel,
+            "tunnel.token.invalid",
+            "Invalid Tunnel Token",
+            "Token cannot be empty",
+        );
         return Err("Token cannot be empty".to_string());
     }
     super::db::tunnel_config_set("auth_token", token.trim());
+    let _ = Event::success(
+        EventCategory::Tunnel,
+        "tunnel.token.saved",
+        "Tunnel Token Saved",
+        "Tunnel authentication token saved successfully",
+    );
     Ok(())
 }
 
 #[tauri::command]
 pub fn delete_tunnel_auth_token() {
     super::db::tunnel_config_delete("auth_token");
+    let _ = Event::info(
+        EventCategory::Tunnel,
+        "tunnel.token.deleted",
+        "Tunnel Token Deleted",
+        "Tunnel authentication token deleted",
+    );
 }
 
 #[tauri::command]

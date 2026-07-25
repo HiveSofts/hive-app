@@ -1,6 +1,6 @@
 import { cn } from "@/core/lib/utils";
 
-import { Globe, Layers } from "lucide-react";
+import { Layers } from "lucide-react";
 
 import { Project } from "../types";
 
@@ -15,27 +15,11 @@ export function QuickStats({ projects }: { projects: Project[] }) {
             color: "text-amber-500",
             bg: "bg-amber-500/10",
             icon: <Layers className="w-4 h-4" />,
-        },
-        {
-            label: "PHP Version",
-            value: "8.3",
-            sub: "default active",
-            color: "text-indigo-500",
-            bg: "bg-indigo-500/10",
-            icon: <span className="text-sm">🐘</span>,
-        },
-        {
-            label: "Active Domains",
-            value: 4,
-            sub: "*.test · *.local",
-            color: "text-cyan-500",
-            bg: "bg-cyan-500/10",
-            icon: <Globe className="w-4 h-4" />,
-        },
+        }
     ];
 
     return (
-        <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 lg:grid-cols-1 gap-3">
             {stats.map((s) => (
                 <div
                     key={s.label}

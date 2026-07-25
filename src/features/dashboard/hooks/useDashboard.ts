@@ -31,15 +31,14 @@ export function useDashboard() {
     const [projects, setProjects] = useState<Project[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
-
     const [logs, setLogs] = useState<LogEntry[]>([]);
-    const [notifications, setNotifications] = useState<NotificationItem[]>([]);
-    const [widgetData, setWidgetData] = useState<{
+    const [notifications] = useState<NotificationItem[]>([]);
+    const [widgetData] = useState<{
         dbConnections: { name: string; driver: string; db: string; status: string }[];
         sslCerts: { domain: string; expiry: string; daysLeft: number }[];
         tunnels: { projectName: string; localUrl: string; publicUrl?: string; status: string; startedAt: string }[];
     }>({ dbConnections: [], sslCerts: [], tunnels: [] });
-    const [dnsData, setDnsData] = useState<DnsProxyData | null>(null);
+    const [dnsData] = useState<DnsProxyData | null>(null);
 
     const fetchData = useCallback(async () => {
         setRefreshing(true);
@@ -61,17 +60,12 @@ export function useDashboard() {
                 });
             }
 
-            const [logsData, notifsData, widgetDataResult, dnsResult] = await Promise.all([
+            const [logsData] = await Promise.all([
                 dashboardService.getLogs(projectsData),
-                dashboardService.getNotifications(projectsData),
-                dashboardService.getWidgetData(projectsData),
                 dashboardService.getDnsProxyData(),
             ]);
 
             setLogs(logsData);
-            setNotifications(notifsData);
-            setWidgetData(widgetDataResult);
-            setDnsData(dnsResult);
         } catch (err) {
             setError(err instanceof Error ? err.message : "Failed to load dashboard");
         } finally {
@@ -88,13 +82,12 @@ export function useDashboard() {
         const interval = setInterval(() => {
             setMetrics((prev) => [...prev.slice(1), generateNewMetric()]);
         }, 2000);
-
         return () => clearInterval(interval);
     }, []);
 
     useEffect(() => {
         fetchData();
-        const refreshInterval = setInterval(fetchData, 30000);
+        const refreshInterval = setInterval(fetchData, 30_000);
         return () => clearInterval(refreshInterval);
     }, [fetchData]);
 

@@ -34,7 +34,6 @@ interface VueDependenciesPanelProps {
 
 export const VueDependenciesPanel = ({
     projectPath,
-    projectName,
     packageManager = "npm",
 }: VueDependenciesPanelProps) => {
     const [dependencies, setDependencies] = useState<Dependency[]>([]);
@@ -152,7 +151,7 @@ export const VueDependenciesPanel = ({
         }
     };
 
-    const removeDependency = async (packageName: string, isDev: boolean) => {
+    const removeDependency = async (packageName: string) => {
         setRemoving(true);
         try {
             await invoke("remove_dependency", {
@@ -290,7 +289,7 @@ export const VueDependenciesPanel = ({
                                                     size="sm"
                                                     variant="outline"
                                                     onClick={() =>
-                                                        removeDependency(dep.name, false)
+                                                        removeDependency(dep.name)
                                                     }
                                                     disabled={removing}
                                                 >
@@ -337,7 +336,7 @@ export const VueDependenciesPanel = ({
                                             <Button
                                                 size="sm"
                                                 variant="outline"
-                                                onClick={() => removeDependency(dep.name, true)}
+                                                onClick={() => removeDependency(dep.name)}
                                                 disabled={removing}
                                             >
                                                 <Trash2 className="h-4 w-4" />

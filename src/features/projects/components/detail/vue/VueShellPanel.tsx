@@ -22,8 +22,6 @@ interface VueShellPanelProps {
 }
 
 export const VueShellPanel = ({
-    projectPath,
-    projectName,
     packageManager = "npm",
 }: VueShellPanelProps) => {
     const [inputCommand, setInputCommand] = useState("");

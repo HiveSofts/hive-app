@@ -27,7 +27,7 @@ interface VueLogsPanelProps {
     projectType: string;
 }
 
-export const VueLogsPanel = ({ projectPath, projectName }: VueLogsPanelProps) => {
+export const VueLogsPanel = ({ projectPath }: VueLogsPanelProps) => {
     const [logs, setLogs] = useState<LogEntry[]>([]);
     const [filteredLogs, setFilteredLogs] = useState<LogEntry[]>([]);
     const [filterLevel, setFilterLevel] = useState<string>("all");
@@ -52,7 +52,7 @@ export const VueLogsPanel = ({ projectPath, projectName }: VueLogsPanelProps) =>
     useEffect(() => {
         loadLogs();
 
-        let refreshInterval: NodeJS.Timeout;
+        let refreshInterval: ReturnType<typeof setInterval> | null = null;
         if (autoRefresh) {
             refreshInterval = setInterval(loadLogs, 5000);
         }
@@ -184,15 +184,13 @@ export const VueLogsPanel = ({ projectPath, projectName }: VueLogsPanelProps) =>
                         <div className="flex items-center gap-2 ml-auto">
                             <span className="text-sm">Auto-refresh</span>
                             <div
-                                className={`w-10 h-6 flex items-center rounded-full p-1 cursor-pointer ${
-                                    autoRefresh ? "bg-blue-500" : "bg-gray-300"
-                                }`}
+                                className={`w-10 h-6 flex items-center rounded-full p-1 cursor-pointer ${autoRefresh ? "bg-blue-500" : "bg-gray-300"
+                                    }`}
                                 onClick={() => setAutoRefresh(!autoRefresh)}
                             >
                                 <div
-                                    className={`bg-white w-4 h-4 rounded-full shadow-md transform transition-transform ${
-                                        autoRefresh ? "translate-x-4" : ""
-                                    }`}
+                                    className={`bg-white w-4 h-4 rounded-full shadow-md transform transition-transform ${autoRefresh ? "translate-x-4" : ""
+                                        }`}
                                 />
                             </div>
                         </div>
