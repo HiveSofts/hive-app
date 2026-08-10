@@ -1,6 +1,6 @@
 import { useRef, useState } from "react";
 
-import { FaGithub } from "@react-icons/all-files/fa/FaGithub";
+import { FaGithub } from "react-icons/fa";
 import { Camera } from "lucide-react";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";

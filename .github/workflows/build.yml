@@ -24,11 +24,16 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Install Bun
-        uses: oven-sh/setup-bun@v2
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
 
       - name: Cache Cargo
         uses: Swatinem/rust-cache@v2
@@ -49,10 +54,10 @@ jobs:
             librsvg2-dev
 
       - name: Install Dependencies
-        run: bun install
+        run: npm ci
 
       - name: Build Tauri
-        run: bun run tauri build
+        run: npm run tauri -- build
 
       # Upload Linux files
       - name: Upload Linux Artifacts
