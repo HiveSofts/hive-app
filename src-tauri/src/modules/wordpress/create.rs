@@ -13,12 +13,17 @@ use super::config::{
 };
 use super::download::{download_and_extract_wordpress, get_github_zip_url};
 
-pub fn get_projects_dir() -> std::path::PathBuf {
-    if let Some(home) = std::env::home_dir() {
-        home.join("Projects")
-    } else {
-        std::path::PathBuf::from(".")
+/// Sanitizes a project name for use as a filesystem segment. Rejects anything
+/// that could traverse directories (`/`, `\`, `..`) or hide files.
+fn sanitize_project_name(name: &str) -> Result<String, String> {
+    let trimmed = name.trim();
+    if trimmed.is_empty() {
+        return Err("Project name cannot be empty".to_string());
     }
+    if trimmed == "." || trimmed == ".." || trimmed.contains('/') || trimmed.contains('\\') {
+        return Err(format!("Invalid project name '{}'", name));
+    }
+    Ok(trimmed.to_string())
 }
 
 fn generate_secure_password() -> String {
@@ -198,6 +203,10 @@ fn register_project(project: &WordPressProject) -> Result<(), String> {
     fs::create_dir_all(&hive_dir)
         .map_err(|e| format!("Failed to create Hive projects directory: {}", e))?;
 
+    // The name becomes a filename segment (`~/.hive/projects/<name>.json`);
+    // reject anything that could escape the registry directory.
+    sanitize_project_name(&project.name)?;
+
     let uuid = uuid::Uuid::new_v4().to_string();
     let project_info = serde_json::json!({
         "id": uuid,
@@ -347,7 +356,9 @@ pub async fn create_wordpress_project(
     _app: AppHandle,
     request: CreateWordPressRequest,
 ) -> Result<WordPressResponse, String> {
-    let projects_dir = get_projects_dir();
+    // Default WordPress install location is ~/Projects (a user-facing
+    // convention), distinct from Hive's internal ~/.hive/projects.
+    let projects_dir = crate::modules::common::path::home_dir().join("Projects");
 
     // Respect an explicit installation path when provided, otherwise fall back
     // to ~/Projects/<name>.

@@ -44,6 +44,7 @@ pub fn run() {
             core::system::kill_process,
             core::system::execute_shell_command,
             core::system::execute_shell_streaming,
+            core::system::send_shell_input,
             core::system::check_command_exists,
             core::system::check_and_install_dependencies,
             core::storage::list_all_projects,

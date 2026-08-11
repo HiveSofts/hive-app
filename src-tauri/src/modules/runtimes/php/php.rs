@@ -1,3 +1,4 @@
+use crate::modules::common::path::home_dir;
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::PathBuf;
@@ -14,13 +15,6 @@ pub struct PhpIniInfo {
 pub struct PhpIniSetting {
     pub key: String,
     pub value: String,
-}
-
-fn get_home_dir() -> PathBuf {
-    let home = std::env::var("HOME")
-        .or_else(|_| std::env::var("USERPROFILE"))
-        .unwrap_or_else(|_| ".".to_string());
-    PathBuf::from(home)
 }
 
 fn get_php_ini_path_from_php() -> Option<String> {
@@ -54,7 +48,7 @@ fn get_php_ini_path_platform() -> PathBuf {
             PathBuf::from(&program_files).join("PHP").join("php.ini"),
             PathBuf::from("C:\\").join("php").join("php.ini"),
             PathBuf::from("C:\\").join("php.ini"),
-            get_home_dir().join("php.ini"),
+            home_dir().join("php.ini"),
         ];
         for path in paths {
             if path.exists() {
@@ -70,7 +64,7 @@ fn get_php_ini_path_platform() -> PathBuf {
             PathBuf::from("/etc/php.ini"),
             PathBuf::from("/usr/local/etc/php/php.ini"),
             PathBuf::from("/opt/homebrew/etc/php/php.ini"),
-            get_home_dir().join(".php.ini"),
+            home_dir().join(".php.ini"),
         ];
         for path in paths {
             if path.exists() {
@@ -92,7 +86,7 @@ fn get_php_ini_path_platform() -> PathBuf {
             PathBuf::from("/etc/php/8.1/cli/php.ini"),
             PathBuf::from("/etc/php/8.0/cli/php.ini"),
             PathBuf::from("/usr/local/etc/php/php.ini"),
-            get_home_dir().join(".php.ini"),
+            home_dir().join(".php.ini"),
         ];
         for path in paths {
             if path.exists() {

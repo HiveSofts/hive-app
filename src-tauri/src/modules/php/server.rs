@@ -1,20 +1,16 @@
-use std::collections::HashMap;
-use std::fs::{self, File, OpenOptions};
-use std::io::{BufRead, BufReader, Write};
-use std::net::{SocketAddr, TcpListener, TcpStream};
-use std::path::PathBuf;
-use std::process::{Child, Command, Stdio};
-use std::sync::Mutex;
+use std::fs;
+use std::process::{Command, Stdio};
 use std::thread;
 use std::time::Duration;
 use tauri::command;
 
 use crate::core::database::models;
+use crate::core::system::process::PROCESS_REGISTRY;
 use crate::modules::common::path::expand_home;
-
-lazy_static::lazy_static! {
-    static ref PHP_PROCESSES: Mutex<HashMap<String, Child>> = Mutex::new(HashMap::new());
-}
+use crate::modules::common::server::{
+    append_log, ensure_log_dir, free_port, kill_pid_tree, pipe_to_log, port_is_open,
+    project_name_from_path, server_alive,
+};
 
 #[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
 pub struct PhpServerStatus {
@@ -43,87 +39,12 @@ impl From<models::ServerRecord> for PhpServerStatus {
     }
 }
 
-fn port_is_open(port: u16) -> bool {
-    let addr = SocketAddr::from(([127, 0, 0, 1], port));
-    TcpStream::connect_timeout(&addr, Duration::from_millis(250)).is_ok()
-}
-
-fn server_alive(pid: u32, port: u16) -> bool {
-    models::pid_alive(pid) || port_is_open(port)
-}
-
-fn free_port(start: u16) -> u16 {
-    (start..start + 100)
-        .find(|&p| TcpListener::bind(("127.0.0.1", p)).is_ok())
-        .unwrap_or(start)
-}
-
-fn kill_pid(pid: u32) {
-    #[cfg(unix)]
-    unsafe {
-        libc::kill(pid as i32, libc::SIGKILL);
-    }
-    #[cfg(windows)]
-    {
-        let _ = Command::new("taskkill")
-            .args(["/PID", &pid.to_string(), "/T", "/F"])
-            .output();
-    }
-}
-
-fn log_dir(project_name: &str) -> PathBuf {
-    let home = std::env::var("HOME").unwrap_or_else(|_| ".".to_string());
-    PathBuf::from(home)
-        .join(".hive")
-        .join("logs")
-        .join("projects")
-        .join(project_name)
-}
-
-fn log_file_path(project_name: &str) -> PathBuf {
-    log_dir(project_name).join("server.log")
-}
-
-fn open_log_file(project_name: &str) -> std::io::Result<File> {
-    fs::create_dir_all(log_dir(project_name))?;
-    OpenOptions::new()
-        .create(true)
-        .append(true)
-        .open(log_file_path(project_name))
-}
-
-fn pipe_to_log(stdout: std::process::ChildStdout, stderr: std::process::ChildStderr, name: String) {
-    let name2 = name.clone();
-    thread::spawn(move || {
-        for line in BufReader::new(stdout).lines().map_while(Result::ok) {
-            if let Ok(mut f) = open_log_file(&name) {
-                let ts = chrono::Local::now().format("%Y-%m-%d %H:%M:%S");
-                let _ = writeln!(f, "[{ts}] {line}");
-            }
-        }
-    });
-    thread::spawn(move || {
-        for line in BufReader::new(stderr).lines().map_while(Result::ok) {
-            if let Ok(mut f) = open_log_file(&name2) {
-                let ts = chrono::Local::now().format("%Y-%m-%d %H:%M:%S");
-                let _ = writeln!(f, "[{ts}] [ERR] {line}");
-            }
-        }
-    });
-}
-
+/// Read the configured PHP entry point from the Hive project metadata
+/// (`~/.hive/projects/<name>.json`), falling back to the framework default.
 fn read_entry_point(project_path: &str) -> String {
-    let project_name = std::path::Path::new(project_path)
-        .file_name()
-        .unwrap_or_default()
-        .to_string_lossy()
-        .to_string();
-
-    let home = std::env::var("HOME").unwrap_or_else(|_| ".".to_string());
-    let meta_path = PathBuf::from(home)
-        .join(".hive")
-        .join("projects")
-        .join(format!("{}.json", project_name));
+    let project_name = project_name_from_path(project_path);
+    let meta_path =
+        crate::modules::common::path::hive_projects_dir().join(format!("{}.json", project_name));
 
     if let Ok(content) = fs::read_to_string(&meta_path) {
         if let Ok(json) = serde_json::from_str::<serde_json::Value>(&content) {
@@ -142,7 +63,9 @@ fn read_entry_point(project_path: &str) -> String {
 pub async fn start_php_project(project_path: String) -> Result<PhpServerStatus, String> {
     let project_path = expand_home(&project_path);
     let project_path_str = project_path.to_string_lossy().to_string();
-    
+    let project_name = project_name_from_path(&project_path_str);
+    ensure_log_dir(&project_name)?;
+
     let existing = models::get_server(&project_path_str).map_err(|e| e.to_string())?;
 
     if let Some(rec) = existing.clone() {
@@ -153,31 +76,19 @@ pub async fn start_php_project(project_path: String) -> Result<PhpServerStatus, 
 
     let _ = stop_php_project(project_path_str.clone()).await;
 
-    let project_name = project_path
-        .file_name()
-        .unwrap_or_default()
-        .to_string_lossy()
-        .to_string();
-
-    let port = if let Some(rec) = existing {
-        if !port_is_open(rec.port) {
-            rec.port
-        } else {
-            free_port(8000)
-        }
-    } else {
-        free_port(8000)
+    let port = match existing {
+        Some(rec) if !port_is_open(rec.port) => rec.port,
+        _ => free_port(8000),
     };
 
     let entry_point = read_entry_point(&project_path_str);
-    fs::create_dir_all(log_dir(&project_name)).map_err(|e| e.to_string())?;
-
     let started_at = chrono::Utc::now().to_rfc3339();
-    if let Ok(mut f) = open_log_file(&project_name) {
-        let ts = chrono::Local::now().format("%Y-%m-%d %H:%M:%S");
-        let _ = writeln!(f, "[{ts}] === PHP server starting on port {port} ===");
-        let _ = writeln!(f, "[{ts}] Entry: {entry_point}");
-    }
+    append_log(
+        &project_name,
+        &format!("=== PHP server starting on port {port} ==="),
+        false,
+    );
+    append_log(&project_name, &format!("Entry: {entry_point}"), false);
 
     let mut child = Command::new("php")
         .args(["-S", &format!("0.0.0.0:{}", port), &entry_point])
@@ -188,8 +99,14 @@ pub async fn start_php_project(project_path: String) -> Result<PhpServerStatus, 
         .map_err(|e| format!("Failed to start PHP server: {}", e))?;
 
     let pid = child.id();
-    let stdout = child.stdout.take().unwrap();
-    let stderr = child.stderr.take().unwrap();
+    let stdout = child
+        .stdout
+        .take()
+        .ok_or_else(|| "Failed to capture PHP server stdout".to_string())?;
+    let stderr = child
+        .stderr
+        .take()
+        .ok_or_else(|| "Failed to capture PHP server stderr".to_string())?;
     pipe_to_log(stdout, stderr, project_name.clone());
 
     let url = format!("http://localhost:{}", port);
@@ -205,10 +122,7 @@ pub async fn start_php_project(project_path: String) -> Result<PhpServerStatus, 
     )
     .map_err(|e| e.to_string())?;
 
-    PHP_PROCESSES
-        .lock()
-        .unwrap()
-        .insert(project_path_str.clone(), child);
+    PROCESS_REGISTRY.insert(project_path_str.clone(), child);
 
     Ok(PhpServerStatus {
         project_path: project_path_str,
@@ -227,19 +141,16 @@ pub async fn stop_php_project(project_path: String) -> Result<String, String> {
     let project_path = expand_home(&project_path);
     let project_path_str = project_path.to_string_lossy().to_string();
 
-    if let Some(mut child) = PHP_PROCESSES.lock().unwrap().remove(&project_path_str) {
-        let _ = child.kill();
-        let _ = child.wait();
-    }
+    PROCESS_REGISTRY.kill_tree(&project_path_str);
 
     if let Ok(Some(rec)) = models::get_server(&project_path_str) {
         if rec.is_running {
-            kill_pid(rec.pid);
+            kill_pid_tree(rec.pid);
         }
     }
 
     models::mark_stopped(&project_path_str).map_err(|e| e.to_string())?;
-    std::thread::sleep(std::time::Duration::from_millis(300));
+    thread::sleep(Duration::from_millis(300));
     Ok(format!("stopped: {}", project_path_str))
 }
 
@@ -248,7 +159,7 @@ pub async fn restart_php_project(project_path: String) -> Result<PhpServerStatus
     let project_path = expand_home(&project_path);
     let project_path_str = project_path.to_string_lossy().to_string();
     stop_php_project(project_path_str.clone()).await?;
-    std::thread::sleep(std::time::Duration::from_millis(600));
+    thread::sleep(Duration::from_millis(600));
     start_php_project(project_path_str).await
 }
 
@@ -258,7 +169,7 @@ pub async fn get_php_server_status(
 ) -> Result<Option<PhpServerStatus>, String> {
     let project_path = expand_home(&project_path);
     let project_path_str = project_path.to_string_lossy().to_string();
-    
+
     match models::get_server(&project_path_str).map_err(|e| e.to_string())? {
         None => Ok(None),
         Some(mut rec) => {

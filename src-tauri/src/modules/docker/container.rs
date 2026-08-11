@@ -1,8 +1,8 @@
 use super::models::*;
+use crate::modules::docker::DockerInfo;
 use std::collections::HashMap;
 use std::process::Command;
 use tauri::Emitter;
-use crate::modules::docker::DockerInfo;
 
 fn docker_cmd(args: &[&str]) -> Result<String, String> {
     let output = Command::new("docker")
@@ -1053,17 +1053,30 @@ pub async fn execute_sql_in_container(
     database: String,
     query: String,
 ) -> Result<String, String> {
-    let cmd = match db_type.as_str() {
-        "mysql" | "mariadb" => format!(
-            "mysql -u{} -p{} {} -e '{}'",
-            username, password, database, query
-        ),
-        "postgres" | "postgresql" => format!("psql -U {} -d {} -c '{}'", username, database, query),
+    // Build the client argv directly — no shell interpolation. Credentials and
+    // the query are passed as separate argv elements to `docker exec`, so a
+    // malicious query cannot inject additional commands.
+    let client_args: Vec<&str> = match db_type.as_str() {
+        "mysql" | "mariadb" => vec![
+            "mysql",
+            &format!("-u{}", username),
+            &format!("-p{}", password),
+            &database,
+            "--batch",
+            "--raw",
+            "-e",
+            &query,
+        ],
+        "postgres" | "postgresql" => vec![
+            "psql", "-U", &username, "-d", &database, "-tA", "-c", &query,
+        ],
         _ => return Err("Unsupported database type for SQL execution".to_string()),
     };
 
     let output = Command::new("docker")
-        .args(["exec", &container_name, "sh", "-c", &cmd])
+        .arg("exec")
+        .arg(&container_name)
+        .args(&client_args)
         .output()
         .map_err(|e| e.to_string())?;
 
@@ -1085,6 +1098,19 @@ pub async fn run_docker_compose(
     std::fs::create_dir_all(&tmp_dir).map_err(|e| e.to_string())?;
     let compose_file = tmp_dir.join("docker-compose.yml");
     std::fs::write(&compose_file, compose_content).map_err(|e| e.to_string())?;
+
+    // Validate env keys so a caller cannot smuggle extra directives
+    // (e.g. a key containing a newline + `FOO=bar`) into the .env file.
+    let valid_key = |k: &str| {
+        !k.is_empty()
+            && k.chars().all(|c| c.is_ascii_alphanumeric() || c == '_')
+            && !k.starts_with(|c: char| c.is_ascii_digit())
+    };
+    for k in env_vars.keys() {
+        if !valid_key(k) {
+            return Err(format!("Invalid environment variable name '{}'", k));
+        }
+    }
 
     let env_file_content: String = env_vars
         .iter()
@@ -1161,36 +1187,87 @@ pub async fn backup_database_container(
     database: String,
     output_path: String,
 ) -> Result<String, String> {
-    let cmd = match db_type.as_str() {
-        "mysql" | "mariadb" => format!(
-            "mysqldump -u{} -p{} {} > /tmp/backup.sql && cat /tmp/backup.sql",
-            username, password, database
-        ),
-        "postgres" | "postgresql" => format!("pg_dump -U {} {}", username, database),
-        "mongodb" => format!(
-            "mongodump --username {} --password {} --db {} --archive --gzip",
-            username, password, database
-        ),
+    // Dump to a temp file *inside* the container (argv-only, no shell), then
+    // copy the file out with `docker cp`. This avoids both shell interpolation
+    // of credentials and the fragile `> /tmp/backup.sql && cat` redirection.
+    let in_container_path = "/tmp/hive_backup.sql";
+    let dump_args: Vec<&str> = match db_type.as_str() {
+        "mysql" | "mariadb" => vec![
+            "mysqldump",
+            &format!("-u{}", username),
+            &format!("-p{}", password),
+            &database,
+            "--result-file",
+            in_container_path,
+        ],
+        "postgres" | "postgresql" => vec![
+            "pg_dump",
+            "-U",
+            &username,
+            "-f",
+            in_container_path,
+            &database,
+        ],
+        "mongodb" => vec![
+            "mongodump",
+            "--username",
+            &username,
+            "--password",
+            &password,
+            "--db",
+            &database,
+            "--archive",
+            in_container_path,
+        ],
         _ => return Err("Unsupported database type for backup".to_string()),
     };
 
-    let output = Command::new("docker")
-        .args(["exec", &container_name, "sh", "-c", &cmd])
+    let dump_output = Command::new("docker")
+        .arg("exec")
+        .arg(&container_name)
+        .args(&dump_args)
         .output()
         .map_err(|e| e.to_string())?;
 
-    if output.status.success() {
-        std::fs::write(&output_path, &output.stdout).map_err(|e| e.to_string())?;
-        Ok(format!("Backup saved to {}", output_path))
-    } else {
-        Err(String::from_utf8_lossy(&output.stderr).to_string())
+    if !dump_output.status.success() {
+        return Err(String::from_utf8_lossy(&dump_output.stderr).to_string());
     }
+
+    let copy_output = Command::new("docker")
+        .args([
+            "cp",
+            &format!("{}:{}", container_name, in_container_path),
+            &output_path,
+        ])
+        .output()
+        .map_err(|e| e.to_string())?;
+
+    if !copy_output.status.success() {
+        return Err(String::from_utf8_lossy(&copy_output.stderr).to_string());
+    }
+
+    Ok(format!("Backup saved to {}", output_path))
+}
+
+/// Splits a whitespace-separated command line into argv. This intentionally
+/// does NOT support shell metacharacters (pipes, redirection, globs): those
+/// would require shell interpolation, which is a command-injection vector.
+/// Callers that need shell features should use the shell service directly.
+fn split_command_argv(command: &str) -> Result<Vec<String>, String> {
+    let parts: Vec<String> = command.split_whitespace().map(|s| s.to_string()).collect();
+    if parts.is_empty() {
+        return Err("Empty command".to_string());
+    }
+    Ok(parts)
 }
 
 #[tauri::command]
 pub async fn exec_in_container(container_name: String, command: String) -> Result<String, String> {
+    let argv = split_command_argv(&command)?;
     let output = Command::new("docker")
-        .args(["exec", &container_name, "sh", "-c", &command])
+        .arg("exec")
+        .arg(&container_name)
+        .args(&argv)
         .output()
         .map_err(|e| format!("Failed to exec: {}", e))?;
 

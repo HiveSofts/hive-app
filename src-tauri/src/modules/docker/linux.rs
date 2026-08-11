@@ -1,9 +1,9 @@
 use super::models::*;
 use super::provider::DockerProviderTrait;
+use crate::modules::docker::DockerInfo;
 use std::fs;
 use std::process::Command;
 use tauri::Emitter;
-use crate::modules::docker::DockerInfo;
 
 #[derive(Debug, Clone, Default)]
 pub struct LinuxDockerProvider;
@@ -18,7 +18,11 @@ impl DockerProviderTrait for LinuxDockerProvider {
     fn detect(&self) -> DockerInfo {
         let version = self.get_docker_version();
         let installed = version.is_some();
-        let daemon_running = if installed { self.check_daemon() } else { false };
+        let daemon_running = if installed {
+            self.check_daemon()
+        } else {
+            false
+        };
         let (compose_available, compose_version) = self.check_compose();
 
         DockerInfo {

@@ -271,20 +271,13 @@ fn extract_zip(temp_file: &PathBuf, dest: &PathBuf) -> Result<(), String> {
     let file = fs::File::open(temp_file).map_err(|e| e.to_string())?;
     let mut archive = zip::ZipArchive::new(file).map_err(|e| e.to_string())?;
 
-    for i in 0..archive.len() {
-        let mut file = archive.by_index(i).map_err(|e| e.to_string())?;
-        let out_path = dest.join(file.name());
+    crate::core::fs_utils::safe_extract_zip(&mut archive, dest)?;
 
-        if file.is_dir() {
-            fs::create_dir_all(&out_path).map_err(|e| e.to_string())?;
-        } else {
-            if let Some(parent) = out_path.parent() {
-                fs::create_dir_all(parent).map_err(|e| e.to_string())?;
-            }
-
-            let mut outfile = fs::File::create(&out_path).map_err(|e| e.to_string())?;
-            std::io::copy(&mut file, &mut outfile).map_err(|e| e.to_string())?;
-            make_executable(&out_path)?;
+    // Restore the executable bit for any extracted binaries (runtime installs).
+    for entry in fs::read_dir(dest).map_err(|e| e.to_string())? {
+        let path = entry.map_err(|e| e.to_string())?.path();
+        if path.is_file() {
+            let _ = make_executable(&path);
         }
     }
 

@@ -1,6 +1,7 @@
+use crate::modules::common::path::hive_base_dir;
 use crate::types::UserConfig;
 use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 /// Returns the path to the Hive configuration file.
 ///
@@ -13,9 +14,7 @@ use std::path::{Path, PathBuf};
 /// macOS:
 /// /Users/<user>/.hive/config.json
 fn get_config_path() -> PathBuf {
-    let home = dirs::home_dir().expect("Unable to determine user home directory");
-
-    home.join(".hive").join("config.json")
+    hive_base_dir().join("config.json")
 }
 
 #[tauri::command]
@@ -31,11 +30,9 @@ pub fn get_user_config() -> Result<UserConfig, String> {
         return Ok(UserConfig::default());
     }
 
-    let content =
-        fs::read_to_string(&config_path).map_err(|e| e.to_string())?;
+    let content = fs::read_to_string(&config_path).map_err(|e| e.to_string())?;
 
-    let config: UserConfig =
-        serde_json::from_str(&content).map_err(|e| e.to_string())?;
+    let config: UserConfig = serde_json::from_str(&content).map_err(|e| e.to_string())?;
 
     Ok(config)
 }
@@ -49,8 +46,7 @@ pub fn save_user_config(config: UserConfig) -> Result<(), String> {
         set_permissions(parent, 0o755)?;
     }
 
-    let content =
-        serde_json::to_string_pretty(&config).map_err(|e| e.to_string())?;
+    let content = serde_json::to_string_pretty(&config).map_err(|e| e.to_string())?;
 
     fs::write(&config_path, content).map_err(|e| e.to_string())?;
 
@@ -73,8 +69,7 @@ pub fn initialize_hive() -> Result<(), String> {
     if !config_path.exists() {
         let default_config = UserConfig::default();
 
-        let content = serde_json::to_string_pretty(&default_config)
-            .map_err(|e| e.to_string())?;
+        let content = serde_json::to_string_pretty(&default_config).map_err(|e| e.to_string())?;
 
         fs::write(&config_path, content).map_err(|e| e.to_string())?;
 
@@ -88,9 +83,7 @@ pub fn initialize_hive() -> Result<(), String> {
 fn set_permissions(path: &Path, mode: u32) -> Result<(), String> {
     use std::os::unix::fs::PermissionsExt;
 
-    let mut permissions = fs::metadata(path)
-        .map_err(|e| e.to_string())?
-        .permissions();
+    let mut permissions = fs::metadata(path).map_err(|e| e.to_string())?.permissions();
 
     permissions.set_mode(mode);
 

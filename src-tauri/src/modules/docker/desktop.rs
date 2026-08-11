@@ -1,7 +1,7 @@
 use super::models::*;
 use super::provider::DockerProviderTrait;
-use std::process::Command;
 use crate::modules::docker::DockerInfo;
+use std::process::Command;
 
 #[derive(Debug, Clone, Default)]
 pub struct DesktopDockerProvider;
@@ -16,7 +16,11 @@ impl DockerProviderTrait for DesktopDockerProvider {
     fn detect(&self) -> DockerInfo {
         let version = self.get_docker_version();
         let installed = version.is_some();
-        let daemon_running = if installed { self.check_daemon() } else { false };
+        let daemon_running = if installed {
+            self.check_daemon()
+        } else {
+            false
+        };
         let (compose_available, compose_version) = self.check_compose();
 
         DockerInfo {

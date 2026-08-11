@@ -118,7 +118,8 @@ pub async fn create_nodejs_project(
         let entry_file_path = full_path.join(&entry_point);
         let entry_content = match framework.as_str() {
             "express" => {
-                format!(r#"const express = require('express');
+                format!(
+                    r#"const express = require('express');
 const app = express();
 const port = process.env.PORT || {port};
 
@@ -132,10 +133,14 @@ app.get('/', (req, res) => {{
 app.listen(port, () => {{
   console.log(`Server running on http://{host}:${{port}}`);
 }});
-"#, port = port_val, host = host_val)
+"#,
+                    port = port_val,
+                    host = host_val
+                )
             }
             "fastify" => {
-                format!(r#"const fastify = require('fastify')({{ logger: true }});
+                format!(
+                    r#"const fastify = require('fastify')({{ logger: true }});
 
 fastify.get('/', async (request, reply) => {{
   return {{ message: 'Hello from Fastify!' }};
@@ -152,10 +157,14 @@ const start = async () => {{
 }};
 
 start();
-"#, port = port_val, host = host_val)
+"#,
+                    port = port_val,
+                    host = host_val
+                )
             }
             "koa" => {
-                format!(r#"const Koa = require('koa');
+                format!(
+                    r#"const Koa = require('koa');
 const Router = require('koa-router');
 
 const app = new Koa();
@@ -172,13 +181,14 @@ const port = process.env.PORT || {port};
 app.listen(port, () => {{
   console.log(`Server running on http://{host}:${{port}}`);
 }});
-"#, port = port_val, host = host_val)
+"#,
+                    port = port_val,
+                    host = host_val
+                )
             }
-            _ => {
-                r#"console.log('Hello from Node.js!');
+            _ => r#"console.log('Hello from Node.js!');
 "#
-                .to_string()
-            }
+            .to_string(),
         };
 
         // Ensure the parent directory of the entry file exists (entry_point may
@@ -428,7 +438,10 @@ app.listen(port, () => {{
                     .unwrap_or_else(|_| "Unknown install error.".to_string());
 
                 let message = if err.trim().is_empty() {
-                    format!("Dependency installation failed with exit code: {:?}", status.code())
+                    format!(
+                        "Dependency installation failed with exit code: {:?}",
+                        status.code()
+                    )
                 } else {
                     format!("Dependency installation failed:\n{}", err)
                 };

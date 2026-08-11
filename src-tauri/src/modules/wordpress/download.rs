@@ -4,8 +4,8 @@ use std::path::Path;
 use tauri::AppHandle;
 use zip::ZipArchive;
 
-use super::config::{CreateWordPressRequest, GitHubTag};
-use super::create::get_projects_dir;
+use super::config::GitHubTag;
+use crate::core::fs_utils::{safe_extract_zip, safe_extract_zip_strip_root};
 
 const GITHUB_API: &str = "https://api.github.com/repos/WordPress/WordPress";
 
@@ -76,32 +76,7 @@ pub async fn extract_zip(
 
     let extract_path = Path::new(&extract_to);
 
-    for i in 0..archive.len() {
-        let mut file = archive
-            .by_index(i)
-            .map_err(|e| format!("Failed to read entry {}: {}", i, e))?;
-
-        let out_path = extract_path.join(file.name());
-
-        if file.is_dir() {
-            fs::create_dir_all(&out_path)
-                .map_err(|e| format!("Failed to create dir {}: {}", out_path.display(), e))?;
-        } else {
-            if let Some(parent) = out_path.parent() {
-                fs::create_dir_all(parent).map_err(|e| {
-                    format!("Failed to create parent dir {}: {}", parent.display(), e)
-                })?;
-            }
-
-            let mut out_file = fs::File::create(&out_path)
-                .map_err(|e| format!("Failed to create file {}: {}", out_path.display(), e))?;
-
-            std::io::copy(&mut file, &mut out_file)
-                .map_err(|e| format!("Failed to copy file: {}", e))?;
-        }
-    }
-
-    Ok(())
+    safe_extract_zip(&mut archive, extract_path)
 }
 
 pub async fn get_github_zip_url(version: &str) -> Result<String, String> {
@@ -147,48 +122,23 @@ pub async fn download_and_extract_wordpress(project_path: &Path, url: &str) -> R
 
     let mut archive = ZipArchive::new(file).map_err(|e| format!("Failed to read zip: {}", e))?;
 
-    let mut root_dir = String::new();
-    let mut is_first = true;
+    // The official WordPress zips wrap everything in a top-level folder
+    // (e.g. `wordpress/`); detect that folder from the first entry and strip it
+    // so the site lands directly in the project root. `safe_extract_zip_strip_root`
+    // also rejects any entry that would escape the project (zip-slip defense —
+    // the unified implementation in core/fs_utils).
+    let root_dir = archive
+        .by_index(0)
+        .map(|f| f.name().split('/').next().unwrap_or("").to_string())
+        .unwrap_or_default();
 
-    for i in 0..archive.len() {
-        let mut file = archive
-            .by_index(i)
-            .map_err(|e| format!("Failed to read entry {}: {}", i, e))?;
-
-        let name = file.name().to_string();
-
-        if is_first {
-            if let Some(first_part) = name.split('/').next() {
-                root_dir = first_part.to_string();
-            }
-            is_first = false;
-        }
-
-        let out_path = if let Some(stripped) = name.strip_prefix(&format!("{}/", root_dir)) {
-            project_path.join(stripped)
-        } else {
-            continue;
-        };
-
-        if file.is_dir() {
-            fs::create_dir_all(&out_path)
-                .map_err(|e| format!("Failed to create dir {}: {}", out_path.display(), e))?;
-        } else {
-            if let Some(parent) = out_path.parent() {
-                fs::create_dir_all(parent).map_err(|e| {
-                    format!("Failed to create parent dir {}: {}", parent.display(), e)
-                })?;
-            }
-
-            let mut out_file = fs::File::create(&out_path)
-                .map_err(|e| format!("Failed to create file {}: {}", out_path.display(), e))?;
-
-            std::io::copy(&mut file, &mut out_file)
-                .map_err(|e| format!("Failed to copy file: {}", e))?;
-        }
+    if root_dir.is_empty() {
+        return Err("WordPress zip has no top-level directory".to_string());
     }
+
+    let result = safe_extract_zip_strip_root(&mut archive, project_path, &root_dir);
 
     fs::remove_file(&zip_path).map_err(|e| format!("Failed to remove zip: {}", e))?;
 
-    Ok(())
+    result
 }

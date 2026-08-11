@@ -27,10 +27,7 @@ pub fn home_dir() -> PathBuf {
         return PathBuf::from(profile);
     }
 
-    match (
-        std::env::var_os("HOMEDRIVE"),
-        std::env::var_os("HOMEPATH"),
-    ) {
+    match (std::env::var_os("HOMEDRIVE"), std::env::var_os("HOMEPATH")) {
         (Some(drive), Some(path)) => {
             let mut home = PathBuf::from(drive);
             home.push(path);

@@ -1,5 +1,5 @@
-pub mod server;
 pub mod event;
+pub mod server;
 
-pub use server::*;
 pub use event::*;
+pub use server::*;

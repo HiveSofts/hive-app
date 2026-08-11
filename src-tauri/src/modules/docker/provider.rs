@@ -1,9 +1,9 @@
-use std::process::Command;
+use crate::modules::docker::DockerInfo;
 use crate::modules::docker::desktop::DesktopDockerProvider;
 use crate::modules::docker::linux::LinuxDockerProvider;
-use crate::modules::docker::DockerInfo;
+use std::process::Command;
 
-use crate::modules::{docker::api::ApiDockerProvider};
+use crate::modules::docker::api::ApiDockerProvider;
 
 #[derive(Debug, Clone)]
 pub enum DockerProvider {
