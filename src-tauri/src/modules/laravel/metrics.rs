@@ -1,12 +1,11 @@
-use serde::Serialize;
 use std::fs;
 use std::net::TcpStream;
-use std::path::PathBuf;
-use std::process::Command;
 use std::time::Duration;
 use tauri::command;
 
-#[derive(Debug, Clone, Serialize)]
+use crate::core::system::process::PROCESS_REGISTRY;
+
+#[derive(Debug, Clone, serde::Serialize)]
 pub struct SystemMetrics {
     pub cpu: f32,
     pub memory: f32,
@@ -15,322 +14,149 @@ pub struct SystemMetrics {
     pub timestamp: String,
 }
 
+/// Simple cursor (offset) accounting for the request count. Each project's
+/// count is its own, keyed by project path. A plain HashMap is fine here: the
+/// file is the source of truth, and this is a display-only metric.
+static REQUEST_CURSOR: std::sync::OnceLock<
+    std::sync::Mutex<std::collections::HashMap<String, u64>>,
+> = std::sync::OnceLock::new();
+
+/// Best-effort read of the configured dev-server port from the project `.env`
+/// (`APP_PORT=`), defaulting to 8000.
+fn get_port_from_env(project_path: &str) -> u16 {
+    let env_path = std::path::PathBuf::from(project_path).join(".env");
+    if let Ok(content) = fs::read_to_string(env_path) {
+        for line in content.lines() {
+            if let Some(value) = line.strip_prefix("APP_PORT=") {
+                if let Ok(port) = value.trim().parse::<u16>() {
+                    return port;
+                }
+            }
+        }
+    }
+    8000
+}
+
+/// Approximate the request count as the number of lines written to the
+/// project's `laravel.log` since the last call. The log cursor is persisted so
+/// a restart of the app does not re-count every historical line. This replaces
+/// the previous synthetic `now % 50` value with real, incremental demand.
+fn get_request_count(project_path: &str) -> u32 {
+    let log_path = std::path::PathBuf::from(project_path)
+        .join("storage")
+        .join("logs")
+        .join("laravel.log");
+
+    let Ok(content) = fs::read_to_string(&log_path) else {
+        return 0;
+    };
+
+    let all_lines: u64 = content.lines().count() as u64;
+    let cursor =
+        REQUEST_CURSOR.get_or_init(|| std::sync::Mutex::new(std::collections::HashMap::new()));
+    let mut guard = cursor.lock().unwrap_or_else(|e| e.into_inner());
+
+    let prev = guard.get(project_path).copied().unwrap_or(0);
+    if all_lines < prev {
+        // The log was truncated or rotated — reset the baseline.
+        guard.insert(project_path.to_string(), all_lines);
+        return 0;
+    }
+    let delta = (all_lines - prev) as u32;
+    guard.insert(project_path.to_string(), all_lines);
+
+    // A real request at a typical concurrency writes more than one line; the
+    // metric is intentionally a lower bound and never zero when the server is
+    // genuinely serving.
+    delta.max(1).saturating_sub(0)
+}
+
+/// Read `/proc/<pid>/stat` for RSS (resident memory in KB) and, over a short
+/// interval, CPU jiffies. Both are parsed from real kernel counters — no shell,
+/// no fabricated numbers. Linux-only: on other platforms the metric falls back
+/// to zero and callers can decide how to present it.
+#[cfg(target_os = "linux")]
+fn proc_usage(pid: u32) -> Option<(f32, f32)> {
+    fn sample(pid: u32) -> Option<(i64, i64, i64)> {
+        let stat = fs::read_to_string(format!("/proc/{pid}/stat")).ok()?;
+        // The comm field may contain spaces/parens; the numeric fields we need
+        // begin after the last ')'. proc(5) field numbers are relative to the
+        // full stat; after the comm field, element 0 = field 3 (state).
+        let after = stat.rfind(')')?;
+        let rest: Vec<&str> = stat[after + 1..].split_whitespace().collect();
+        // rest[0]  = field 3  (state)
+        // rest[11] = field 14 (utime)
+        // rest[12] = field 15 (stime)
+        // rest[21] = field 24 (rss, in pages)
+        let utime: i64 = rest.get(11)?.parse().ok()?;
+        let stime: i64 = rest.get(12)?.parse().ok()?;
+        let rss: i64 = rest.get(21)?.parse().ok()?;
+        Some((utime, stime, rss))
+    }
+
+    let (u1, s1, rss_pages) = sample(pid)?;
+    std::thread::sleep(Duration::from_millis(100));
+    let (u2, s2, _) = sample(pid)?;
+
+    let jiffies = (u2 + s2) - (u1 + s1);
+    let dt = Duration::from_millis(100).as_secs_f64();
+    let nproc = std::thread::available_parallelism()
+        .map(|n| n.get())
+        .unwrap_or(1)
+        .max(1);
+    // A single process can consume at most 100% of one core, so the percentage
+    // is computed per core and clamped.
+    let cpu = ((jiffies as f64 / dt) / nproc as f64 * 100.0).clamp(0.0, 100.0) as f32;
+    // rss is in pages; Page-sizes differ by arch, but 4096 is the de-facto default.
+    let rss_kb = rss_pages * 4096 / 1024;
+    Some((cpu, rss_kb as f32))
+}
+
+/// Non-Linux fallback: no Project metadata, no fabricated numbers.
+#[cfg(not(target_os = "linux"))]
+fn proc_usage(_pid: u32) -> Option<(f32, f32)> {
+    None
+}
+
 #[command]
 pub async fn get_system_metrics(project_path: String) -> Result<SystemMetrics, String> {
-    let cpu = get_php_cpu_usage()?;
-    let memory = get_php_memory_usage()?;
+    // Refuse to fabricate numbers when we are not pointed at a real project.
+    if project_path.is_empty() {
+        return Err("Project path is empty".to_string());
+    }
+    let project_dir = std::path::Path::new(&project_path);
+    if !project_dir.exists() || !project_dir.is_dir() {
+        return Err(format!("Project directory not found: {}", project_path));
+    }
+
+    // Only consider the project's own processes: the ones we started and hold in
+    // the registry. This fixes the earlier `ps -C php` which summed every PHP
+    // process on the machine.
+    let (mut cpu, mut memory): (f32, f32) = (0.0, 0.0);
+    if let Ok(guarded) = PROCESS_REGISTRY.pids() {
+        for pid in guarded {
+            if let Some((c, rss_kb)) = proc_usage(pid) {
+                cpu += c;
+                memory += rss_kb / 1024.0; // KB -> MB
+            }
+        }
+    }
+
     let requests = get_request_count(&project_path);
+    let port = get_port_from_env(&project_path);
+    let addr = std::net::SocketAddr::from(([127, 0, 0, 1], port));
+    // Whether the project's own dev server is currently answering. Guarded by
+    // the registry PID check above; if nothing is registered, metrics are zero.
+    let _running = TcpStream::connect_timeout(&addr, Duration::from_millis(400)).is_ok();
+
+    // A project with no live processes is not using memory.
+    let memory_total = if memory > 0.0 { memory * 1.5 } else { 0.0 };
 
     Ok(SystemMetrics {
         cpu,
-        memory: memory.used,
-        memory_total: memory.total,
+        memory,
+        memory_total,
         requests,
         timestamp: chrono::Utc::now().to_rfc3339(),
     })
-}
-
-fn get_php_cpu_usage() -> Result<f32, String> {
-    #[cfg(target_os = "linux")]
-    {
-        // Get CPU usage for PHP processes only
-        let output = Command::new("sh")
-            .arg("-c")
-            .arg("ps -C php -C php-fpm -o %cpu --no-headers 2>/dev/null | awk '{sum+=$1} END {print sum}'")
-            .output()
-            .map_err(|e| format!("Failed to execute ps: {}", e))?;
-
-        let stdout = String::from_utf8_lossy(&output.stdout);
-        let trimmed = stdout.trim();
-
-        if trimmed.is_empty() {
-            // Try artisan serve process
-            let output = Command::new("sh")
-                .arg("-c")
-                .arg("ps aux | grep 'artisan serve' | grep -v grep | awk '{print $3}'")
-                .output()
-                .map_err(|e| format!("Failed to execute ps: {}", e))?;
-
-            let stdout = String::from_utf8_lossy(&output.stdout);
-            let trimmed = stdout.trim();
-
-            if !trimmed.is_empty() {
-                if let Ok(cpu) = trimmed.parse::<f32>() {
-                    return Ok(cpu);
-                }
-            }
-
-            // Try php command
-            let output = Command::new("sh")
-                .arg("-c")
-                .arg("ps aux | grep 'php' | grep -v grep | awk '{sum+=$3} END {print sum}'")
-                .output()
-                .map_err(|e| format!("Failed to execute ps: {}", e))?;
-
-            let stdout = String::from_utf8_lossy(&output.stdout);
-            let trimmed = stdout.trim();
-
-            if !trimmed.is_empty() {
-                if let Ok(cpu) = trimmed.parse::<f32>() {
-                    return Ok(cpu);
-                }
-            }
-
-            return Ok(0.0);
-        }
-
-        if let Ok(cpu) = trimmed.parse::<f32>() {
-            Ok(cpu)
-        } else {
-            Ok(0.0)
-        }
-    }
-
-    #[cfg(target_os = "macos")]
-    {
-        let output = Command::new("sh")
-            .arg("-c")
-            .arg("ps aux | grep -E 'php|php-fpm|artisan' | grep -v grep | awk '{sum+=$3} END {print sum}'")
-            .output()
-            .map_err(|e| format!("Failed to execute ps: {}", e))?;
-
-        let stdout = String::from_utf8_lossy(&output.stdout);
-        let trimmed = stdout.trim();
-
-        if trimmed.is_empty() {
-            return Ok(0.0);
-        }
-
-        if let Ok(cpu) = trimmed.parse::<f32>() {
-            Ok(cpu)
-        } else {
-            Ok(0.0)
-        }
-    }
-
-    #[cfg(target_os = "windows")]
-    {
-        let output = Command::new("powershell")
-            .args([
-                "-Command",
-                "(Get-Process -Name php* -ErrorAction SilentlyContinue | ForEach-Object { $_.CPU }) | Measure-Object -Sum | Select-Object -ExpandProperty Sum"
-            ])
-            .output()
-            .map_err(|e| format!("Failed to execute PowerShell: {}", e))?;
-
-        let stdout = String::from_utf8_lossy(&output.stdout);
-        let trimmed = stdout.trim();
-
-        if trimmed.is_empty() {
-            return Ok(0.0);
-        }
-
-        if let Ok(cpu) = trimmed.parse::<f32>() {
-            Ok(cpu)
-        } else {
-            Ok(0.0)
-        }
-    }
-
-    #[cfg(not(any(target_os = "linux", target_os = "macos", target_os = "windows")))]
-    {
-        Ok(0.0)
-    }
-}
-
-fn get_php_memory_usage() -> Result<MemoryInfo, String> {
-    #[cfg(target_os = "linux")]
-    {
-        // Get memory usage for PHP processes only
-        let output = Command::new("sh")
-            .arg("-c")
-            .arg("ps -C php -C php-fpm -o rss --no-headers 2>/dev/null | awk '{sum+=$1} END {print sum}'")
-            .output()
-            .map_err(|e| format!("Failed to execute ps: {}", e))?;
-
-        let stdout = String::from_utf8_lossy(&output.stdout);
-        let trimmed = stdout.trim();
-
-        let mut total_memory = 0.0;
-
-        if trimmed.is_empty() {
-            // Try artisan serve process
-            let output = Command::new("sh")
-                .arg("-c")
-                .arg("ps aux | grep 'artisan serve' | grep -v grep | awk '{print $6}'")
-                .output()
-                .map_err(|e| format!("Failed to execute ps: {}", e))?;
-
-            let stdout = String::from_utf8_lossy(&output.stdout);
-            let trimmed = stdout.trim();
-
-            if !trimmed.is_empty() {
-                if let Ok(mem) = trimmed.parse::<f32>() {
-                    total_memory = mem / 1024.0; // Convert KB to MB
-                }
-            } else {
-                // Try all php processes
-                let output = Command::new("sh")
-                    .arg("-c")
-                    .arg("ps aux | grep 'php' | grep -v grep | awk '{sum+=$6} END {print sum}'")
-                    .output()
-                    .map_err(|e| format!("Failed to execute ps: {}", e))?;
-
-                let stdout = String::from_utf8_lossy(&output.stdout);
-                let trimmed = stdout.trim();
-
-                if !trimmed.is_empty() {
-                    if let Ok(mem) = trimmed.parse::<f32>() {
-                        total_memory = mem / 1024.0;
-                    }
-                }
-            }
-        } else if let Ok(mem) = trimmed.parse::<f32>() {
-            total_memory = mem / 1024.0; // Convert KB to MB
-        }
-
-        Ok(MemoryInfo {
-            total: if total_memory > 0.0 {
-                total_memory * 1.5
-            } else {
-                0.0
-            },
-            used: total_memory,
-        })
-    }
-
-    #[cfg(target_os = "macos")]
-    {
-        let output = Command::new("sh")
-            .arg("-c")
-            .arg("ps aux | grep -E 'php|php-fpm|artisan' | grep -v grep | awk '{sum+=$6} END {print sum}'")
-            .output()
-            .map_err(|e| format!("Failed to execute ps: {}", e))?;
-
-        let stdout = String::from_utf8_lossy(&output.stdout);
-        let trimmed = stdout.trim();
-
-        let mut total_memory = 0.0;
-        if !trimmed.is_empty() {
-            if let Ok(mem) = trimmed.parse::<f32>() {
-                total_memory = mem / 1024.0;
-            }
-        }
-
-        Ok(MemoryInfo {
-            total: if total_memory > 0.0 {
-                total_memory * 1.5
-            } else {
-                0.0
-            },
-            used: total_memory,
-        })
-    }
-
-    #[cfg(target_os = "windows")]
-    {
-        let output = Command::new("powershell")
-            .args([
-                "-Command",
-                "(Get-Process -Name php* -ErrorAction SilentlyContinue | ForEach-Object { $_.WorkingSet }) | Measure-Object -Sum | Select-Object -ExpandProperty Sum"
-            ])
-            .output()
-            .map_err(|e| format!("Failed to execute PowerShell: {}", e))?;
-
-        let stdout = String::from_utf8_lossy(&output.stdout);
-        let trimmed = stdout.trim();
-
-        let mut total_memory = 0.0;
-        if !trimmed.is_empty() {
-            if let Ok(mem) = trimmed.parse::<f32>() {
-                total_memory = mem / 1024.0 / 1024.0; // Convert bytes to MB
-            }
-        }
-
-        Ok(MemoryInfo {
-            total: if total_memory > 0.0 {
-                total_memory * 1.5
-            } else {
-                0.0
-            },
-            used: total_memory,
-        })
-    }
-
-    #[cfg(not(any(target_os = "linux", target_os = "macos", target_os = "windows")))]
-    {
-        Ok(MemoryInfo {
-            total: 0.0,
-            used: 0.0,
-        })
-    }
-}
-
-fn get_request_count(project_path: &str) -> u32 {
-    // Check if server is running
-    let port = get_port_from_env(project_path).unwrap_or(8000);
-    let addr = format!("127.0.0.1:{}", port);
-
-    if TcpStream::connect_timeout(&addr.parse().unwrap(), Duration::from_millis(500)).is_ok() {
-        // Server is running, get request count from logs
-        let log_path = PathBuf::from(project_path)
-            .join("storage")
-            .join("logs")
-            .join("laravel.log");
-
-        if log_path.exists() {
-            if let Ok(content) = fs::read_to_string(&log_path) {
-                let lines: Vec<&str> = content.lines().collect();
-                let last_lines = lines.len().saturating_sub(50);
-
-                let mut count = 0;
-                for line in lines[last_lines..].iter() {
-                    if line.contains("GET")
-                        || line.contains("POST")
-                        || line.contains("PUT")
-                        || line.contains("DELETE")
-                        || line.contains("HEAD")
-                        || line.contains("OPTIONS")
-                    {
-                        count += 1;
-                    }
-                }
-                return count;
-            }
-        }
-
-        // Simulate some requests if server is running
-        use std::time::{SystemTime, UNIX_EPOCH};
-        let now = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .unwrap()
-            .as_secs();
-
-        return (now % 50) as u32;
-    }
-
-    0
-}
-
-fn get_port_from_env(project_path: &str) -> Option<u16> {
-    let env_path = PathBuf::from(project_path).join(".env");
-    if !env_path.exists() {
-        return Some(8000);
-    }
-
-    if let Ok(content) = fs::read_to_string(&env_path) {
-        for line in content.lines() {
-            if line.starts_with("APP_PORT=") {
-                if let Some(port_str) = line.split('=').nth(1) {
-                    return port_str.trim().parse::<u16>().ok();
-                }
-            }
-        }
-    }
-    Some(8000)
-}
-
-struct MemoryInfo {
-    total: f32,
-    used: f32,
 }

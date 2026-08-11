@@ -5,17 +5,14 @@ use super::db::{
     tunnel_session_set_error, tunnel_session_set_url, tunnel_session_stop,
 };
 use crate::core::database::{Event, EventCategory};
-use once_cell::sync::Lazy;
+use crate::core::system::process::PROCESS_REGISTRY;
+use crate::modules::common::server::kill_pid_tree;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
 use std::fs;
 use std::io::{BufRead, BufReader, Write};
 use std::path::PathBuf;
-use std::process::{Child, Command, Stdio};
-use std::sync::Mutex;
+use std::process::{Command, Stdio};
 use tauri::Emitter;
-
-static TUNNEL_PROCS: Lazy<Mutex<HashMap<i64, Child>>> = Lazy::new(|| Mutex::new(HashMap::new()));
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct StartTunnelRequest {
@@ -36,22 +33,6 @@ pub struct TunnelLog {
     pub line: String,
     pub is_error: bool,
     pub timestamp: Option<String>,
-}
-
-fn kill_pid(pid: u32) {
-    #[cfg(unix)]
-    unsafe {
-        libc::kill(-(pid as i32), libc::SIGTERM);
-        std::thread::sleep(std::time::Duration::from_millis(200));
-        libc::kill(-(pid as i32), libc::SIGKILL);
-        libc::kill(pid as i32, libc::SIGKILL);
-    }
-    #[cfg(windows)]
-    {
-        let _ = Command::new("taskkill")
-            .args(["/PID", &pid.to_string(), "/T", "/F"])
-            .output();
-    }
 }
 
 fn extract_url(line: &str) -> Option<String> {
@@ -82,9 +63,7 @@ fn extract_url(line: &str) -> Option<String> {
 }
 
 fn get_log_dir() -> PathBuf {
-    let home = std::env::var("HOME").unwrap_or_else(|_| ".".to_string());
-    PathBuf::from(home)
-        .join(".hive")
+    crate::modules::common::path::hive_base_dir()
         .join("logs")
         .join("tunnels")
 }
@@ -160,7 +139,11 @@ pub async fn start_tunnel(
         bin.to_string_lossy().to_string()
     } else {
         let sys = Command::new("cloudflared").arg("--version").output();
-        if sys.is_err() || !sys.unwrap().status.success() {
+        let cloudflared_available = match sys {
+            Ok(out) => out.status.success(),
+            Err(_) => false,
+        };
+        if !cloudflared_available {
             let _ = Event::error(
                 EventCategory::Tunnel,
                 "tunnel.cloudflared.missing",
@@ -213,7 +196,6 @@ pub async fn start_tunnel(
             "Failed to start cloudflared: {}\nCommand: {}",
             e, full_command
         );
-        println!("[TUNNEL ERROR] {}", msg);
         write_log(session_id, &msg, true);
         let _ = Event::error(
             EventCategory::Tunnel,
@@ -225,18 +207,23 @@ pub async fn start_tunnel(
     })?;
 
     let pid = child.id();
-    let stdout = child.stdout.take().unwrap();
-    let stderr = child.stderr.take().unwrap();
+    let stdout = child
+        .stdout
+        .take()
+        .ok_or_else(|| "Failed to capture cloudflared stdout".to_string())?;
+    let stderr = child
+        .stderr
+        .take()
+        .ok_or_else(|| "Failed to capture cloudflared stderr".to_string())?;
 
-    {
-        let conn = crate::core::database::DB.lock().unwrap();
+    if let Ok(conn) = crate::core::database::db() {
         let _ = conn.execute(
             "UPDATE tunnel_sessions SET pid = ?1 WHERE id = ?2",
             rusqlite::params![pid as i64, session_id],
         );
     }
 
-    TUNNEL_PROCS.lock().unwrap().insert(session_id, child);
+    PROCESS_REGISTRY.insert(session_id.to_string(), child);
 
     let window_clone = window.clone();
     let sid = session_id;
@@ -333,17 +320,17 @@ pub async fn stop_tunnel(session_id: i64) -> Result<(), String> {
         &format!("Stopping tunnel session: {}", session_id),
     );
 
-    if let Some(mut child) = TUNNEL_PROCS.lock().unwrap().remove(&session_id) {
-        let _ = child.kill();
-        let _ = child.wait();
-    }
-
-    if let Some(session) = tunnel_session_get(session_id) {
-        if let Some(pid) = session.pid {
-            kill_pid(pid as u32);
+    // `kill_tree` only touches children currently held in the registry. A
+    // tunnel that survived a previous app run lives on only in the DB, so
+    // re-check the recorded PID as a fallback for orphaned cloudflared.
+    let held = PROCESS_REGISTRY.kill_tree(&session_id.to_string());
+    if !held {
+        if let Some(session) = tunnel_session_get(session_id) {
+            if let Some(pid) = session.pid {
+                kill_pid_tree(pid as u32);
+            }
         }
     }
-
     tunnel_session_stop(session_id);
     write_log(session_id, "=== Tunnel stopped successfully ===", false);
 

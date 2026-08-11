@@ -150,14 +150,14 @@ pub async fn check_and_install_dependencies(_app: AppHandle) -> Result<Vec<Insta
                 progress: Some(100.0),
                 success: true,
             });
-            
+
             let _ = Event::info(
                 EventCategory::Runtime,
                 &format!("{}.already_installed", name),
                 &format!("{} Already Installed", name),
                 &format!("{} is already installed and ready to use", name),
             );
-            
+
             continue;
         }
 
@@ -231,7 +231,7 @@ pub async fn check_and_install_dependencies(_app: AppHandle) -> Result<Vec<Insta
     }
 
     let all_ok = statuses.iter().all(|s| s.success);
-    
+
     statuses.push(InstallStatus {
         step: if all_ok {
             "finished".to_string()

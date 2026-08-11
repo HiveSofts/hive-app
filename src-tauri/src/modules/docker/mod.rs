@@ -1,13 +1,13 @@
-mod provider;
-mod models;
-mod linux;
-mod desktop;
 mod api;
 mod container;
+mod desktop;
+mod linux;
+mod models;
+mod provider;
 
+pub use container::*;
 pub use models::*;
 pub use provider::*;
-pub use container::*;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

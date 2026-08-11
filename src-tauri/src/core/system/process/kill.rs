@@ -14,8 +14,8 @@ pub fn kill_process(pid: u32) -> Result<(), String> {
     {
         use std::os::unix::process::CommandExt;
         use std::process::Command;
-        use std::time::Duration;
         use std::thread::sleep;
+        use std::time::Duration;
 
         let _ = Command::new("kill")
             .arg("-TERM")

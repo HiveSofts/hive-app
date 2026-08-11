@@ -142,10 +142,10 @@ impl EventBuilder {
     }
 
     pub fn emit(self) -> Result<i64> {
-        let conn = super::super::get_connection();
-        
+        let conn = super::super::db()?;
+
         let metadata_json = self.metadata.map(|m| m.to_string());
-        
+
         conn.execute(
             r#"
             INSERT INTO events (
@@ -163,7 +163,7 @@ impl EventBuilder {
                 self.trace_id,
             ],
         )?;
-        
+
         Ok(conn.last_insert_rowid())
     }
 }
@@ -182,23 +182,48 @@ impl Event {
             .emit()
     }
 
-    pub fn info(category: EventCategory, event_key: &str, title: &str, message: &str) -> Result<i64> {
+    pub fn info(
+        category: EventCategory,
+        event_key: &str,
+        title: &str,
+        message: &str,
+    ) -> Result<i64> {
         Self::log(EventLevel::Info, category, event_key, title, message)
     }
 
-    pub fn success(category: EventCategory, event_key: &str, title: &str, message: &str) -> Result<i64> {
+    pub fn success(
+        category: EventCategory,
+        event_key: &str,
+        title: &str,
+        message: &str,
+    ) -> Result<i64> {
         Self::log(EventLevel::Success, category, event_key, title, message)
     }
 
-    pub fn warning(category: EventCategory, event_key: &str, title: &str, message: &str) -> Result<i64> {
+    pub fn warning(
+        category: EventCategory,
+        event_key: &str,
+        title: &str,
+        message: &str,
+    ) -> Result<i64> {
         Self::log(EventLevel::Warning, category, event_key, title, message)
     }
 
-    pub fn error(category: EventCategory, event_key: &str, title: &str, message: &str) -> Result<i64> {
+    pub fn error(
+        category: EventCategory,
+        event_key: &str,
+        title: &str,
+        message: &str,
+    ) -> Result<i64> {
         Self::log(EventLevel::Error, category, event_key, title, message)
     }
 
-    pub fn debug(category: EventCategory, event_key: &str, title: &str, message: &str) -> Result<i64> {
+    pub fn debug(
+        category: EventCategory,
+        event_key: &str,
+        title: &str,
+        message: &str,
+    ) -> Result<i64> {
         Self::log(EventLevel::Debug, category, event_key, title, message)
     }
 
@@ -207,54 +232,55 @@ impl Event {
     }
 
     pub fn get_recent(limit: usize) -> Result<Vec<Event>> {
-        let conn = super::super::get_connection();
+        let conn = super::super::db()?;
         let mut stmt = conn.prepare(
             "SELECT id, created_at, level, category, event_key, title, message, metadata, source, read, trace_id
              FROM events ORDER BY created_at DESC LIMIT ?1",
         )?;
-        
+
         let rows = stmt.query_map([limit as i64], |row| {
             Ok(Event {
                 id: row.get(0)?,
                 created_at: row.get(1)?,
-                level: serde_json::from_str(&format!("\"{}\"", row.get::<_, String>(2)?)).unwrap_or(EventLevel::Info),
-                category: serde_json::from_str(&format!("\"{}\"", row.get::<_, String>(3)?)).unwrap_or(EventCategory::System),
+                level: serde_json::from_str(&format!("\"{}\"", row.get::<_, String>(2)?))
+                    .unwrap_or(EventLevel::Info),
+                category: serde_json::from_str(&format!("\"{}\"", row.get::<_, String>(3)?))
+                    .unwrap_or(EventCategory::System),
                 event_key: row.get(4)?,
                 title: row.get(5)?,
                 message: row.get(6)?,
-                metadata: row.get::<_, Option<String>>(7)?.and_then(|s| serde_json::from_str(&s).ok()),
+                metadata: row
+                    .get::<_, Option<String>>(7)?
+                    .and_then(|s| serde_json::from_str(&s).ok()),
                 source: row.get(8)?,
                 read: row.get::<_, i32>(9)? != 0,
                 trace_id: row.get(10)?,
             })
         })?;
-        
+
         rows.collect()
     }
 
     pub fn mark_read(id: i64) -> Result<()> {
-        let conn = super::super::get_connection();
-        conn.execute(
-            "UPDATE events SET read = 1 WHERE id = ?1",
-            [id],
-        )?;
+        let conn = super::super::db()?;
+        conn.execute("UPDATE events SET read = 1 WHERE id = ?1", [id])?;
         Ok(())
     }
 
     pub fn mark_all_read() -> Result<()> {
-        let conn = super::super::get_connection();
+        let conn = super::super::db()?;
         conn.execute("UPDATE events SET read = 1", [])?;
         Ok(())
     }
 
     pub fn get_unread_count() -> Result<i64> {
-        let conn = super::super::get_connection();
+        let conn = super::super::db()?;
         let mut stmt = conn.prepare("SELECT COUNT(*) FROM events WHERE read = 0")?;
         stmt.query_row([], |row| row.get(0))
     }
 
     pub fn delete_older_than(days: i64) -> Result<()> {
-        let conn = super::super::get_connection();
+        let conn = super::super::db()?;
         conn.execute(
             "DELETE FROM events WHERE created_at < datetime('now', ?1)",
             [&format!("-{} days", days)],

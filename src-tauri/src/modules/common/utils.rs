@@ -1,8 +1,4 @@
-use std::{
-    env,
-    path::PathBuf,
-    process::Command,
-};
+use std::{env, path::PathBuf, process::Command};
 
 /// Adds Hive's binary directory to the PATH of the spawned process.
 /// This only affects the current command and does not modify the user's system PATH.

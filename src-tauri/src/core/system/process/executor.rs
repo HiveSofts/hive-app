@@ -1,6 +1,14 @@
-use std::io::{BufRead, BufReader};
-use std::process::{Command, Stdio};
+use std::io::{BufRead, BufReader, Write};
+use std::process::{ChildStdin, Command, Stdio};
+use std::sync::Mutex;
 use tauri::{AppHandle, Emitter, command};
+
+use once_cell::sync::Lazy;
+
+/// Active streaming shells, keyed by the frontend-provided session id. Holds
+/// the child's stdin so interactive commands can receive input while running.
+static SHELL_SESSIONS: Lazy<Mutex<std::collections::HashMap<String, ChildStdin>>> =
+    Lazy::new(|| Mutex::new(std::collections::HashMap::new()));
 
 #[derive(Clone, serde::Serialize)]
 struct ShellOutput {
@@ -38,8 +46,25 @@ pub async fn execute_shell_streaming(
             .map_err(|e| e.to_string())?
     };
 
-    let stdout = child.stdout.take().unwrap();
-    let stderr = child.stderr.take().unwrap();
+    let stdout = child
+        .stdout
+        .take()
+        .ok_or_else(|| "Failed to capture child stdout".to_string())?;
+    let stderr = child
+        .stderr
+        .take()
+        .ok_or_else(|| "Failed to capture child stderr".to_string())?;
+    let stdin = child
+        .stdin
+        .take()
+        .ok_or_else(|| "Failed to capture child stdin".to_string())?;
+
+    // Register the writable stdin so interactive commands can receive input.
+    SHELL_SESSIONS
+        .lock()
+        .map_err(|e| format!("Session registry poisoned: {}", e))?
+        .insert(session_id.clone(), stdin);
+
     let app_clone = app.clone();
     let sid = session_id.clone();
 
@@ -85,6 +110,11 @@ pub async fn execute_shell_streaming(
     stderr_thread.join().ok();
 
     let status = child.wait().map_err(|e| e.to_string())?;
+
+    // The command finished: drop the stdin handle (closing the pipe) and
+    // forget the session so a new command can start fresh.
+    let _ = SHELL_SESSIONS.lock().map(|mut s| s.remove(&session_id));
+
     app.emit(
         "shell-output",
         ShellOutput {
@@ -100,8 +130,20 @@ pub async fn execute_shell_streaming(
     Ok(())
 }
 
+/// Send a line to the currently running shell for the given session.
 #[command]
-pub async fn send_shell_input() -> Result<(), String> {
+pub async fn send_shell_input(session_id: String, input: String) -> Result<(), String> {
+    let mut sessions = SHELL_SESSIONS
+        .lock()
+        .map_err(|e| format!("Session registry poisoned: {}", e))?;
+    if let Some(stdin) = sessions.get_mut(&session_id) {
+        stdin
+            .write_all(input.as_bytes())
+            .map_err(|e| format!("Failed to write to shell input: {}", e))?;
+        stdin
+            .flush()
+            .map_err(|e| format!("Failed to flush shell input: {}", e))?;
+    }
     Ok(())
 }
 

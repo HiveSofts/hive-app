@@ -72,8 +72,8 @@ pub fn list_all_projects() -> Result<Vec<ProjectInfo>, String> {
         return Ok(Vec::new());
     }
 
-    let entries =
-        fs::read_dir(&projects_dir).map_err(|e| format!("Failed to read projects directory: {e}"))?;
+    let entries = fs::read_dir(&projects_dir)
+        .map_err(|e| format!("Failed to read projects directory: {e}"))?;
 
     let mut projects = Vec::new();
 

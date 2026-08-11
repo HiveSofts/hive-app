@@ -168,19 +168,15 @@ pub async fn install_cloudflared(window: tauri::Window) -> Result<CloudflaredInf
         .build()
         .map_err(|e| e.to_string())?;
 
-    let resp = client
-        .get(&url)
-        .send()
-        .await
-        .map_err(|e| {
-            let _ = Event::error(
-                EventCategory::Tunnel,
-                "cloudflared.download.failed",
-                "Cloudflared Download Failed",
-                &format!("Failed to download Cloudflared: {}", e),
-            );
-            format!("Download failed: {}", e)
-        })?;
+    let resp = client.get(&url).send().await.map_err(|e| {
+        let _ = Event::error(
+            EventCategory::Tunnel,
+            "cloudflared.download.failed",
+            "Cloudflared Download Failed",
+            &format!("Failed to download Cloudflared: {}", e),
+        );
+        format!("Download failed: {}", e)
+    })?;
 
     if !resp.status().is_success() {
         let _ = Event::error(
@@ -247,7 +243,10 @@ pub async fn install_cloudflared(window: tauri::Window) -> Result<CloudflaredInf
         EventCategory::Tunnel,
         "cloudflared.installed",
         "Cloudflared Installed",
-        &format!("Cloudflared installed successfully at: {}", dest.to_string_lossy()),
+        &format!(
+            "Cloudflared installed successfully at: {}",
+            dest.to_string_lossy()
+        ),
     );
 
     Ok(CloudflaredInfo {
