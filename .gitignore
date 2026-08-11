@@ -13,6 +13,8 @@ dist-ssr
 *.local
 build
 src-tauri/target
+# Lockfile for the (deprecated) bun package manager
+bun.lock
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
