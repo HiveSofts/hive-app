@@ -7,6 +7,13 @@ pub use core::*;
 pub use modules::*;
 use tauri::Manager;
 
+use crate::core::system::installer::commands::{install_tool, uninstall_tool, update_tool};
+use crate::core::system::package_manager::commands::{
+    detect_package_managers, get_package_catalog, get_package_statuses,
+    get_system_package_details, refresh_package_managers, search_system_packages,
+};
+use crate::core::system::package_manager::fresher::{check_internet, get_index_freshness, refresh_package_index};
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     modules::laravel::cleanup_orphaned_servers();
@@ -57,6 +64,22 @@ pub fn run() {
             check_project_exists,
             check_package_manager,
             install_package_manager,
+            detect_package_managers,
+            refresh_package_managers,
+            get_package_catalog,
+            get_package_statuses,
+            search_system_packages,
+            get_system_package_details,
+            install_tool,
+            update_tool,
+            uninstall_tool,
+            universal_install,
+            universal_update,
+            universal_uninstall,
+            cancel_package_install,
+            refresh_package_index,
+            get_index_freshness,
+            check_internet,
             create_laravel_project,
             ensure_laravel_dependencies,  // Add the new command here
             create_nextjs_project,

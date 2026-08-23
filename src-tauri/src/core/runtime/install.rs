@@ -180,7 +180,7 @@ pub async fn install_runtime(
         download_url,
         runtime_path.to_string_lossy().to_string(),
         archive_type,
-        window,
+        &window,
     )
     .await?;
 
@@ -194,12 +194,12 @@ pub async fn install_runtime(
     })
 }
 
-async fn download_and_extract(
+pub async fn download_and_extract(
     runtime: String,
     url: String,
     dest_path: String,
     archive_type: String,
-    window: tauri::Window,
+    app: &impl tauri::Emitter<tauri::Wry>,
 ) -> Result<(), String> {
     let dest = PathBuf::from(&dest_path);
     fs::create_dir_all(&dest).map_err(|e| e.to_string())?;
@@ -242,7 +242,7 @@ async fn download_and_extract(
 
         if total_size > 0 {
             let progress = (downloaded as f64 / total_size as f64 * 100.0) as u32;
-            let _ = window.emit("download-progress", progress);
+            let _ = app.emit("download-progress", progress);
         }
     }
 

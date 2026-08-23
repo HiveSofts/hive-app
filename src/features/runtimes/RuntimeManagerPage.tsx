@@ -1,95 +1,408 @@
-import { cn } from "@/core/lib/utils";
-
-import { useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import {
-    CheckCircle2,
-    ChevronRight,
-    Cpu,
-    Download,
-    GitBranch,
-    Globe,
-    Package,
+    AlertCircle,
+    CloudOff,
+    PackageOpen,
     RefreshCw,
-    Search,
-    Trash2,
-    Zap,
+    SearchX,
+    ShieldCheck,
+    Wand2,
+    Wifi,
+    WifiOff,
 } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from "@/components/ui/select";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Skeleton } from "@/components/ui/skeleton";
 
-import { PhpPanel } from "./components/panels/PhpPanel";
-import { LANGUAGES } from "./data/languages.data";
-import { LangId } from "./types/runtime.types";
-import { accentMap } from "./utils/accent.utils";
+import { CategoryBar, type CategoryChip } from "./components/CategoryBar";
+import { CatalogCard } from "./components/CatalogCard";
+import { InstallProgressPanel } from "./components/InstallProgressPanel";
+import { ResultCard } from "./components/ResultCard";
+import { ResultDetail } from "./components/ResultDetail";
+import { SearchBar } from "./components/SearchBar";
+import {
+    cancelPackageInstall,
+    checkInternet,
+    detectManagers,
+    getIndexFreshness,
+    getPackageCatalog,
+    getPackageStatuses,
+    installCatalogTool,
+    refreshPackageIndex,
+    searchSystemPackages,
+    uninstallCatalogTool,
+    universalInstall,
+    universalUninstall,
+    universalUpdate,
+    updateCatalogTool,
+} from "./services/toolManager.service";
+import type {
+    CatalogTool,
+    DetectionResult,
+    InstallProgress,
+    PackageManagerKind,
+    RepoIndexProgress,
+    SearchResult,
+} from "./types/package.types";
+
+const ALL_CATEGORY = "All";
 
 export default function RuntimeManagerPage() {
-    const [selected, setSelected] = useState<LangId>("php");
-    const [search, setSearch] = useState("");
+    const [query, setQuery] = useState("");
+    const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
+    const [searchLoading, setSearchLoading] = useState(false);
 
-    const lang = LANGUAGES.find((l) => l.id === selected)!;
-    const colors = accentMap[lang.accent];
+    const [detection, setDetection] = useState<DetectionResult | null>(null);
+    const [catalog, setCatalog] = useState<CatalogTool[]>([]);
+    const [statuses, setStatuses] = useState<Record<string, { installed: boolean; version: string | null }>>({});
+    const [activeCategory, setActiveCategory] = useState(ALL_CATEGORY);
 
-    const filteredLangs = LANGUAGES.filter(
-        (l) =>
-            l.name.toLowerCase().includes(search.toLowerCase()) ||
-            l.description.toLowerCase().includes(search.toLowerCase())
+    const [detail, setDetail] = useState<SearchResult | null>(null);
+    const [detailOpen, setDetailOpen] = useState(false);
+
+    const [progressByTool, setProgressByTool] = useState<Record<string, InstallProgress[]>>({});
+    const [busyTools, setBusyTools] = useState<Record<string, boolean>>({});
+
+    // --- Index freshness + network awareness (Online vs Offline behavior) ------
+    const [indexFreshness, setIndexFreshness] = useState<string | null>(null);
+    const [refreshingIndex, setRefreshingIndex] = useState(false);
+    const [indexRefreshMsg, setIndexRefreshMsg] = useState<string | null>(null);
+    const [online, setOnline] = useState<boolean | null>(null);
+
+    const reqId = useRef(0);
+
+    const recommended = detection?.recommended?.id;
+    const isSearching = query.trim().length > 0;
+
+    /// Format an RFC3339 timestamp as a short relative string ("just now",
+    /// "5m ago", "2h ago", "3d ago", or an absolute date if old).
+    const formatFreshness = useCallback((iso: string): string => {
+        const then = new Date(iso).getTime();
+        if (Number.isNaN(then)) return iso;
+        const diff = Date.now() - then;
+        const sec = Math.floor(diff / 1000);
+        if (sec < 60) return "just now";
+        const min = Math.floor(sec / 60);
+        if (min < 60) return `${min}m ago`;
+        const hr = Math.floor(min / 60);
+        if (hr < 24) return `${hr}h ago`;
+        const day = Math.floor(hr / 24);
+        if (day < 7) return `${day}d ago`;
+        return new Date(iso).toLocaleDateString();
+    }, []);
+
+    /// Load the recommended manager's last-index-refresh timestamp.
+    const loadFreshness = useCallback(() => {
+        const mgr = detection?.recommended?.id;
+        if (!mgr) {
+            setIndexFreshness(null);
+            return;
+        }
+        getIndexFreshness(mgr)
+            .then(setIndexFreshness)
+            .catch(() => setIndexFreshness(null));
+    }, [detection]);
+
+    // --- Detection + catalog + status on mount ------------------------------
+    const loadStatic = useCallback(() => {
+        detectManagers()
+            .then(setDetection)
+            .catch(() => setDetection(null));
+        getPackageCatalog()
+            .then((c) => setCatalog(c.tools))
+            .catch(() => setCatalog([]));
+        getPackageStatuses()
+            .then((s) => {
+                const map: Record<string, { installed: boolean; version: string | null }> = {};
+                for (const st of s) map[st.tool_id] = { installed: st.installed, version: st.version };
+                setStatuses(map);
+            })
+            .catch(() => setStatuses({}));
+        checkInternet().then(setOnline).catch(() => setOnline(null));
+    }, []);
+
+    useEffect(() => {
+        loadStatic();
+    }, [loadStatic]);
+
+    // Once detection resolves, surface the recommended manager's index freshness.
+    useEffect(() => {
+        loadFreshness();
+    }, [loadFreshness]);
+
+    const categories = useMemo<CategoryChip[]>(() => {
+        const counts = new Map<string, number>();
+        for (const t of catalog) counts.set(t.category, (counts.get(t.category) ?? 0) + 1);
+        const chips: CategoryChip[] = [{ label: ALL_CATEGORY, count: catalog.length }];
+        for (const [label, count] of counts) chips.push({ label, count });
+        return chips;
+    }, [catalog]);
+
+    const filteredCatalog = useMemo(
+        () =>
+            activeCategory === ALL_CATEGORY
+                ? catalog
+                : catalog.filter((t) => t.category === activeCategory),
+        [catalog, activeCategory]
     );
 
-    const installedCount = LANGUAGES.filter((l) => l.installed).length;
-
-    const renderPanel = () => {
-        switch (lang.id) {
-            case "php":
-                return <PhpPanel lang={lang} />;
-            default:
-                return (
-                    <div className="text-center py-12 text-muted-foreground">
-                        Panel for {lang.name} coming soon...
-                    </div>
-                );
+    // --- Live cross-manager search (debounced 300ms) ------------------------
+    const runSearch = useCallback(async (term: string) => {
+        const id = ++reqId.current;
+        if (!term.trim()) {
+            setSearchResults([]);
+            setSearchLoading(false);
+            return;
         }
-    };
+        setSearchLoading(true);
+        try {
+            const r = await searchSystemPackages(term);
+            if (id === reqId.current) setSearchResults(r);
+        } catch {
+            if (id === reqId.current) setSearchResults([]);
+        } finally {
+            if (id === reqId.current) setSearchLoading(false);
+        }
+    }, []);
+
+    useEffect(() => {
+        if (!isSearching) {
+            setSearchResults([]);
+            setSearchLoading(false);
+            return;
+        }
+        const h = setTimeout(() => runSearch(query), 300);
+        return () => clearTimeout(h);
+    }, [query, isSearching, runSearch]);
+
+    // --- Progress accumulation ----------------------------------------------
+    const appendProgress = useCallback((p: InstallProgress) => {
+        setProgressByTool((prev) => {
+            const list = prev[p.tool_id] ? [...prev[p.tool_id], p] : [p];
+            return { ...prev, [p.tool_id]: list };
+        });
+    }, []);
+
+    const finishRefresh = useCallback(
+        (term: string) => {
+            if (term.trim()) void runSearch(term);
+            else loadStatic();
+        },
+        [runSearch, loadStatic]
+    );
+
+    // --- Install / update / uninstall (live results) ------------------------
+    const handleInstall = useCallback(
+        async (r: SearchResult, version?: string) => {
+            if (busyTools[r.canonical_id]) return;
+            setBusyTools((b) => ({ ...b, [r.canonical_id]: true }));
+            setProgressByTool((p) => ({ ...p, [r.canonical_id]: [] }));
+            try {
+                await universalInstall(r.source_manager, r.name, r.canonical_id, version, appendProgress);
+            } catch (e) {
+                appendProgress({
+                    tool_id: r.canonical_id,
+                    action: "install",
+                    step: "error",
+                    message: typeof e === "string" ? e : "Install failed",
+                    progress: null,
+                    is_stderr: true,
+                    log: null,
+                    command: null,
+                    failure_reason: "Install failed",
+                    exit_code: null,
+                    done: true,
+                    success: false,
+                });
+            } finally {
+                setBusyTools((b) => ({ ...b, [r.canonical_id]: false }));
+                finishRefresh(query);
+            }
+        },
+        [appendProgress, busyTools, query, finishRefresh]
+    );
+
+    const handleUpdate = useCallback(
+        async (r: SearchResult) => {
+            if (busyTools[r.canonical_id]) return;
+            setBusyTools((b) => ({ ...b, [r.canonical_id]: true }));
+            setProgressByTool((p) => ({ ...p, [r.canonical_id]: [] }));
+            try {
+                await universalUpdate(r.source_manager, r.name, r.canonical_id, appendProgress);
+            } catch (e) {
+                appendProgress({
+                    tool_id: r.canonical_id,
+                    action: "update",
+                    step: "error",
+                    message: typeof e === "string" ? e : "Update failed",
+                    progress: null,
+                    is_stderr: true,
+                    log: null,
+                    command: null,
+                    failure_reason: "Update failed",
+                    exit_code: null,
+                    done: true,
+                    success: false,
+                });
+            } finally {
+                setBusyTools((b) => ({ ...b, [r.canonical_id]: false }));
+                finishRefresh(query);
+            }
+        },
+        [appendProgress, busyTools, query, finishRefresh]
+    );
+
+    const handleUninstall = useCallback(
+        async (r: SearchResult) => {
+            if (busyTools[r.canonical_id]) return;
+            try {
+                await universalUninstall(r.source_manager, r.name);
+            } catch {
+                /* ignore */
+            } finally {
+                finishRefresh(query);
+            }
+        },
+        [busyTools, query, finishRefresh]
+    );
+
+    // --- Install / update / uninstall (catalog tools) -----------------------
+    const handleCatalogInstall = useCallback(
+        async (tool: CatalogTool, version?: string) => {
+            if (busyTools[tool.id]) return;
+            setBusyTools((b) => ({ ...b, [tool.id]: true }));
+            setProgressByTool((p) => ({ ...p, [tool.id]: [] }));
+            try {
+                await installCatalogTool(tool.id, version ?? "", appendProgress);
+            } catch (e) {
+                appendProgress({
+                    tool_id: tool.id,
+                    action: "install",
+                    step: "error",
+                    message: typeof e === "string" ? e : "Install failed",
+                    progress: null,
+                    is_stderr: true,
+                    log: null,
+                    command: null,
+                    failure_reason: "Install failed",
+                    exit_code: null,
+                    done: true,
+                    success: false,
+                });
+            } finally {
+                setBusyTools((b) => ({ ...b, [tool.id]: false }));
+                finishRefresh(query);
+            }
+        },
+        [appendProgress, busyTools, finishRefresh, query]
+    );
+
+    const handleCatalogUpdate = useCallback(
+        async (tool: CatalogTool) => {
+            if (busyTools[tool.id]) return;
+            setBusyTools((b) => ({ ...b, [tool.id]: true }));
+            setProgressByTool((p) => ({ ...p, [tool.id]: [] }));
+            try {
+                await updateCatalogTool(tool.id, "", appendProgress);
+            } catch (e) {
+                appendProgress({
+                    tool_id: tool.id,
+                    action: "update",
+                    step: "error",
+                    message: typeof e === "string" ? e : "Update failed",
+                    progress: null,
+                    is_stderr: true,
+                    log: null,
+                    command: null,
+                    failure_reason: "Update failed",
+                    exit_code: null,
+                    done: true,
+                    success: false,
+                });
+            } finally {
+                setBusyTools((b) => ({ ...b, [tool.id]: false }));
+                finishRefresh(query);
+            }
+        },
+        [appendProgress, busyTools, finishRefresh, query]
+    );
+
+    const handleCatalogUninstall = useCallback(
+        async (tool: CatalogTool) => {
+            if (busyTools[tool.id]) return;
+            try {
+                await uninstallCatalogTool(tool.id, "");
+            } catch {
+                /* ignore */
+            } finally {
+                finishRefresh(query);
+            }
+        },
+        [busyTools, finishRefresh, query]
+    );
+
+    const handleCancel = useCallback(async (id: string) => {
+        await cancelPackageInstall(id);
+    }, []);
+
+    /// Refresh the recommended manager's repository index (explicit Refresh
+    /// button). Streams progress into a small inline status line.
+    const handleRefreshIndex = useCallback(async () => {
+        const mgr = detection?.recommended?.id;
+        if (!mgr || refreshingIndex) return;
+        setRefreshingIndex(true);
+        setIndexRefreshMsg("Refreshing repository index…");
+        try {
+            await refreshPackageIndex(mgr, (p: RepoIndexProgress) => {
+                if (!p.done) setIndexRefreshMsg(p.message || "Refreshing repository index…");
+            });
+            setIndexRefreshMsg("Repository index updated");
+            loadFreshness();
+            await checkInternet().then(setOnline).catch(() => setOnline(null));
+        } catch {
+            setIndexRefreshMsg("Index refresh failed — check your connection");
+        } finally {
+            setRefreshingIndex(false);
+        }
+    }, [detection, refreshingIndex, loadFreshness]);
+
+    const openDetail = useCallback((r: SearchResult) => {
+        setDetail(r);
+        setDetailOpen(true);
+    }, []);
+
+    const needsElevation = (m: PackageManagerKind) =>
+        detection?.all_found.find((x) => x.id === m)?.requires_elevation ?? false;
+
+    const activeProgress = Object.values(progressByTool).filter((l) => l.length > 0).flat();
 
     return (
         <div className="min-h-screen flex flex-col">
+            {/* Header */}
             <div className="border-b border-white/10 bg-black/20 backdrop-blur-sm sticky top-0 z-10">
-                <div className="px-6 py-4 flex items-center justify-between">
+                <div className="px-6 py-4 flex items-center justify-between gap-4 flex-wrap">
                     <div className="flex items-center gap-3">
                         <div className="w-9 h-9 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center">
-                            <Cpu className="w-5 h-5 text-white/80" />
+                            <Wand2 className="w-5 h-5 text-white/80" />
                         </div>
                         <div>
-                            <h1 className="text-base font-semibold tracking-tight">
-                                Runtime Manager
-                            </h1>
+                            <h1 className="text-base font-semibold tracking-tight">Runtimes</h1>
                             <p className="text-[11px] text-muted-foreground">
-                                {installedCount} of {LANGUAGES.length} languages installed
+                                Browse and install runtimes, tools &amp; packages
                             </p>
                         </div>
                     </div>
-                    <div className="flex items-center gap-2">
-                        <div className="relative">
-                            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3 h-3 text-muted-foreground" />
-                            <Input
-                                placeholder="Search runtimes..."
-                                value={search}
-                                onChange={(e) => setSearch(e.target.value)}
-                                className="pl-7 h-7 text-xs w-44 bg-white/5 border-white/10"
-                            />
-                        </div>
+
+                    <div className="flex items-center gap-2.5">
+                        <DetectionBadge detection={detection} />
+                        <NetworkBadge online={online} />
                         <Button
                             size="sm"
                             variant="outline"
+                            onClick={() => loadStatic()}
                             className="h-7 text-xs gap-1.5 border-white/10 bg-white/5"
                         >
                             <RefreshCw className="w-3 h-3" />
@@ -97,230 +410,264 @@ export default function RuntimeManagerPage() {
                         </Button>
                     </div>
                 </div>
-            </div>
 
-            <div className="flex flex-1">
-                <div className="w-64 shrink-0 border-r border-white/10 bg-black/10">
-                    <div className="p-3 space-y-1">
-                        {filteredLangs.map((l) => {
-                            const c = accentMap[l.accent];
-                            const isSelected = l.id === selected;
-                            return (
-                                <button
-                                    key={l.id}
-                                    onClick={() => setSelected(l.id)}
-                                    className={cn(
-                                        "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left transition-all duration-150",
-                                        isSelected
-                                            ? cn("bg-white/10 border border-white/15", "shadow-sm")
-                                            : "hover:bg-white/5 border border-transparent"
-                                    )}
-                                >
-                                    <div
-                                        className={cn(
-                                            "w-8 h-8 rounded-lg flex items-center justify-center text-base shrink-0",
-                                            isSelected ? c.bg : "bg-white/5"
-                                        )}
-                                    >
-                                        {l.icon}
-                                    </div>
-                                    <div className="flex-1 min-w-0">
-                                        <div className="flex items-center gap-1.5">
-                                            <span className="text-sm font-medium truncate">
-                                                {l.name}
-                                            </span>
-                                            {l.installed && (
-                                                <div
-                                                    className={cn(
-                                                        "w-1.5 h-1.5 rounded-full shrink-0",
-                                                        isSelected
-                                                            ? c.text.replace("text-", "bg-")
-                                                            : "bg-green-400/60"
-                                                    )}
-                                                />
-                                            )}
-                                        </div>
-                                        <p className="text-[11px] text-muted-foreground truncate">
-                                            {l.installed ? l.currentVersion : "Not installed"}
-                                        </p>
-                                    </div>
-                                    {isSelected && (
-                                        <ChevronRight className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
-                                    )}
-                                </button>
-                            );
-                        })}
-                    </div>
-                </div>
-
-                <div className="flex-1 overflow-auto">
-                    <div className="p-6 space-y-6">
-                        <div
-                            className={cn(
-                                "rounded-2xl border p-5",
-                                colors.border,
-                                "bg-gradient-to-br from-white/5 to-transparent"
-                            )}
-                        >
-                            <div className="flex items-center justify-between">
-                                <div className="flex items-center gap-4">
-                                    <div
-                                        className={cn(
-                                            "w-14 h-14 rounded-2xl border flex items-center justify-center text-3xl",
-                                            colors.border,
-                                            colors.bg
-                                        )}
-                                    >
-                                        {lang.icon}
-                                    </div>
-                                    <div>
-                                        <div className="flex items-center gap-2.5">
-                                            <h2 className="text-xl font-bold">{lang.name}</h2>
-                                            {lang.installed ? (
-                                                <Badge
-                                                    variant="outline"
-                                                    className={cn(
-                                                        "text-xs border",
-                                                        colors.border,
-                                                        colors.text
-                                                    )}
-                                                >
-                                                    <CheckCircle2 className="w-3 h-3 mr-1" />
-                                                    {lang.currentVersion}
-                                                </Badge>
-                                            ) : (
-                                                <Badge
-                                                    variant="outline"
-                                                    className="text-xs border-white/10 text-white/40"
-                                                >
-                                                    Not installed
-                                                </Badge>
-                                            )}
-                                        </div>
-                                        <p className="text-sm text-muted-foreground mt-0.5">
-                                            {lang.description}
-                                        </p>
-                                        <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1.5">
-                                            <Package className="w-3 h-3" />
-                                            {lang.packageManager}
-                                        </p>
-                                    </div>
-                                </div>
-
-                                <div className="flex items-center gap-2">
-                                    <Select
-                                        defaultValue={
-                                            lang.currentVersion || lang.versions[0]?.version
-                                        }
-                                    >
-                                        <SelectTrigger
-                                            className={cn(
-                                                "w-36 h-8 text-xs border",
-                                                colors.border,
-                                                "bg-white/5"
-                                            )}
-                                        >
-                                            <SelectValue />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            {lang.versions.map((v) => (
-                                                <SelectItem
-                                                    key={v.version}
-                                                    value={v.version}
-                                                    className="text-xs"
-                                                >
-                                                    {v.version}
-                                                </SelectItem>
-                                            ))}
-                                        </SelectContent>
-                                    </Select>
-
-                                    {lang.installed ? (
-                                        <>
-                                            <Button
-                                                size="sm"
-                                                variant="outline"
-                                                className="h-8 text-xs gap-1.5 border-white/10 bg-white/5"
-                                            >
-                                                <RefreshCw className="w-3.5 h-3.5" />
-                                                Update
-                                            </Button>
-                                            <Button
-                                                size="sm"
-                                                variant="outline"
-                                                className="h-8 text-xs gap-1.5 border-red-500/30 bg-red-500/10 text-red-400 hover:bg-red-500/20"
-                                            >
-                                                <Trash2 className="w-3.5 h-3.5" />
-                                                Remove
-                                            </Button>
-                                        </>
-                                    ) : (
-                                        <Button
-                                            size="sm"
-                                            className={cn(
-                                                "h-8 text-xs gap-1.5",
-                                                colors.bg,
-                                                colors.text,
-                                                "border",
-                                                colors.border,
-                                                "hover:opacity-90"
-                                            )}
-                                        >
-                                            <Download className="w-3.5 h-3.5" />
-                                            Install
-                                        </Button>
-                                    )}
-                                </div>
-                            </div>
-
-                            <div className="grid grid-cols-4 gap-3 mt-5 pt-4 border-t border-white/10">
-                                {[
-                                    {
-                                        label: "Versions",
-                                        value: lang.versions.length,
-                                        icon: <GitBranch className="w-3.5 h-3.5" />,
-                                    },
-                                    {
-                                        label: "Pkg Manager",
-                                        value: lang.packageManager.split(" / ")[0],
-                                        icon: <Package className="w-3.5 h-3.5" />,
-                                    },
-                                    {
-                                        label: "Status",
-                                        value: lang.installed ? "Active" : "Not installed",
-                                        icon: <Zap className="w-3.5 h-3.5" />,
-                                    },
-                                    {
-                                        label: "Platform",
-                                        value: "Cross-platform",
-                                        icon: <Globe className="w-3.5 h-3.5" />,
-                                    },
-                                ].map((stat) => (
-                                    <div key={stat.label} className="flex items-center gap-2">
-                                        <div
-                                            className={cn(
-                                                "w-7 h-7 rounded-lg flex items-center justify-center shrink-0",
-                                                colors.bg,
-                                                colors.text
-                                            )}
-                                        >
-                                            {stat.icon}
-                                        </div>
-                                        <div>
-                                            <p className="text-[10px] text-muted-foreground">
-                                                {stat.label}
-                                            </p>
-                                            <p className="text-xs font-medium">{stat.value}</p>
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-
-                        {renderPanel()}
-                    </div>
+                <div className="px-6 pb-3">
+                    <SearchBar
+                        value={query}
+                        onChange={setQuery}
+                        loading={searchLoading}
+                        placeholder="Search any package, runtime, or tool (apt, brew, winget…)"
+                    />
+                    <FreshnessBar
+                        display={detection?.recommended?.display ?? null}
+                        freshness={indexFreshness}
+                        refreshing={refreshingIndex}
+                        message={indexRefreshMsg}
+                        formatFreshness={formatFreshness}
+                        onRefresh={handleRefreshIndex}
+                    />
                 </div>
             </div>
+
+            {/* Body */}
+            <div className="flex-1 flex flex-col">
+                <div className="px-6 py-3 border-b border-white/5">
+                    <CategoryBar
+                        categories={categories}
+                        active={activeCategory}
+                        onSelect={(c) => {
+                            setQuery("");
+                            setActiveCategory(c);
+                        }}
+                    />
+                </div>
+
+                <ScrollArea className="flex-1">
+                    <div className="px-6 py-4 space-y-3">
+                        {activeProgress.length > 0 && (
+                            <InstallProgressPanel
+                                active={activeProgress}
+                                onCancel={() => {
+                                    const running = Object.entries(progressByTool).find(
+                                        ([, l]) => l.length > 0 && !l[l.length - 1].done
+                                    );
+                                    if (running) void handleCancel(running[0]);
+                                }}
+                            />
+                        )}
+
+                        {/* --- Live search results --- */}
+                        {isSearching ? (
+                            searchLoading ? (
+                                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-3">
+                                    {Array.from({ length: 8 }).map((_, i) => (
+                                        <Skeleton key={i} className="h-[150px] w-full rounded-xl" />
+                                    ))}
+                                </div>
+                            ) : searchResults.length === 0 ? (
+                                <EmptyState searching query={query} />
+                            ) : (
+                                <>
+                                    <SectionLabel
+                                        icon={<SearchX className="w-3.5 h-3.5" />}
+                                        text={`Live results for “${query}”`}
+                                    />
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-3">
+                                        {searchResults.map((r) => (
+                                            <ResultCard
+                                                key={r.canonical_id}
+                                                result={r}
+                                                disabled={busyTools[r.canonical_id]}
+                                                onClick={() => openDetail(r)}
+                                                onInstall={handleInstall}
+                                                onUpdate={handleUpdate}
+                                                onUninstall={handleUninstall}
+                                            />
+                                        ))}
+                                    </div>
+                                </>
+                            )
+                        ) : /* --- Default: curated catalog browse --- */
+                        filteredCatalog.length === 0 ? (
+                            <EmptyState searching={false} query="" />
+                        ) : (
+                            <>
+                                <SectionLabel
+                                    icon={<PackageOpen className="w-3.5 h-3.5" />}
+                                    text={
+                                        activeCategory === ALL_CATEGORY
+                                            ? "Curated tools"
+                                            : activeCategory
+                                    }
+                                />
+                                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-3">
+                                    {filteredCatalog.map((tool) => (
+                                        <CatalogCard
+                                            key={tool.id}
+                                            tool={tool}
+                                            status={statuses[tool.id]}
+                                            detected={recommended}
+                                            busy={busyTools[tool.id]}
+                                            onInstall={handleCatalogInstall}
+                                            onUpdate={handleCatalogUpdate}
+                                            onUninstall={handleCatalogUninstall}
+                                            onSearch={(name) => {
+                                                setQuery(name);
+                                            }}
+                                        />
+                                    ))}
+                                </div>
+                            </>
+                        )}
+                    </div>
+                </ScrollArea>
+            </div>
+
+            <ResultDetail
+                result={detail}
+                open={detailOpen}
+                onOpenChange={setDetailOpen}
+                onInstall={handleInstall}
+                onUpdate={handleUpdate}
+                onUninstall={handleUninstall}
+                busy={detail ? busyTools[detail.canonical_id] : false}
+                elevationRequired={detail ? needsElevation(detail.source_manager) : false}
+            />
         </div>
     );
 }
+
+// ---------------------------------------------------------------------------
+
+function SectionLabel({ icon, text }: { icon: React.ReactNode; text: string }) {
+    return (
+        <div className="flex items-center gap-2 text-[11px] uppercase tracking-wide text-white/40 pt-1">
+            {icon}
+            <span>{text}</span>
+        </div>
+    );
+}
+
+function DetectionBadge({ detection }: { detection: DetectionResult | null }) {
+    if (!detection) {
+        return (
+            <Badge variant="outline" className="text-[11px] gap-1 border-white/10 text-white/40">
+                <AlertCircle className="w-3 h-3" />
+                Detecting…
+            </Badge>
+        );
+    }
+    if (detection.uses_static_fallback || !detection.recommended) {
+        return (
+            <Badge
+                variant="outline"
+                className="text-[11px] gap-1 border-amber-500/30 text-amber-300"
+            >
+                <AlertCircle className="w-3 h-3" />
+                No manager — static only
+            </Badge>
+        );
+    }
+    const m = detection.recommended;
+    return (
+        <Badge
+            variant="outline"
+            className="text-[11px] gap-1 border-white/15 text-white/60"
+        >
+            <ShieldCheck className="w-3 h-3 text-green-400" />
+            {m.display}
+            {m.requires_elevation && <span className="text-white/30">· sudo</span>}
+        </Badge>
+    );
+}
+
+/// Small connectivity indicator. `null` = unknown (probe still running).
+function NetworkBadge({ online }: { online: boolean | null }) {
+    if (online === null) {
+        return (
+            <Badge variant="outline" className="text-[11px] gap-1 border-white/10 text-white/40">
+                <CloudOff className="w-3 h-3 opacity-40" />
+                Network…
+            </Badge>
+        );
+    }
+    if (online) {
+        return (
+            <Badge variant="outline" className="text-[11px] gap-1 border-green-500/30 text-green-400">
+                <Wifi className="w-3 h-3" />
+                Online
+            </Badge>
+        );
+    }
+    return (
+        <Badge variant="outline" className="text-[11px] gap-1 border-amber-500/30 text-amber-300">
+            <WifiOff className="w-3 h-3" />
+            Offline
+        </Badge>
+    );
+}
+
+/// Surfaces the recommended manager's index freshness + a manual Refresh that
+/// pulls the latest repository metadata. Search itself stays offline-capable.
+function FreshnessBar({
+    display,
+    freshness,
+    refreshing,
+    message,
+    formatFreshness,
+    onRefresh,
+}: {
+    display: string | null;
+    freshness: string | null;
+    refreshing: boolean;
+    message: string | null;
+    formatFreshness: (iso: string) => string;
+    onRefresh: () => void;
+}) {
+    const hint = freshness ? `last updated ${formatFreshness(freshness)}` : "index never refreshed";
+    return (
+        <div className="mt-2 flex items-center justify-between gap-3 text-[11px] text-white/40">
+            <span className="flex items-center gap-1.5 min-w-0">
+                <RefreshCw className="w-3 h-3 shrink-0 opacity-60" />
+                <span className="truncate">
+                    {display ? `${display} repository index ` : "Repository index "}
+                    {message ? message : hint}
+                </span>
+            </span>
+            <Button
+                size="sm"
+                variant="ghost"
+                disabled={refreshing || !display}
+                onClick={onRefresh}
+                className="h-6 text-[11px] gap-1 text-white/50 hover:text-white/80 hover:bg-white/5 shrink-0"
+            >
+                <RefreshCw className={refreshing ? "w-3 h-3 animate-spin" : "w-3 h-3"} />
+                {refreshing ? "Refreshing…" : "Refresh index"}
+            </Button>
+        </div>
+    );
+}
+
+function EmptyState({ searching, query }: { searching: boolean; query: string }) {
+    return (
+        <div className="text-center py-16 text-muted-foreground">
+            {searching ? (
+                <>
+                    <SearchX className="w-8 h-8 mx-auto mb-3 opacity-40" />
+                    <p className="text-sm">No packages matched “{query}”.</p>
+                    <p className="text-[12px] mt-1 opacity-70">
+                        Try a different term, or clear the search to browse curated tools.
+                    </p>
+                </>
+            ) : (
+                <>
+                    <PackageOpen className="w-8 h-8 mx-auto mb-3 opacity-40" />
+                    <p className="text-sm">No tools in this category yet.</p>
+                </>
+            )}
+        </div>
+    );
+}
+
+// ---------------------------------------------------------------------------
+// Catalog tool card lives in ./components/CatalogCard.tsx

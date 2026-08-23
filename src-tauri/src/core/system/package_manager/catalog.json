@@ -1,0 +1,159 @@
+{
+  "schema_version": 1,
+  "tools": [
+    {
+      "id": "php",
+      "name": "PHP",
+      "description": "General-purpose scripting language for web development",
+      "category": "Languages",
+      "icon": "🐘",
+      "homepage": "https://php.net",
+      "verify_binary": "php",
+      "verify_version_arg": "-v",
+      "packages": [
+        { "manager": "apt", "name": "php", "versions": { "8.4": "php8.4", "8.3": "php8.3", "8.2": "php8.2", "8.1": "php8.1" } },
+        { "manager": "dnf", "name": "php", "versions": {} },
+        { "manager": "pacman", "name": "php", "versions": {} },
+        { "manager": "zypper", "name": "php8", "versions": {} },
+        { "manager": "apk", "name": "php", "versions": {} },
+        { "manager": "brew", "name": "php", "versions": {} },
+        { "manager": "winget", "name": "OpenJS.PHP", "versions": {} },
+        { "manager": "choco", "name": "php", "versions": {} },
+        { "manager": "static", "archive": "tar.gz", "url_template": "https://github.com/crazywhalecc/static-php-cli/releases/download/{version}/php-{version}-{os}-{arch}.tar.gz" }
+      ]
+    },
+    {
+      "id": "node",
+      "name": "Node.js",
+      "description": "JavaScript runtime built on Chrome's V8 engine",
+      "category": "Runtimes",
+      "icon": "⬢",
+      "homepage": "https://nodejs.org",
+      "verify_binary": "node",
+      "verify_version_arg": "-v",
+      "packages": [
+        { "manager": "apt", "name": "nodejs", "versions": {} },
+        { "manager": "dnf", "name": "nodejs", "versions": {} },
+        { "manager": "pacman", "name": "nodejs", "versions": {} },
+        { "manager": "apk", "name": "nodejs", "versions": {} },
+        { "manager": "brew", "name": "node", "versions": {} },
+        { "manager": "winget", "name": "OpenJS.NodeJS", "versions": {} },
+        { "manager": "choco", "name": "nodejs", "versions": {} },
+        { "manager": "static", "archive": "tar.xz", "url_template": "https://nodejs.org/dist/v{version}/node-v{version}-{os}-{arch}.tar.xz" }
+      ]
+    },
+    {
+      "id": "composer",
+      "name": "Composer",
+      "description": "Dependency manager for PHP",
+      "category": "Package Managers",
+      "icon": "📦",
+      "homepage": "https://getcomposer.org",
+      "verify_binary": "composer",
+      "verify_version_arg": "--version",
+      "packages": [
+        { "manager": "apt", "name": "composer", "versions": {} },
+        { "manager": "dnf", "name": "composer", "versions": {} },
+        { "manager": "pacman", "name": "composer", "versions": {} },
+        { "manager": "brew", "name": "composer", "versions": {} },
+        { "manager": "winget", "name": "Composer.Composer", "versions": {} },
+        { "manager": "choco", "name": "composer", "versions": {} },
+        { "manager": "static", "archive": "phar", "url_template": "https://getcomposer.org/download/{version}/composer.phar" }
+      ]
+    },
+    {
+      "id": "git",
+      "name": "Git",
+      "description": "Distributed version control system",
+      "category": "CLI Tools",
+      "icon": "🔧",
+      "homepage": "https://git-scm.com",
+      "verify_binary": "git",
+      "verify_version_arg": "--version",
+      "packages": [
+        { "manager": "apt", "name": "git", "versions": {} },
+        { "manager": "dnf", "name": "git", "versions": {} },
+        { "manager": "pacman", "name": "git", "versions": {} },
+        { "manager": "apk", "name": "git", "versions": {} },
+        { "manager": "brew", "name": "git", "versions": {} },
+        { "manager": "winget", "name": "Git.Git", "versions": {} },
+        { "manager": "choco", "name": "git", "versions": {} }
+      ]
+    },
+    {
+      "id": "sqlite",
+      "name": "SQLite",
+      "description": "Self-contained, serverless SQL database engine",
+      "category": "Databases",
+      "icon": "🗄️",
+      "homepage": "https://sqlite.org",
+      "verify_binary": "sqlite3",
+      "verify_version_arg": "--version",
+      "packages": [
+        { "manager": "apt", "name": "sqlite3", "versions": {} },
+        { "manager": "dnf", "name": "sqlite", "versions": {} },
+        { "manager": "pacman", "name": "sqlite", "versions": {} },
+        { "manager": "apk", "name": "sqlite", "versions": {} },
+        { "manager": "brew", "name": "sqlite3", "versions": {} },
+        { "manager": "winget", "name": "SQLite.SQLite", "versions": {} },
+        { "manager": "choco", "name": "sqlite", "versions": {} }
+      ]
+    },
+    {
+      "id": "python3",
+      "name": "Python",
+      "description": "Interpreted, high-level programming language",
+      "category": "Languages",
+      "icon": "🐍",
+      "homepage": "https://python.org",
+      "verify_binary": "python3",
+      "verify_version_arg": "--version",
+      "packages": [
+        { "manager": "apt", "name": "python3", "versions": { "3.12": "python3.12", "3.11": "python3.11", "3.10": "python3.10" } },
+        { "manager": "dnf", "name": "python3", "versions": {} },
+        { "manager": "pacman", "name": "python", "versions": {} },
+        { "manager": "apk", "name": "python3", "versions": {} },
+        { "manager": "brew", "name": "python", "versions": {} },
+        { "manager": "winget", "name": "Python.Python.3.12", "versions": {} }
+      ]
+    },
+    {
+      "id": "curl",
+      "name": "curl",
+      "description": "Command-line tool for transferring data with URLs",
+      "category": "CLI Tools",
+      "icon": "🌐",
+      "homepage": "https://curl.se",
+      "verify_binary": "curl",
+      "verify_version_arg": "--version",
+      "packages": [
+        { "manager": "apt", "name": "curl", "versions": {} },
+        { "manager": "dnf", "name": "curl", "versions": {} },
+        { "manager": "pacman", "name": "curl", "versions": {} },
+        { "manager": "apk", "name": "curl", "versions": {} },
+        { "manager": "brew", "name": "curl", "versions": {} },
+        { "manager": "winget", "name": "cURL.cURL", "versions": {} },
+        { "manager": "choco", "name": "curl", "versions": {} }
+      ]
+    },
+    {
+      "id": "docker-cli",
+      "name": "Docker CLI",
+      "description": "Containerization tooling (engine + CLI)",
+      "category": "Build Tools",
+      "icon": "🐳",
+      "homepage": "https://docker.com",
+      "verify_binary": "docker",
+      "verify_version_arg": "--version",
+      "packages": [
+        { "manager": "apt", "name": "docker.io", "versions": {} },
+        { "manager": "dnf", "name": "docker-ce", "versions": {} },
+        { "manager": "pacman", "name": "docker", "versions": {} },
+        { "manager": "apk", "name": "docker", "versions": {} },
+        { "manager": "brew", "name": "docker", "versions": {} },
+        { "manager": "winget", "name": "Docker.DockerDesktop", "versions": {} },
+        { "manager": "choco", "name": "docker-desktop", "versions": {} }
+      ]
+    }
+  ]
+}
