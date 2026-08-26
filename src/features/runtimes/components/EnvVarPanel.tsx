@@ -14,7 +14,9 @@ interface EnvVarPanelProps {
 }
 
 export function EnvVarPanel({ vars }: EnvVarPanelProps) {
-    const [envVars, setEnvVars] = useState(vars);
+    const [envVars, setEnvVars] = useState<(EnvVar & { id: string })[]>(() =>
+        vars.map((v) => ({ ...v, id: crypto.randomUUID() }))
+    );
 
     return (
         <div className="space-y-2">
@@ -25,7 +27,10 @@ export function EnvVarPanel({ vars }: EnvVarPanelProps) {
                     size="sm"
                     className="h-6 text-[11px] gap-1"
                     onClick={() =>
-                        setEnvVars((prev) => [...prev, { key: "", value: "", description: "" }])
+                        setEnvVars((prev) => [
+                            ...prev,
+                            { key: "", value: "", description: "", id: crypto.randomUUID() },
+                        ])
                     }
                 >
                     <Plus className="w-3 h-3" />
@@ -33,17 +38,17 @@ export function EnvVarPanel({ vars }: EnvVarPanelProps) {
                 </Button>
             </div>
             <div className="rounded-xl border border-white/10 overflow-hidden divide-y divide-white/5">
-                {envVars.map((ev, i) => (
+                {envVars.map((ev) => (
                     <div
-                        key={i}
+                        key={ev.id}
                         className="flex items-center gap-2 px-3 py-2 hover:bg-white/5 transition-colors group"
                     >
                         <Input
                             value={ev.key}
                             onChange={(e) =>
                                 setEnvVars((prev) =>
-                                    prev.map((v, j) =>
-                                        j === i ? { ...v, key: e.target.value } : v
+                                    prev.map((v) =>
+                                        v.id === ev.id ? { ...v, key: e.target.value } : v
                                     )
                                 )
                             }
@@ -55,8 +60,8 @@ export function EnvVarPanel({ vars }: EnvVarPanelProps) {
                             value={ev.value}
                             onChange={(e) =>
                                 setEnvVars((prev) =>
-                                    prev.map((v, j) =>
-                                        j === i ? { ...v, value: e.target.value } : v
+                                    prev.map((v) =>
+                                        v.id === ev.id ? { ...v, value: e.target.value } : v
                                     )
                                 )
                             }
@@ -65,7 +70,7 @@ export function EnvVarPanel({ vars }: EnvVarPanelProps) {
                         />
                         <CopyButton text={`${ev.key}=${ev.value}`} />
                         <button
-                            onClick={() => setEnvVars((prev) => prev.filter((_, j) => j !== i))}
+                            onClick={() => setEnvVars((prev) => prev.filter((v) => v.id !== ev.id))}
                             className="p-1 rounded hover:bg-white/5 text-muted-foreground hover:text-red-400 transition-colors opacity-0 group-hover:opacity-100"
                         >
                             <X className="w-3 h-3" />

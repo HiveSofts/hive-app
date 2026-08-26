@@ -45,9 +45,28 @@ export function useTunnel(options: UseTunnelOptions = {}) {
     // Track which session ID the live-log listener is currently bound to
     const activeSessionIdRef = useRef<number | null>(null);
 
+    const refreshActiveTunnels = useCallback(async () => {
+        const tunnels = await getAllActiveTunnels();
+        setActiveTunnels(tunnels);
+    }, []);
+
+    const checkSetup = useCallback(async () => {
+        setStep("checking");
+        try {
+            const cfg = await getTunnelConfig();
+            setConfig(cfg);
+            setStep("idle");
+            await refreshActiveTunnels();
+        } catch (e) {
+            setStep("error");
+            setError(String(e));
+        }
+    }, [refreshActiveTunnels]);
+
     // ── event listeners (set up once, never torn down until unmount) ──────────
     useEffect(() => {
         let mounted = true;
+        const unsubs: Array<() => void> = [];
 
         const setup = async () => {
             const u1 = await onTunnelEvent((event) => {
@@ -77,6 +96,11 @@ export function useTunnel(options: UseTunnelOptions = {}) {
                     refreshActiveTunnels();
                 }
             });
+            if (!mounted) {
+                u1();
+                return;
+            }
+            unsubs.push(u1);
 
             // Only accept log lines that belong to the *current* session
             const u2 = await onTunnelLog((log) => {
@@ -93,22 +117,31 @@ export function useTunnel(options: UseTunnelOptions = {}) {
                     return next.length > 500 ? next.slice(-500) : next;
                 });
             });
+            if (!mounted) {
+                u2();
+                return;
+            }
+            unsubs.push(u2);
 
             const u3 = await onInstallProgress((p) => {
                 if (!mounted) return;
                 setInstallProgress(p.progress);
             });
-
-            unlistenRefs.current = [u1, u2, u3];
+            if (!mounted) {
+                u3();
+                return;
+            }
+            unsubs.push(u3);
         };
 
         setup();
 
         return () => {
             mounted = false;
-            unlistenRefs.current.forEach((u) => u());
+            unsubs.forEach((u) => u());
+            unlistenRefs.current = [];
         };
-    }, []);
+    }, [refreshActiveTunnels]);
 
     // Keep activeSessionIdRef in sync with the current session
     useEffect(() => {
@@ -117,7 +150,7 @@ export function useTunnel(options: UseTunnelOptions = {}) {
 
     useEffect(() => {
         if (autoCheck) checkSetup();
-    }, [autoCheck]);
+    }, [autoCheck, checkSetup]);
 
     useEffect(() => {
         if (!projectPath) return;
@@ -130,24 +163,6 @@ export function useTunnel(options: UseTunnelOptions = {}) {
             }
         });
     }, [projectPath]);
-
-    const refreshActiveTunnels = useCallback(async () => {
-        const tunnels = await getAllActiveTunnels();
-        setActiveTunnels(tunnels);
-    }, []);
-
-    const checkSetup = useCallback(async () => {
-        setStep("checking");
-        try {
-            const cfg = await getTunnelConfig();
-            setConfig(cfg);
-            setStep("idle");
-            await refreshActiveTunnels();
-        } catch (e) {
-            setStep("error");
-            setError(String(e));
-        }
-    }, []);
 
     const installBinary = useCallback(async () => {
         setStep("installing");

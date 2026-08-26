@@ -6,7 +6,7 @@ export interface Project {
     type: string;
     url: string;
     php: string;
-    status: "running" | "stopped";
+    status: "running" | "stopped" | "error";
     pinned: boolean;
     port: number;
     path?: string;

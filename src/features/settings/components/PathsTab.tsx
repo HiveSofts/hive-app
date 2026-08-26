@@ -53,7 +53,12 @@ export function PathsTab({ settings, updateSetting }: PathsTabProps) {
                 <Input
                     type="number"
                     value={settings.proxyPort}
-                    onChange={(e) => updateSetting("proxyPort", parseInt(e.target.value))}
+                    onChange={(e) => {
+                        const parsed = parseInt(e.target.value, 10);
+                        if (Number.isFinite(parsed) && parsed >= 1 && parsed <= 65535) {
+                            updateSetting("proxyPort", parsed);
+                        }
+                    }}
                     className="font-mono text-xs h-8 w-32"
                 />
             </div>

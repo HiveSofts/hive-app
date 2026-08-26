@@ -38,7 +38,11 @@ function containerToService(c: ContainerInfo): Service {
     return {
         id: c.id,
         name: c.name,
-        version: c.image.includes(":") ? c.image.split(":").slice(1).join(":") : "",
+            version: (() => {
+                const lastSlash = c.image.lastIndexOf("/");
+                const lastColon = c.image.lastIndexOf(":");
+                return lastColon > lastSlash ? c.image.slice(lastColon + 1) : "";
+            })(),
         port: c.ports[0]?.host_port || 0,
         status,
         mem: "—",
@@ -74,7 +78,13 @@ function toDashboardProject(p: {
         type: p.type || "unknown",
         url: p.host || `${p.name}.test`,
         php: p.phpVersion || p.nodeVersion || "—",
-        status: p.isRunning ? "running" : p.status === "running" ? "running" : "stopped",
+        status: p.isRunning
+            ? "running"
+            : p.status === "running"
+            ? "running"
+            : p.status === "error"
+            ? "error"
+            : "stopped",
         pinned: false,
         port: p.port || 0,
         path: p.path,
@@ -208,8 +218,8 @@ export const dashboardService = {
     async getDnsProxyData(): Promise<DnsProxyData> {
         try {
             const [nginxOut, dnsOut, reqsOut, zoneOut] = await Promise.all([
-                shellCmd("ss -tlnp 2>/dev/null | grep ':80 ' | head -1 || echo 'inactive'").catch(() => "inactive"),
-                shellCmd("ss -ulnp 2>/dev/null | grep ':53 ' | head -1 || echo 'inactive'").catch(() => "inactive"),
+                shellCmd("ss -tlnp 2>/dev/null | grep -q ':80 ' && echo active || echo inactive").catch(() => "inactive"),
+                shellCmd("ss -ulnp 2>/dev/null | grep -q ':53 ' && echo active || echo inactive").catch(() => "inactive"),
                 shellCmd("cat /proc/net/sockstat 2>/dev/null | awk '/TCP:/ {print $3}' || echo '0'").catch(() => "0"),
                 shellCmd("awk '/^search/ {print $2}' /etc/resolv.conf 2>/dev/null || echo 'local'").catch(() => "local"),
             ]);

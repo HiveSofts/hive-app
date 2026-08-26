@@ -38,7 +38,7 @@ export function useDashboard() {
         sslCerts: { domain: string; expiry: string; daysLeft: number }[];
         tunnels: { projectName: string; localUrl: string; publicUrl?: string; status: string; startedAt: string }[];
     }>({ dbConnections: [], sslCerts: [], tunnels: [] });
-    const [dnsData] = useState<DnsProxyData | null>(null);
+    const [dnsData, setDnsData] = useState<DnsProxyData | null>(null);
 
     const fetchData = useCallback(async () => {
         setRefreshing(true);
@@ -60,12 +60,13 @@ export function useDashboard() {
                 });
             }
 
-            const [logsData] = await Promise.all([
+            const [logsData, dnsProxyData] = await Promise.all([
                 dashboardService.getLogs(projectsData),
                 dashboardService.getDnsProxyData(),
             ]);
 
             setLogs(logsData);
+            setDnsData(dnsProxyData ?? null);
         } catch (err) {
             setError(err instanceof Error ? err.message : "Failed to load dashboard");
         } finally {

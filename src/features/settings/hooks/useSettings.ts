@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import { DEFAULT_CONFIG, loadUserConfig, saveUserConfig } from "../services/settingsService";
 import { AppSettings, FullUserConfig, UserProfile } from "../types";
@@ -8,9 +8,13 @@ export function useSettings() {
     const [saving, setSaving] = useState(false);
     const [saved, setSaved] = useState(false);
     const [config, setConfig] = useState<FullUserConfig>(DEFAULT_CONFIG);
+    const savedTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     useEffect(() => {
         loadConfig();
+        return () => {
+            if (savedTimer.current) clearTimeout(savedTimer.current);
+        };
     }, []);
 
     const loadConfig = async () => {
@@ -83,7 +87,8 @@ export function useSettings() {
         try {
             await saveUserConfig(config);
             setSaved(true);
-            setTimeout(() => setSaved(false), 2000);
+            if (savedTimer.current) clearTimeout(savedTimer.current);
+            savedTimer.current = setTimeout(() => setSaved(false), 2000);
         } catch (error) {
             console.error("Failed to save config:", error);
         } finally {

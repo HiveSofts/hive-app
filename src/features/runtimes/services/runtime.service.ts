@@ -38,9 +38,23 @@ export class RuntimeService {
         }
     }
 
+    private escapeForDoubleQuotedShell(input: string): string {
+        return input
+            .replace(/\\/g, "\\\\")
+            .replace(/"/g, '\\"')
+            .replace(/`/g, "\\`")
+            .replace(/\$/g, "\\$");
+    }
+
+    private assertSafePackageSpec(spec: string): void {
+        if (!/^[A-Za-z0-9_./:@^~<>=*,\s-]+$/.test(spec)) {
+            throw new Error(`Invalid package specifier: ${spec}`);
+        }
+    }
+
     async executePhpCode(code: string): Promise<string> {
         try {
-            const escaped = code.replace(/"/g, '\\"');
+            const escaped = this.escapeForDoubleQuotedShell(code);
             return await this.executeCommand(`php -r "${escaped}"`);
         } catch (error) {
             console.error("executePhpCode error:", error);
@@ -114,13 +128,22 @@ export class RuntimeService {
 
     async restartPhp(): Promise<string> {
         try {
+            let serviceName = "php-fpm";
+            try {
+                const info = await this.getPhpVersionInfo();
+                const match = info.version?.match(/(\d+\.\d+)/);
+                if (match) {
+                    serviceName = `php${match[1]}-fpm`;
+                }
+            } catch {
+                // ignore: fall back to the generic php-fpm service name
+            }
             return await this.executeCommand(
-                "sudo systemctl restart php8.5-fpm || " +
-                    "sudo service php8.5-fpm restart || " +
-                    "sudo systemctl restart php-fpm || " +
-                    "sudo systemctl restart php8.5-fpm || " +
-                    "sudo systemctl restart php8.5-fpm.service || " +
-                    "echo 'Please restart PHP manually'"
+                `sudo systemctl restart ${serviceName} || ` +
+                    `sudo service ${serviceName} restart || ` +
+                    `sudo systemctl restart php-fpm || ` +
+                    `sudo service php-fpm restart || ` +
+                    `echo 'Please restart PHP manually'`
             );
         } catch (error) {
             console.error("restartPhp error:", error);
@@ -148,7 +171,13 @@ export class RuntimeService {
 
     async composerInstall(projectPath: string, packages?: string[]): Promise<string> {
         try {
-            const args = packages ? `require ${packages.join(" ")}` : "install";
+            let args: string;
+            if (packages && packages.length > 0) {
+                packages.forEach((pkg) => this.assertSafePackageSpec(pkg));
+                args = `require ${packages.join(" ")}`;
+            } else {
+                args = "install";
+            }
             return await this.executeCommand(
                 `composer ${args} --no-interaction --no-progress`,
                 projectPath
@@ -161,6 +190,7 @@ export class RuntimeService {
 
     async composerRemove(projectPath: string, packageName: string): Promise<string> {
         try {
+            this.assertSafePackageSpec(packageName);
             return await this.executeCommand(
                 `composer remove ${packageName} --no-interaction --no-progress`,
                 projectPath
@@ -173,7 +203,13 @@ export class RuntimeService {
 
     async composerUpdate(projectPath: string, packageName?: string): Promise<string> {
         try {
-            const args = packageName ? `update ${packageName}` : "update";
+            let args: string;
+            if (packageName) {
+                this.assertSafePackageSpec(packageName);
+                args = `update ${packageName}`;
+            } else {
+                args = "update";
+            }
             return await this.executeCommand(
                 `composer ${args} --no-interaction --no-progress`,
                 projectPath
