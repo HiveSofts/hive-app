@@ -12,7 +12,7 @@ export const projectService = {
     },
 
     async getById(id: string): Promise<Project | null> {
-        const projects = await this.listAll();
+        const projects = await projectService.listAll();
         return projects.find((p) => p.id === id) || null;
     },
 

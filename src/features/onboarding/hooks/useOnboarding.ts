@@ -73,7 +73,12 @@ export function useOnboarding() {
     const nextStep = async (stepData: Partial<UserConfig>) => {
         if (step === 5) {
             const finalConfig = { ...config, ...stepData, onboarding_complete: true };
-            await invoke("complete_onboarding", { config: finalConfig });
+            try {
+                await invoke("complete_onboarding", { config: finalConfig });
+            } catch (error) {
+                console.error("Failed to complete onboarding:", error);
+                throw error;
+            }
             window.location.href = "/";
         } else {
             await saveConfig(stepData);

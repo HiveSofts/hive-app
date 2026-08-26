@@ -851,18 +851,18 @@ export const DB_PRESETS: DBPreset[] = [
     },
     {
         id: "opensearch-dashboard",
-        label: "Grafana",
-        color: "#f97316",
+        label: "OpenSearch Dashboards",
+        color: "#3b82f6",
         icon: "📊",
-        defaultPort: 3000,
+        defaultPort: 5601,
         defaultVersion: "latest",
-        versions: ["latest", "11.4.0", "11.2.0"],
+        versions: ["latest", "2.18.0", "2.15.0", "2.11.0"],
         hasRootPassword: false,
         hasDatabase: false,
         hasUser: true,
         hasPassword: true,
         category: "logs",
-        description: "Observability dashboards for metrics and logs",
+        description: "Visualization and dashboards for OpenSearch",
     },
 ];
 

@@ -1,6 +1,6 @@
 import { cn } from "@/core/lib/utils";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { AnimatePresence, motion } from "framer-motion";
 import {
@@ -475,35 +475,37 @@ function DependencyInstaller({ onComplete }: { onComplete: () => void }) {
     const [isInstalling, setIsInstalling] = useState(false);
     const [done, setDone] = useState(false);
 
+    const onCompleteRef = useRef(onComplete);
+    onCompleteRef.current = onComplete;
+
     useEffect(() => {
+        let cancelled = false;
+        let timer: ReturnType<typeof setTimeout> | undefined;
         const install = async () => {
             setIsInstalling(true);
             try {
                 const result = await checkAndInstallDependencies();
+                if (cancelled) return;
                 setStatuses(result);
-                const allSuccess = result.every((r) => r.success);
-                if (allSuccess) {
-                    setDone(true);
-                    setTimeout(() => {
-                        onComplete();
-                    }, 1000);
-                } else {
-                    setDone(true);
-                    setTimeout(() => {
-                        onComplete();
-                    }, 2000);
-                }
+                setDone(true);
             } catch (error) {
                 console.error("Dependency installation failed:", error);
                 setDone(true);
-                setTimeout(() => {
-                    onComplete();
-                }, 2000);
+            } finally {
+                if (!cancelled) setIsInstalling(false);
             }
-            setIsInstalling(false);
+            if (!cancelled) {
+                timer = setTimeout(() => {
+                    onCompleteRef.current();
+                }, 1500);
+            }
         };
         install();
-    }, [onComplete]);
+        return () => {
+            cancelled = true;
+            if (timer) clearTimeout(timer);
+        };
+    }, []);
 
     if (isInstalling || statuses.length > 0) {
         return (
@@ -662,7 +664,7 @@ export function Step5Runtime({ onNext }: Step6RuntimeProps) {
                     type: "php",
                     version: selectedPhp,
                     url,
-                    destPath: hiveInstallPath("php", selectedPhp),
+                    destPath: await expandHomePath(hiveInstallPath("php", selectedPhp)),
                     archiveType: archiveType || "zip",
                 });
         }
@@ -676,7 +678,7 @@ export function Step5Runtime({ onNext }: Step6RuntimeProps) {
                     type: "node",
                     version: selectedNode,
                     url,
-                    destPath: hiveInstallPath("node", selectedNode),
+                    destPath: await expandHomePath(hiveInstallPath("node", selectedNode)),
                     archiveType,
                 });
         }
@@ -1024,7 +1026,6 @@ export function Step5Runtime({ onNext }: Step6RuntimeProps) {
                                             <Button
                                                 onClick={async () => {
                                                     await onNext(await getResultData());
-                                                    window.location.href = "/";
                                                 }}
                                                 className="w-full bg-amber-500 hover:bg-amber-600 text-white gap-2 transition-all duration-300 hover:shadow-lg hover:shadow-amber-500/25"
                                             >

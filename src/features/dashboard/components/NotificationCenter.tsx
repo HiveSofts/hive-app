@@ -62,7 +62,7 @@ export function NotificationCenter() {
                     level: e.level,
                     title: e.title,
                     body: e.message,
-                    time: new Date(e.created_at).toLocaleString("fa-IR"),
+                    time: new Date(e.created_at).toLocaleString(),
                     read: e.read,
                     category: e.category,
                 }))

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 import { disable, enable, isEnabled } from "@tauri-apps/plugin-autostart";
 
@@ -15,22 +15,21 @@ export function StartupTab({ settings, updateSetting }: StartupTabProps) {
     const [autostartEnabled, setAutostartEnabled] = useState(false);
     const [loading, setLoading] = useState(true);
 
-    useEffect(() => {
-        checkAutostartStatus();
-    }, []);
-
-    const checkAutostartStatus = async () => {
+    const checkAutostartStatus = useCallback(async () => {
         setLoading(true);
         try {
             const enabled = await isEnabled();
             setAutostartEnabled(enabled);
-            updateSetting("launchOnLogin", enabled);
         } catch (error) {
             console.error("Failed to check autostart:", error);
         } finally {
             setLoading(false);
         }
-    };
+    }, []);
+
+    useEffect(() => {
+        checkAutostartStatus();
+    }, [checkAutostartStatus]);
 
     const toggleAutostart = async (checked: boolean) => {
         try {

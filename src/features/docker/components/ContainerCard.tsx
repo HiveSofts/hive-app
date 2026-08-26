@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
+import { toast } from "sonner";
 
 import { DB_PRESETS } from "../services/config/dbPresets";
 import { ContainerInfo } from "../services/types";
@@ -79,6 +80,8 @@ export function ContainerCard({
         setActionLoading(label);
         try {
             await fn();
+        } catch (error) {
+            toast.error(`Failed to ${label.toLowerCase()}: ${error instanceof Error ? error.message : String(error)}`);
         } finally {
             setActionLoading(null);
         }

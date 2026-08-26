@@ -15,10 +15,16 @@ import {
 import { Metric } from "../types";
 
 const CHART_RANGES = ["1 min", "15 min", "1 hr"] as const;
+const RANGE_POINTS: Record<(typeof CHART_RANGES)[number], number> = {
+    "1 min": 15,
+    "15 min": 30,
+    "1 hr": 45,
+};
 
 export function ResourceChart({ metrics }: { metrics: Metric[] }) {
     const [range, setRange] = useState<(typeof CHART_RANGES)[number]>("1 min");
     const [active, setActive] = useState({ cpu: true, ram: true, net_in: false, net_out: false });
+    const visibleMetrics = metrics.slice(-RANGE_POINTS[range]);
     const series = [
         { key: "cpu", name: "CPU %", color: "#f97316", unit: "%" },
         { key: "ram", name: "RAM MB", color: "#3b82f6", unit: " MB" },
@@ -77,7 +83,7 @@ export function ResourceChart({ metrics }: { metrics: Metric[] }) {
                 </div>
             </div>
             <ResponsiveContainer width="100%" height={200}>
-                <AreaChart data={metrics} margin={{ top: 4, right: 4, bottom: 0, left: -20 }}>
+                <AreaChart data={visibleMetrics} margin={{ top: 4, right: 4, bottom: 0, left: -20 }}>
                     <defs>
                         {series.map((s) => (
                             <linearGradient

@@ -34,6 +34,7 @@ import { Button } from "@/components/ui/button";
 import { useDocker } from "./hooks/useDocker";
 import * as dockerService from "./services/docker.service";
 import { ContainerInfo } from "./services/types";
+import { toast } from "sonner";
 
 interface ContainerCardProps {
     container: ContainerInfo;
@@ -101,6 +102,8 @@ function ContainerRow({
         setBusy(label);
         try {
             await fn();
+        } catch (error) {
+            toast.error(`Failed to ${label.toLowerCase()}: ${error instanceof Error ? error.message : String(error)}`);
         } finally {
             setBusy(null);
             setShowMenu(false);

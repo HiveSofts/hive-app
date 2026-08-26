@@ -36,7 +36,7 @@ export function DnsProxy({ data }: { data: DnsProxyData | null }) {
                     <div className="flex justify-between">
                         <span>Proxied reqs</span>
                         <span className={cn("tabular-nums", proxyActive ? "text-emerald-500" : "text-muted-foreground")}>
-                            {state?.proxyReqs.toLocaleString() || 0}
+                            {state?.proxyReqs?.toLocaleString() ?? 0}
                         </span>
                     </div>
                 </div>

@@ -22,8 +22,16 @@ export function hiveInstallPath(type: "php" | "node", version: string): string {
 }
 
 export function formatBytes(bytes: number): string {
-    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
-    return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
+    if (!Number.isFinite(bytes) || bytes <= 0) return "0 B";
+    const units = ["B", "KB", "MB", "GB", "TB"];
+    let value = bytes;
+    let unitIndex = 0;
+    while (value >= 1024 && unitIndex < units.length - 1) {
+        value /= 1024;
+        unitIndex += 1;
+    }
+    const decimals = unitIndex === 0 ? 0 : value >= 100 || unitIndex >= 3 ? 1 : 1;
+    return `${value.toFixed(decimals)} ${units[unitIndex]}`;
 }
 
 export function getPhpDownloadUrl(entry: PhpManifest["php"][string], os: OS): string | null {

@@ -13,7 +13,6 @@ import {
     Database,
     Eye,
     EyeOff,
-    HardDrive,
     Info,
     Layers,
     Loader2,
@@ -46,6 +45,7 @@ import {
     CreateDatabaseContainerRequest,
     DBPreset,
 } from "./services/types";
+import { toast } from "sonner";
 
 const GITHUB_API_URL =
     "https://api.github.com/repos/HiveSofts/hive-docker-containers/contents/databases-container";
@@ -1079,6 +1079,8 @@ function DatabaseCard({
         setBusy(label);
         try {
             await fn();
+        } catch (error) {
+            toast.error(`Failed to ${label.toLowerCase()}: ${error instanceof Error ? error.message : String(error)}`);
         } finally {
             setBusy(null);
         }
@@ -1389,12 +1391,6 @@ export default function DockerDatabaseManagerPage() {
                         label: "Total",
                         value: containers.length,
                         color: "border-blue-500/20 bg-blue-500/5",
-                    },
-                    {
-                        icon: <HardDrive className="w-4 h-4 text-purple-500" />,
-                        label: "Volumes",
-                        value: containers.length,
-                        color: "border-purple-500/20 bg-purple-500/5",
                     },
                     {
                         icon: <Layers className="w-4 h-4 text-amber-500" />,

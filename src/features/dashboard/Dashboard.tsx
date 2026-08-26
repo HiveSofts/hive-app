@@ -1,7 +1,8 @@
 import { useState } from "react";
 
-import { Bell, Layers, TrendingUp } from "lucide-react";
+import { Bell, Globe, Layers, TrendingUp } from "lucide-react";
 
+import { DnsProxy } from "./components/DnsProxy";
 import { NotificationCenter } from "./components/NotificationCenter";
 import { ProjectCards } from "./components/ProjectCards";
 import { QuickStats } from "./components/QuickStats";
@@ -11,7 +12,7 @@ import { StatusBar } from "./components/StatusBar";
 import { useDashboard } from "./hooks/useDashboard";
 
 export default function Dashboard() {
-    const { metrics, refreshing, health, projects, loading, error, refresh} =
+    const { metrics, refreshing, health, projects, loading, error, refresh, dnsData } =
         useDashboard();
 
     const date = new Date().toLocaleDateString("en-US", {
@@ -93,6 +94,9 @@ export default function Dashboard() {
 
                 {/* Right Column */}
                 <div className="space-y-5">
+                    <Section title="Network" icon={<Globe className="w-4 h-4" />}>
+                        <DnsProxy data={dnsData} />
+                    </Section>
                     {showNotifications && (
                         <Section
                             title="Notifications"

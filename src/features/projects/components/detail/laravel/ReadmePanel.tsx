@@ -67,6 +67,14 @@ export function ReadmePanel({ content, projectPath }: ReadmePanelProps) {
 
     const lines = readmeContent.split("\n");
 
+    const escapeHtml = (input: string): string =>
+        input
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;")
+            .replace(/'/g, "&#39;");
+
     return (
         <div className="rounded-xl border bg-card overflow-hidden">
             <button
@@ -129,10 +137,11 @@ export function ReadmePanel({ content, projectPath }: ReadmePanelProps) {
                             );
                         if (line.trim() === "") return <div key={i} className="h-2" />;
                         const formatted = line
-                            .replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>")
+                            .replace(/\*\*(.*?)\*\*/g, (_m, t) => `<strong>${escapeHtml(t)}</strong>`)
                             .replace(
                                 /`(.*?)`/g,
-                                '<code class="bg-muted px-1 rounded text-[11px] font-mono">$1</code>'
+                                (_m, t) =>
+                                    `<code class="bg-muted px-1 rounded text-[11px] font-mono">${escapeHtml(t)}</code>`
                             );
                         return (
                             <p
