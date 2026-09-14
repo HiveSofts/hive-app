@@ -1,7 +1,7 @@
 use crate::modules::common::path::hive_base_dir;
 use crate::types::UserConfig;
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 /// Returns the path to the Hive configuration file.
 ///

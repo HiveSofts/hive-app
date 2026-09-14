@@ -1056,19 +1056,24 @@ pub async fn execute_sql_in_container(
     // Build the client argv directly — no shell interpolation. Credentials and
     // the query are passed as separate argv elements to `docker exec`, so a
     // malicious query cannot inject additional commands.
+    let mysql_user_arg = format!("-u{}", username);
+    let mysql_pass_arg = format!("-p{}", password);
+    let pg_user_arg = username.clone();
+    let db_arg = database.clone();
+    
     let client_args: Vec<&str> = match db_type.as_str() {
         "mysql" | "mariadb" => vec![
             "mysql",
-            &format!("-u{}", username),
-            &format!("-p{}", password),
-            &database,
+            &mysql_user_arg,
+            &mysql_pass_arg,
+            &db_arg,
             "--batch",
             "--raw",
             "-e",
             &query,
         ],
         "postgres" | "postgresql" => vec![
-            "psql", "-U", &username, "-d", &database, "-tA", "-c", &query,
+            "psql", "-U", &pg_user_arg, "-d", &db_arg, "-tA", "-c", &query,
         ],
         _ => return Err("Unsupported database type for SQL execution".to_string()),
     };
@@ -1191,31 +1196,40 @@ pub async fn backup_database_container(
     // copy the file out with `docker cp`. This avoids both shell interpolation
     // of credentials and the fragile `> /tmp/backup.sql && cat` redirection.
     let in_container_path = "/tmp/hive_backup.sql";
+    
+    // Store formatted strings in variables to extend their lifetime
+    let mysql_user_arg = format!("-u{}", username);
+    let mysql_pass_arg = format!("-p{}", password);
+    let pg_user_arg = username.clone();
+    let db_arg = database.clone();
+    let mongo_user_arg = username.clone();
+    let mongo_pass_arg = password.clone();
+    
     let dump_args: Vec<&str> = match db_type.as_str() {
         "mysql" | "mariadb" => vec![
             "mysqldump",
-            &format!("-u{}", username),
-            &format!("-p{}", password),
-            &database,
+            &mysql_user_arg,
+            &mysql_pass_arg,
+            &db_arg,
             "--result-file",
             in_container_path,
         ],
         "postgres" | "postgresql" => vec![
             "pg_dump",
             "-U",
-            &username,
+            &pg_user_arg,
             "-f",
             in_container_path,
-            &database,
+            &db_arg,
         ],
         "mongodb" => vec![
             "mongodump",
             "--username",
-            &username,
+            &mongo_user_arg,
             "--password",
-            &password,
+            &mongo_pass_arg,
             "--db",
-            &database,
+            &db_arg,
             "--archive",
             in_container_path,
         ],

@@ -7,7 +7,7 @@ pub use kill::*;
 use once_cell::sync::Lazy;
 use std::collections::HashMap;
 use std::process::Child;
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 
 /// A process group keyed by a logical handle (typically the project path).
 ///
@@ -16,13 +16,13 @@ use std::sync::Mutex;
 /// reaper thread removes entries as soon as the child exits, so the map never
 /// grows stale and stop operations can rely on it.
 pub struct ProcessRegistry {
-    map: Mutex<HashMap<String, Child>>,
+    map: Arc<Mutex<HashMap<String, Child>>>,
 }
 
 impl ProcessRegistry {
     pub fn new() -> Self {
         let registry = Self {
-            map: Mutex::new(HashMap::new()),
+            map: Arc::new(Mutex::new(HashMap::new())),
         };
         registry.start_reaper();
         registry
@@ -130,18 +130,45 @@ impl ProcessRegistry {
     }
 
     fn start_reaper(&self) {
-        let map = &self.map;
+        // Clone the Arc reference to move into the thread
+        let map_clone = Arc::clone(&self.map);
         std::thread::spawn(move || {
             loop {
                 std::thread::sleep(std::time::Duration::from_secs(2));
-                if let Ok(mut guard) = map.lock() {
-                    let dead: Vec<String> = guard
-                        .iter()
-                        .filter(|(_, child)| child.try_wait().map(|s| s.is_some()).unwrap_or(false))
-                        .map(|(key, _)| key.clone())
-                        .collect();
-                    for key in dead {
-                        guard.remove(&key);
+                
+                // Get a snapshot of all entries to check
+                let entries_to_check: Vec<(String, std::process::Child)> = {
+                    if let Ok(mut guard) = map_clone.lock() {
+                        // We'll temporarily take out all children to check them
+                        // Then put back the ones that are still running
+                        guard.drain().collect()
+                    } else {
+                        Vec::new()
+                    }
+                };
+                
+                // Check each child and put back the ones that are still running
+                let mut still_running = Vec::new();
+                for (key, mut child) in entries_to_check {
+                    // Check if the child has exited
+                    match child.try_wait() {
+                        Ok(Some(_exit_status)) => {
+                            // Child has exited, don't put it back
+                        }
+                        Ok(None) => {
+                            // Child is still running, put it back
+                            still_running.push((key, child));
+                        }
+                        Err(_) => {
+                            // Error checking child, assume it's gone
+                        }
+                    }
+                }
+                
+                // Put back the still-running children
+                if let Ok(mut guard) = map_clone.lock() {
+                    for (key, child) in still_running {
+                        guard.insert(key, child);
                     }
                 }
             }

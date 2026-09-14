@@ -5,7 +5,7 @@ pub mod models;
 use once_cell::sync::Lazy;
 use rusqlite::{Connection, Result};
 use std::path::PathBuf;
-use std::sync::Mutex;
+use std::sync::{Mutex, MutexGuard};
 
 pub use commands::*;
 pub use models::*;
@@ -56,7 +56,7 @@ fn hive_dir() -> PathBuf {
 /// if the mutex has been poisoned (a thread panicked while holding it).
 pub fn db() -> rusqlite::Result<MutexGuard<'static, Connection>> {
     DB.lock()
-        .map_err(|_| rusqlite::Error::InvalidQuery("database mutex poisoned".into()))
+        .map_err(|_| rusqlite::Error::SqliteFailure(rusqlite::ffi::Error::new(rusqlite::ffi::SQLITE_ERROR), Some("database mutex poisoned".to_string())))
 }
 
 // Re-export everything for easy access

@@ -101,7 +101,7 @@ fn extract_entries(
                     None => continue, // outside the top-level folder — skip
                 }
             }
-            None => name.to_string(),
+            None => name,
         };
 
         let out_path = resolve_entry(&dest_canon, &relative)?;

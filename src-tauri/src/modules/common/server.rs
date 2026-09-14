@@ -75,15 +75,24 @@ pub fn pipe_to_log(
     stderr: std::process::ChildStderr,
     project_name: String,
 ) {
-    let spawn_writer = |reader: BufReader<_>, err: bool, name: String| {
+    let spawn_stdout_writer = |reader: BufReader<std::process::ChildStdout>, name: String| {
         thread::spawn(move || {
             for line in reader.lines().map_while(Result::ok) {
-                append_log(&name, &line, err);
+                append_log(&name, &line, false);
             }
         });
     };
-    spawn_writer(BufReader::new(stdout), false, project_name.clone());
-    spawn_writer(BufReader::new(stderr), true, project_name);
+    
+    let spawn_stderr_writer = |reader: BufReader<std::process::ChildStderr>, name: String| {
+        thread::spawn(move || {
+            for line in reader.lines().map_while(Result::ok) {
+                append_log(&name, &line, true);
+            }
+        });
+    };
+    
+    spawn_stdout_writer(BufReader::new(stdout), project_name.clone());
+    spawn_stderr_writer(BufReader::new(stderr), project_name);
 }
 
 /// Whether something is listening on `127.0.0.1:port`.
