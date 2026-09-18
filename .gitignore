@@ -13,8 +13,11 @@ dist-ssr
 *.local
 build
 src-tauri/target
-# Lockfile for the (deprecated) bun package manager
-bun.lock
+# Bun
+# bun.lock (v1 text lockfile) is the canonical lockfile — always commit it.
+# Ignore the legacy binary lockfile and npm artifacts to prevent mixed package managers.
+bun.lockb
+package-lock.json
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

@@ -1,0 +1,16 @@
+# Bun configuration — hive-app uses Bun as its canonical package manager.
+# See https://bun.sh/docs/runtime/bunfig and `packageManager` in package.json.
+#
+# Conventions:
+# - `bun.lock` (text lockfile) is committed. Do not commit `package-lock.json`.
+# - Local dev: `bun install` may update `bun.lock`.
+# - CI / release: `bun install --frozen-lockfile` (enforced in .github/workflows).
+
+[install]
+# Always write the text-based `bun.lock` (Bun >=1.2 default). Keeps diffs reviewable.
+saveTextLockfile = true
+# Keep local installs flexible; CI passes `--frozen-lockfile` explicitly.
+frozenLockfile = false
+# Single-package Vite + Tauri app: hoisted `node_modules` matches the
+# expectations of Vite, ESLint, Vitest, and `@tauri-apps/cli`.
+linker = "hoisted"
