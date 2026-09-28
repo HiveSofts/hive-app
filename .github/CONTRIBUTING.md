@@ -38,21 +38,31 @@ git push origin feature/your-feature-name
 
 ## Requirements
 
+- Bun >= 1.2 (canonical package manager, see `packageManager` in `package.json`)
 - Rust (latest stable)
-- Bun
-- Node.js
 - Git
+
+> Node.js is not required. Use Bun for all install / run / test commands
+> to keep `bun.lock` as the single source of truth. Do not commit
+> `package-lock.json` (`npm ci`, `npm install`).
 
 ## Install
 
 ```bash
-bun install
+bun install --frozen-lockfile
 ```
 
 Run the application:
 
 ```bash
 bun run tauri dev
+```
+
+Run quality gates:
+
+```bash
+bun run ci:quality
+bun run build
 ```
 
 ---

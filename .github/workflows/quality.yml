@@ -20,11 +20,10 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Setup Node
-        uses: actions/setup-node@v4
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
         with:
-          node-version: 22
-          cache: npm
+          bun-version: latest
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
@@ -49,16 +48,16 @@ jobs:
             librsvg2-dev
 
       - name: Install Dependencies
-        run: npm ci
+        run: bun install --frozen-lockfile
 
       - name: Typecheck
-        run: npm run typecheck
+        run: bun run typecheck
 
       - name: ESLint
-        run: npm run lint
+        run: bun run lint
 
       - name: Frontend tests
-        run: npm run test
+        run: bun run test
 
       - name: Rust Format
         run: cargo fmt --manifest-path src-tauri/Cargo.toml -- --check

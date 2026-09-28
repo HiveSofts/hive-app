@@ -3,6 +3,10 @@
     "private": true,
     "version": "0.1.0",
     "type": "module",
+    "packageManager": "bun@1.2.21",
+    "engines": {
+        "bun": ">=1.2.0"
+    },
     "scripts": {
         "dev": "vite",
         "build": "tsc && vite build",
@@ -18,7 +22,8 @@
         "lint:fix": "eslint . --fix",
         "test": "vitest run",
         "test:watch": "vitest",
-        "ci:quality": "npm run typecheck && npm run lint && npm run test"
+        "ci:quality": "bun run typecheck && bun run lint && bun run test",
+        "prepare": "husky"
     },
     "lint-staged": {
         "*.{js,jsx,ts,tsx,json,css,scss,md}": [
